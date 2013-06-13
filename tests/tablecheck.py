@@ -996,12 +996,12 @@ def test(mask, value, mode, limit=1000):
             continue
 
         try:
-            if mode == arm.MODE_ARM:
-                llvm_out = llvm.disassemble(opcode, mode=arm.MODE_ARM).lower()
-                inst_theirs = objdump.disassemble(opcode, mode=arm.MODE_ARM).lower().replace(".n", "")
+            if mode == ARMMode.THUMB:
+                llvm_out = llvm.disassemble(opcode, mode=ARMMode.THUMB).lower()
+                inst_theirs = objdump.disassemble(opcode, mode=ARMMode.THUMB).lower().replace(".n", "")
             else:
-                llvm_out = llvm.disassemble(opcode, mode=arm.MODE_THUMB).lower()
-                inst_theirs = objdump.disassemble(opcode, mode=arm.MODE_THUMB).lower().replace(".n", "")
+                llvm_out = llvm.disassemble(opcode, mode=ARMMode.ARM).lower()
+                inst_theirs = objdump.disassemble(opcode, mode=ARMMode.ARM).lower().replace(".n", "")
 
             inst = d.disassemble(opcode, mode=mode)
             if not inst:
@@ -1018,6 +1018,7 @@ def test(mask, value, mode, limit=1000):
             
             our_oprand = inst_ours.split(" ")[0]
             their_oprand = llvm_out.split(" ")[0]
+            objdump_oprand = inst_theirs.split(" ")[0]
             our_args = inst_ours.split(" ")[1:]
             their_args = llvm_out.split(" ")[1:]
             
@@ -1037,6 +1038,17 @@ def test(mask, value, mode, limit=1000):
 
                 if their_oprand == "undefined":
                     ok += 1
+                    
+                    # Sometimes LLVM fails
+                    if our_oprand == objdump_oprand:
+                        continue    
+                    
+                    print "# OURS: ", inst_ours
+                    print "# OBJD: ", inst_theirs
+                    print "# LLVM: ", llvm_out
+                    print "opcode = 0x%.8x" % opcode 
+                    print
+
                     continue
                 
                 bad += 1
@@ -1060,12 +1072,12 @@ def test(mask, value, mode, limit=1000):
                 
             else:
                 ok += 1
-#                 print "# OK OK OK"
-#                 print "# OURS: ", inst_ours
-#                 print "# OBJD: ", inst_theirs
-#                 print "# LLVM: ", llvm_out
-#                 print "opcode = 0x%.8x" % opcode 
-#                 print
+                print "# OK OK OK"
+                print "# OURS: ", inst_ours
+                print "# OBJD: ", inst_theirs
+                print "# LLVM: ", llvm_out
+                print "opcode = 0x%.8x" % opcode 
+                print
 
         except arm.InstructionNotImplementedException, e:
             not_implemented += 1
@@ -1125,24 +1137,29 @@ def test(mask, value, mode, limit=1000):
             
     return 0
 
+from constants.arm import ARMMode
+
 def main():
 #     for i in xrange(0, len(arm_opcodes)):
 #         print "=" * 80
 #         print "INDEX: %d" % i
 #         mask, value = arm_opcodes[i]
-#         test(mask, value, arm.MODE_ARM, limit=100)
+#         test(mask, value, ARMMode.THUMB, limit=100)
 
 #     mask, value = (0xfffffe00, 0x00001800)
-#     test(mask, value, arm.MODE_THUMB, limit=10)
+#     test(mask, value, ARMMode.THUMB, limit=10)
 #     return
 
-    for i in xrange(0, len(thumb_opcodes)):
-    #i = 18
-    #for i in xrange(i, i+1):
-        print "# " + ("=" * 80)
-        print "# INDEX: %d" % i        
-        mask, value = thumb_opcodes[i]
-        test(mask, value, arm.MODE_THUMB, limit=500)
+#     for i in xrange(0, len(thumb_opcodes)):
+#     #i = 18
+#     #for i in xrange(i, i+1):
+#         print "# " + ("=" * 80)
+#         print "# INDEX: %d" % i        
+#         mask, value = thumb_opcodes[i]
+#         test(mask, value, ARMMode.THUMB, limit=500)
+    
+    mask, value = (0x0fffffff, 0x0320f004)
+    test(mask, value, ARMMode.ARM, limit=100)
     
 if __name__ == "__main__":
     main()

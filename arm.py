@@ -56,220 +56,15 @@ Conditional execution
     exceptions being taken, but has no other effect.
     
 """
-from constants.instructions import *
-
-MODE_THUMB = 0
-MODE_ARM = 1
-
-# ARMEncoding
-eEncodingA1 = 0
-eEncodingA2 = 1
-eEncodingA3 = 2
-eEncodingA4 = 3
-eEncodingA5 = 4
-eEncodingT1 = 5
-eEncodingT2 = 6
-eEncodingT3 = 7
-eEncodingT4 = 8
-eEncodingT5 = 9
-
-ARMv4    = 1 << 0
-ARMv4T   = 1 << 1
-ARMv5T   = 1 << 2
-ARMv5TE  = 1 << 3
-ARMv5TEJ = 1 << 4
-ARMv6    = 1 << 5
-ARMv6K   = 1 << 6
-ARMv6T2  = 1 << 7
-ARMv7    = 1 << 8
-ARMv7S   = 1 << 9
-ARMv8    = 1 << 10
-ARMvAll  = 0xffffffff
-
-ARMv4All   = ARMv4   | ARMv4T
-ARMv5TAll  = ARMv5T  | ARMv5TE  | ARMv5TEJ
-ARMv5TEAll = ARMv5TE | ARMv5TEJ
-ARMv6All   = ARMv6   | ARMv6K   | ARMv6T2
-ARMv7All   = ARMv7   | ARMv7S
-ARMv8All   = ARMv8
-
-ARMV4T_ABOVE  = (ARMv4T   | ARMv5T   | ARMv5TE  | ARMv5TEJ | ARMv6   | ARMv6K  | ARMv6T2 | ARMv7  | ARMv7S | ARMv8)
-ARMV5_ABOVE   = (ARMv5T   | ARMv5TE  | ARMv5TEJ | ARMv6    | ARMv6K  | ARMv6T2 | ARMv7   | ARMv7S | ARMv8)
-ARMV5TE_ABOVE = (ARMv5TE  | ARMv5TEJ | ARMv6    | ARMv6K   | ARMv6T2 | ARMv7   | ARMv7S  | ARMv8)
-ARMV5J_ABOVE  = (ARMv5TEJ | ARMv6    | ARMv6K   | ARMv6T2  | ARMv7   | ARMv7S  | ARMv8)
-ARMV6_ABOVE   = (ARMv6    | ARMv6K   | ARMv6T2  | ARMv7    | ARMv7S  | ARMv8) 
-ARMV6T2_ABOVE = (ARMv6T2  | ARMv7    | ARMv7S   | ARMv8)
-ARMV7_ABOVE   = (ARMv7    | ARMv7S   | ARMv8)
-
-No_VFP = 0
-VFPv1 = (1 << 1)
-VFPv2 = (1 << 2)
-VFPv3 = (1 << 3)
-AdvancedSIMD = (1 << 4)
-
-VFPv1_ABOVE = (VFPv1 | VFPv2 | VFPv3 | AdvancedSIMD)
-VFPv2_ABOVE = (VFPv2 | VFPv3 | AdvancedSIMD)
-VFPv2v3 = (VFPv2 | VFPv3)
-
-eSize16 = 0
-eSize32 = 1
-
-# ARM shifter types
-SRType_LSL = 0 
-SRType_LSR = 1
-SRType_ASR = 2
-SRType_ROR = 3
-SRType_RRX = 4
-SRType_Invalid = -1
-
-def countTrailingZeros(n):
-    if not n:
-        return 0
-    
-    t = 0
-    while not n & 1:
-        n >>= 1
-        t += 1
-    
-    return t
-
-def get_bits(value, end, start):
-    return (value >> start) & ((1 << (end - start + 1)) - 1)
-
-def get_bit(value, bit):
-    return ((value >> bit) & 1)
-
-def BitCount(x):
-    c = 0
-    while x != 0:
-        c += 1
-        x &= x - 1
-    
-    return c
-
-def ror(val, N, shift):
-    m = shift % N;
-    return ((val >> m) | (val << (N - m))) & (2**N-1)
-
-# (imm32, carry_out) = ThumbExpandImm_C(imm12, carry_in)
-def ThumbExpandImm_C(opcode, carry_in):
-    i = get_bit(opcode, 26)
-    imm3 = get_bits(opcode, 14, 12)
-    abcdefgh = get_bits(opcode, 7, 0)
-    imm12 = i << 11 | imm3 << 8 | abcdefgh
-
-    if (get_bits(imm12, 11, 10) == 0):
-        
-        c = get_bits(imm12, 9, 8)
-        if c == 0:
-            imm32 = abcdefgh
-        elif c == 1:
-            imm32 = abcdefgh << 16 | abcdefgh
-        elif c == 2:
-            imm32 = abcdefgh << 24 | abcdefgh << 8;
-        elif c == 3:
-            imm32 = abcdefgh << 24 | abcdefgh << 16 | abcdefgh << 8 | abcdefgh 
-
-        carry_out = carry_in
-    else:
-        unrotated_value = 0x80 | get_bits(imm12, 6, 0)
-        imm32 = ror(unrotated_value, 32, get_bits(imm12, 11, 7))
-        carry_out = get_bit(imm32, 31)
-
-    return (imm32, carry_out)
-
-# (imm32, carry_out) = ARMExpandImm_C(imm12, carry_in)
-def ARMExpandImm_C(opcode, carry_in):
-    imm = get_bits(opcode, 7, 0)
-    amt = 2 * get_bits(opcode, 11, 8)
-    if (amt == 0):
-        imm32 = imm
-        carry_out = carry_in
-    else:
-        imm32 = ror(imm, 32, amt)
-        carry_out = get_bit(imm32, 31)
-
-    return (imm32, carry_out)
-
-def ThumbExpandImm(opcode):
-    imm32, carry_out = ThumbExpandImm_C(opcode, 0) 
-    return imm32
-
-def ThumbImm12(opcode):
-    i = get_bit(opcode, 26)
-    imm3 = get_bits(opcode, 14, 12)
-    imm8 = get_bits(opcode, 7, 0)
-    imm12 = i << 11 | imm3 << 8 | imm8
-    return imm12
-
-def ARMExpandImm(opcode):
-    imm32, carry_out = ARMExpandImm_C(opcode, 0)
-    return imm32
-
-def BadReg(n):
-    return n in [13, 15]
-
-def Align(val, alignment):
-    return alignment * (val / alignment)
-
-def SignExtend32(number, bits):
-    if number & (1 << (bits-1)):
-        mask = (1 << (32 - bits)) - 1
-        mask = mask << bits
-        return number | mask
-    
-    return number
-
-def DecodeRegShift(type_):
-    if type_ == 0:
-        return SRType_LSL
-    elif type_ == 1:
-        return SRType_LSR
-    elif type_ == 2:
-        return SRType_ASR
-    elif type_ == 3:
-        return SRType_ROR
-
-    return SRType_Invalid
-
-# A8.6.35 CMP (register) -- Encoding T3
-# Convenience function.
-def DecodeImmShiftThumb(opcode):
-    return DecodeImmShift(get_bits(opcode, 5, 4), get_bits(opcode, 14, 12) << 2 | get_bits(opcode, 7, 6))
-
-# A8.6.35 CMP (register) -- Encoding A1
-# Convenience function.
-def DecodeImmShiftARM(opcode):
-    return DecodeImmShift(get_bits(opcode, 6, 5), get_bits(opcode, 11, 7))
-
-# TODO: Falta esta
-# def Decode_ImmShift(shift_t, imm5):
-#     ARM_ShifterType dont_care;
-#     return Decode_ImmShift(shift_t, imm5, dont_care);
-
-def DecodeImmShift(type_, imm5):
-    if type_ == 0:
-        return (SRType_LSL, imm5)
-    
-    elif type_ == 1:
-        if imm5 == 0:
-            return (SRType_LSR, 32)
-        return (SRType_LSR, imm5)
-
-    elif type_ == 2:
-        if imm5 == 0:
-            return (SRType_ASR, 32)
-        return (SRType_ASR, imm5)
-
-    elif type_ == 3:
-        if imm5 == 0:
-            return (SRType_RRX, 1)
-        return (SRType_ROR, imm5)
-
-    return (SRType_Invalid, -1)
+from constants.arm import *
+from utils.bits import get_bit, get_bits, countTrailingZeros, BitCount, SignExtend32
+from utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, DecodeImmShiftThumb
+from utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
+from utils.arm import ThumbImm12
 
 class Instruction(object):
     def __init__(self, name, setflags, condition, operands, encoding, qualifiers=""):
+        self.id = 0
         self.name = name
         self.setflags = setflags
 
@@ -302,6 +97,9 @@ class InvalidInstructionEncoding(Exception):
 
     def __str__(self):
         return "Invalid encoding for instruction: %s" % self.message
+
+class InvalidModeException(Exception):
+    pass
 
 class UnpredictableInstructionException(Exception):
     def __init__(self, message=""):
@@ -547,7 +345,7 @@ class ARMDisasembler(object):
     SYNTAX_DEFAULT = 0
     SYNTAX_SIMPLE = 1
         
-    def __init__(self, mode=MODE_ARM, arch=ARMv7):
+    def __init__(self, mode=ARMMode.ARM, arch=ARMv7):
         """
         @mode: THUMB / ARM, the default is ARM
         """
@@ -1530,7 +1328,13 @@ class ARMDisasembler(object):
         
         # UMULL ARMv4All | ARMv5TAll | ARMv6All | ARMv7
         (0x0fe000f0, 0x00800090, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_umull),
-        )
+        
+        (0x0fffffff, 0x0320f001, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_yield),
+        (0x0fffffff, 0x0320f002, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfe),
+        (0x0fffffff, 0x0320f003, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfi),
+        (0x0fffffff, 0x0320f004, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sev),
+        
+    )
     
     def __test_arm_table__(self):
         pass
@@ -1573,10 +1377,10 @@ class ARMDisasembler(object):
 
         return ins
      
-    def disassemble(self, opcode, mode=MODE_ARM):
+    def disassemble(self, opcode, mode=ARMMode.ARM):
         """
         """        
-        if mode == MODE_THUMB:
+        if mode == ARMMode.THUMB:
             ins = self.decode_thumb(opcode)
         
         else:
@@ -1647,7 +1451,7 @@ class ARMDisasembler(object):
             increment = False
             wordhigher = False
 
-            operands = [Register(13, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
             ins = Instruction("SRSDB", False, None, operands, encoding)
         
         elif encoding == eEncodingT2:
@@ -1659,7 +1463,7 @@ class ARMDisasembler(object):
             increment = True
             wordhigher = False
 
-            operands = [Register(13, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
             ins = Instruction("SRSIA", False, None, operands, encoding)
 
         else:
@@ -1688,22 +1492,22 @@ class ARMDisasembler(object):
 
         if P == 0 and U == 0:
             # Decrement After.
-            operands = [Register(13, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
             ins = Instruction("SRSDA", False, condition, operands, encoding)
         
         elif P == 1 and U == 0:
             # Decrement Before.
-            operands = [Register(13, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
             ins = Instruction("SRSDB", False, condition, operands, encoding)
         
         elif P == 0 and U == 1:
             # Increment After. 
-            operands = [Register(13, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
             ins = Instruction("SRSIA", False, condition, operands, encoding)
         
         elif P == 1 and U == 1:
             # Increment Before.
-            operands = [Register(13, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
             ins = Instruction("SRSIB", False, condition, operands, encoding)
         
         return ins
@@ -1817,7 +1621,7 @@ class ARMDisasembler(object):
         raise InstructionNotImplementedException("decode_mrrc")
         
     def decode_cdp(self, opcode, encoding):
-        ins_id = cdp
+        ins_id = ARMInstruction.cdp
         condition = self.decode_condition_field(opcode)
         raise InstructionNotImplementedException("decode_cdp")
     
@@ -2921,7 +2725,7 @@ class ARMDisasembler(object):
         Syntax:
         BX{<c>}{<q>} <Rm>
         """
-        ins_id = bx
+        ins_id = ARMInstruction.bx
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -2957,7 +2761,7 @@ class ARMDisasembler(object):
         Syntax:
         BXJ{<c>}{<q>} <Rm>
         """
-        ins_id = bxj
+        ins_id = ARMInstruction.bxj
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -3000,7 +2804,7 @@ class ARMDisasembler(object):
         Syntax:
         CB{N}Z{<q>} <Rn>, <label>
         """
-        ins_id = cbz
+        ins_id = ARMInstruction.cbz
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -3038,7 +2842,7 @@ class ARMDisasembler(object):
         Syntax:
         CLZ{<c>}{<q>} <Rd>, <Rm>
         """
-        ins_id = clz
+        ins_id = ARMInstruction.clz
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -3094,7 +2898,7 @@ class ARMDisasembler(object):
         
         Unit-test: OK
         """        
-        ins_id = bkpt
+        ins_id = ARMInstruction.bkpt
         if encoding == eEncodingT1:
             imm = get_bits(opcode, 7, 0)
             condition = None
@@ -3207,7 +3011,7 @@ class ARMDisasembler(object):
 
         Unit-test: OK
         """
-        ins_id = blx_register
+        ins_id = ARMInstruction.blx_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -3250,7 +3054,7 @@ class ARMDisasembler(object):
         Syntax:
         AND{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
-        ins_id = and_register
+        ins_id = ARMInstruction.and_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -3392,7 +3196,7 @@ class ARMDisasembler(object):
             setflags = False
             
             condition = None
-            operands = [Register(13), Register(13), Immediate(imm7)]
+            operands = [Register(ARMRegister.SP), Register(ARMRegister.SP), Immediate(imm7)]
             ins = Instruction("SUB", setflags, condition, operands, encoding)
         
         elif encoding == eEncodingT2:
@@ -3410,7 +3214,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
             
             condition = None
-            operands = [Register(Rd), Register(13), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("SUB", setflags, condition, operands, encoding, ".W")
         
         elif encoding == eEncodingT3:
@@ -3428,7 +3232,7 @@ class ARMDisasembler(object):
             setflags = False
             
             condition = None
-            operands = [Register(Rd), Register(13), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("SUBW", setflags, condition, operands, encoding)
         
         elif encoding == eEncodingA1:
@@ -3441,7 +3245,7 @@ class ARMDisasembler(object):
             if Rd == 0b1111 and S == 1:
                 return self.decode_subs_pc_lr_arm(opcode, encoding)
         
-            operands = [Register(Rd), Register(13), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("SUB", setflags, condition, operands, encoding)
 
         else:
@@ -3501,7 +3305,7 @@ class ARMDisasembler(object):
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
         
-        operands = [Register(Rd), Register(13), Register(Rm), RegisterShift(shift_t, shift_n)]
+        operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
         ins = Instruction("SUB", setflags, condition, operands, encoding)
         
         return ins
@@ -3637,7 +3441,7 @@ class ARMDisasembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
-        ins_id = add_register
+        ins_id = ARMInstruction.add_register
         condition = self.decode_condition_field(opcode)
         
         S = get_bit(opcode, 20)
@@ -3672,7 +3476,7 @@ class ARMDisasembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
-        ins_id = add_register
+        ins_id = ARMInstruction.add_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -3756,7 +3560,7 @@ class ARMDisasembler(object):
         Syntax:
         ADC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
-        ins_id = adc_register
+        ins_id = ARMInstruction.adc_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -4066,7 +3870,7 @@ class ARMDisasembler(object):
         Syntax:
         CMN{<c>}{<q>} <Rn>, <Rm> {, <shift>}
         """
-        ins_id = cmn_register
+        ins_id = ARMInstruction.cmn_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -4406,7 +4210,7 @@ class ARMDisasembler(object):
         Syntax:
         ASR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
         """
-        ins_id = asr_register
+        ins_id = ARMInstruction.asr_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -4554,7 +4358,7 @@ class ARMDisasembler(object):
         Syntax:
         BIC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
-        ins_id = bic_register
+        ins_id = ARMInstruction.bic_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -4725,7 +4529,7 @@ class ARMDisasembler(object):
         Syntax:
         AND{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
-        ins_id = and_rsr
+        ins_id = ARMInstruction.and_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(opcode, encoding, "AND")
     
     def decode_eor_rsr(self, opcode, encoding):
@@ -4853,7 +4657,7 @@ class ARMDisasembler(object):
             imm32 = ARMExpandImm(opcode)
             register_form = False
          
-            operands = [Register(15), Register(Rn), Immediate(imm32)]
+            operands = [Register(ARMRegister.PC), Register(Rn), Immediate(imm32)]
             ins = Instruction(name, True, condition, operands, encoding)
          
         elif encoding == eEncodingA2:
@@ -4862,7 +4666,7 @@ class ARMDisasembler(object):
             Rm = get_bits(opcode, 3, 0)
             register_form = True
 
-            operands = [Register(15), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]            
+            operands = [Register(ARMRegister.PC), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]            
             ins = Instruction(name, True, condition, operands, encoding)
 
         else:
@@ -4895,7 +4699,7 @@ class ARMDisasembler(object):
         if self.InITBlock() and not self.LastInITBlock():
             raise UnpredictableInstructionException()
         
-        operands = [Register(15), Register(14), Immediate(imm8)]
+        operands = [Register(ARMRegister.PC), Register(ARMRegister.LR), Immediate(imm8)]
         ins = Instruction("SUBS", False, None, operands, encoding)
         return ins
     
@@ -4909,7 +4713,7 @@ class ARMDisasembler(object):
         ADD{S}{<c>}{<q>} {<Rd>,} SP, #<const> All encodings permitted
         ADDW{<c>}{<q>} {<Rd>,} SP, #<const>   Only encoding T4 is permitted
         """
-        ins_id = add_sp_plus_immediate
+        ins_id = ARMInstruction.add_sp_plus_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -4919,7 +4723,7 @@ class ARMDisasembler(object):
             imm32 = imm8 << 2
 
             condition = None
-            operands = [Register(Rd), Register(13), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("ADD", setflags, condition, operands, encoding)            
         
         elif encoding == eEncodingT2:
@@ -4929,7 +4733,7 @@ class ARMDisasembler(object):
             setflags = False
 
             condition = None
-            operands = [Register(13), Register(13), Immediate(imm32)]
+            operands = [Register(ARMRegister.SP), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("ADD", setflags, condition, operands, encoding)            
         
         elif encoding == eEncodingT3:
@@ -4948,7 +4752,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(13), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("ADD", setflags, condition, operands, encoding, ".W")            
         
         elif encoding == eEncodingT4:
@@ -4966,7 +4770,7 @@ class ARMDisasembler(object):
             setflags = S == 1
 
             condition = None
-            operands = [Register(Rd), Register(13), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("ADDW", setflags, condition, operands, encoding)            
         
         elif encoding == eEncodingA1:
@@ -4981,7 +4785,7 @@ class ARMDisasembler(object):
             setflags = S == 1
             imm32 = ARMExpandImm(opcode)
 
-            operands = [Register(Rd), Register(13), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
             ins = Instruction("ADD", setflags, condition, operands, encoding)            
 
         else:
@@ -4999,7 +4803,7 @@ class ARMDisasembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} SP, <Rm>{, <shift>}
         """
-        ins_id = add_sp_plus_register
+        ins_id = ARMInstruction.add_sp_plus_register
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -5018,7 +4822,7 @@ class ARMDisasembler(object):
             shift_n = 0
 
             condition = None
-            operands = [Register(Rd), Register(13), Register(Rm)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm)]
             ins = Instruction("ADD", setflags, condition, operands, encoding)            
             
         elif encoding == eEncodingT2:
@@ -5041,7 +4845,7 @@ class ARMDisasembler(object):
                 shift_n = 0
 
                 condition = None
-                operands = [Register(Rd), Register(13), Register(Rm)]
+                operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm)]
                 ins = Instruction("ADD", setflags, condition, operands, encoding)                  
 
             else:
@@ -5075,7 +4879,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(13), Register(Rm), RegisterShift(shift_t, shift_n)]
+            operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
             ins = Instruction("ADD", setflags, condition, operands, encoding, ".W")                  
 
         else:
@@ -5093,7 +4897,7 @@ class ARMDisasembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} SP, <Rm>{, <shift>}
         """
-        ins_id = add_sp_plus_register
+        ins_id = ARMInstruction.add_sp_plus_register
         condition = self.decode_condition_field(opcode)
         
         S = get_bit(opcode, 20)
@@ -5110,7 +4914,7 @@ class ARMDisasembler(object):
         
         setflags = S == 1
 
-        operands = [Register(Rd), Register(13), Register(Rm), RegisterShift(shift_t, shift_n)]
+        operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
         ins = Instruction("ADD", setflags, condition, operands, encoding)            
 
         return ins
@@ -5125,7 +4929,7 @@ class ARMDisasembler(object):
         Syntax: 
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
-        ins_id = add_rsr
+        ins_id = ARMInstruction.add_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(opcode, encoding, "ADD")
     
     def decode_adc_rsr(self, opcode, encoding):
@@ -5138,7 +4942,7 @@ class ARMDisasembler(object):
         Syntax:
         ADC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
-        ins_id = adc_rsr
+        ins_id = ARMInstruction.adc_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(opcode, encoding, "ADC")
     
     def decode_sbc_rsr(self, opcode, encoding):
@@ -5242,7 +5046,7 @@ class ARMDisasembler(object):
         Syntax:
         BIC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
-        ins_id = bic_rsr
+        ins_id = ARMInstruction.bic_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(opcode, encoding, "BIC")
 
     def decode_mvn_rsr(self, opcode, encoding):
@@ -5286,7 +5090,7 @@ class ARMDisasembler(object):
         Syntax:
         AND{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
-        ins_id = and_immediate
+        ins_id = ARMInstruction.and_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -5391,7 +5195,7 @@ class ARMDisasembler(object):
         ADD{<c>}{<q>} <Rd>, PC, #<const>   Alternative for encodings T1, T3, A1
         SUB{<c>}{<q>} <Rd>, PC, #<const>   Alternative for encoding T2, A2
         """
-        ins_id = adr
+        ins_id = ARMInstruction.adr
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -5400,7 +5204,7 @@ class ARMDisasembler(object):
             imm32 = get_bits(opcode, 7, 0) << 2
             
             condition = None
-            operands = [Register(Rd), Register(15), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
             ins = Instruction("ADD", False, condition, operands, encoding)                        
              
         elif encoding == eEncodingT2:
@@ -5419,7 +5223,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(15), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
             ins = Instruction("SUB", False, condition, operands, encoding)                        
             
         elif encoding == eEncodingT3:
@@ -5438,7 +5242,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(15), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
             ins = Instruction("ADD", False, condition, operands, encoding)                        
             
         elif encoding == eEncodingA1:
@@ -5446,7 +5250,7 @@ class ARMDisasembler(object):
             imm32 = ARMExpandImm(opcode)
             add = True
             
-            operands = [Register(Rd), Register(15), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
             ins = Instruction("ADD", False, condition, operands, encoding)                        
     
         elif encoding == eEncodingA2:
@@ -5454,7 +5258,7 @@ class ARMDisasembler(object):
             imm32 = ARMExpandImm(opcode)
             add = False
 
-            operands = [Register(Rd), Register(15), Immediate(imm32)]
+            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
             ins = Instruction("SUB", False, condition, operands, encoding)                        
 
         else:
@@ -5649,7 +5453,7 @@ class ARMDisasembler(object):
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>    All encodings permitted
         ADDW{<c>}{<q>} {<Rd>,} <Rn>, #<const>      Only encoding T4 permitted
         """
-        ins_id = add_immediate
+        ins_id = ARMInstruction.add_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -5740,7 +5544,7 @@ class ARMDisasembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
-        ins_id = add_immediate
+        ins_id = ARMInstruction.add_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingA1:
@@ -5781,7 +5585,7 @@ class ARMDisasembler(object):
         Syntax:
         ADC{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
-        ins_id = adc_immediate
+        ins_id = ARMInstruction.adc_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -6009,7 +5813,7 @@ class ARMDisasembler(object):
         Syntax:
         CMN{<c>}{<q>} <Rn>, #<const>
         """
-        ins_id = cmn_immediate
+        ins_id = ARMInstruction.cmn_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -6518,7 +6322,7 @@ class ARMDisasembler(object):
         Syntax:
         ASR{S}{<c>}{<q>} {<Rd>,} <Rm>, #<imm>
         """
-        ins_id = asr_immediate
+        ins_id = ARMInstruction.asr_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -6627,7 +6431,7 @@ class ARMDisasembler(object):
         Syntax:
         BIC{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
-        ins_id = bic_immediate
+        ins_id = ARMInstruction.bic_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -6732,7 +6536,7 @@ class ARMDisasembler(object):
             add = True
             wback = False
 
-            operands = [Register(Rt), Memory(Register(13), Immediate(imm32))]
+            operands = [Register(Rt), Memory(Register(ARMRegister.SP), Immediate(imm32))]
             ins = Instruction("STR", False, None, operands, encoding)
         
         elif encoding == eEncodingT3:
@@ -7074,7 +6878,7 @@ class ARMDisasembler(object):
             add = True
             wback = False
 
-            operands = [Register(Rt), Memory(Register(13), Immediate(imm32))]
+            operands = [Register(Rt), Memory(Register(ARMRegister.SP), Immediate(imm32))]
             ins = Instruction("LDR", False, None, operands, encoding)
         
         elif encoding == eEncodingT3:
@@ -7257,7 +7061,7 @@ class ARMDisasembler(object):
             if not add:
                 imm32 *= -1
 
-            operands = [Register(Rt), Memory(Register(15), Immediate(imm32))]
+            operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
             ins = Instruction("LDR", False, condition, operands, encoding)            
 
         else:
@@ -7973,7 +7777,7 @@ class ARMDisasembler(object):
         if not add:
             imm32 *= -1
             
-        operands = [Register(Rt), Memory(Register(15), Immediate(imm32))]
+        operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
         ins = Instruction("LDRB", False, condition, operands, encoding)            
         return ins
     
@@ -8901,7 +8705,7 @@ class ARMDisasembler(object):
         Syntax:
         B{<c>}{<q>} <label>
         """
-        ins_id = b
+        ins_id = ARMInstruction.b
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -9006,7 +8810,7 @@ class ARMDisasembler(object):
 
         Unit-test: FAIL
         """
-        ins_id = bl_immediate
+        ins_id = ARMInstruction.bl_immediate
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
@@ -9107,5 +8911,5 @@ if __name__ == '__main__':
     # LLVM:  ldrb r7, [r6, #30]
     opcode = 0x00007fb7
     
-    inst = d.disassemble(opcode, mode=MODE_THUMB)
+    inst = d.disassemble(opcode, mode=ARMMode.THUMB)
     print inst
