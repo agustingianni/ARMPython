@@ -57,7 +57,7 @@ Conditional execution
     
 """
 from constants.arm import *
-from utils.bits import get_bit, get_bits, countTrailingZeros, BitCount, SignExtend32
+from utils.bits import get_bit, get_bits, CountTrailingZeros, BitCount, SignExtend32
 from utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, DecodeImmShiftThumb
 from utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
 from utils.arm import ThumbImm12
@@ -188,7 +188,7 @@ class Register(object):
         if self.n == 13:
             t = "sp"
         elif self.n == 14:
-            t =  "lr"
+            t = "lr"
         elif self.n == 15:
             t = "pc"
         elif self.n == 10:
@@ -593,7 +593,7 @@ class ARMDisasembler(object):
         (0xfffffe00, 0x00005800, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_ldr_register_thumb),
         
         # LDR (register, Thumb) ARMv6T2 | ARMv7
-        (0xfff00fc0, 0xf8500000,  ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldr_register_thumb),
+        (0xfff00fc0, 0xf8500000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldr_register_thumb),
         
         # LDRB (immediate, Thumb) ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xfffff800, 0x00007800, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_ldrb_immediate_thumb),
@@ -932,7 +932,8 @@ class ARMDisasembler(object):
         
         # YIELD ARMv7 (executes as NOP in ARMv6T2)
         (0xffffffff, 0xf3af8001, ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_yield),
-        
+
+        (0x00000000, 0x00000000, ARMvAll, No_VFP, eSize32, self.decode_unknown)        
         )
 
     def __build_arm_table__(self):        
@@ -1321,7 +1322,7 @@ class ARMDisasembler(object):
         (0x0ff0f090, 0x01100010, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_tst_rsr),
 
         # UMAAL ARMv6All | ARMv7
-        (0x0ff000f0, 0x00400090,  ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_umaal),
+        (0x0ff000f0, 0x00400090, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_umaal),
         
         # UMLAL ARMv4All | ARMv5TAll | ARMv6All | ARMv7
         (0x0fe000f0, 0x00a00090, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_umlal),
@@ -1333,11 +1334,8 @@ class ARMDisasembler(object):
         (0x0fffffff, 0x0320f002, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfe),
         (0x0fffffff, 0x0320f003, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfi),
         (0x0fffffff, 0x0320f004, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sev),
-        
+        (0x00000000, 0x00000000, ARMvAll, No_VFP, eSize32, self.decode_unknown)
     )
-    
-    def __test_arm_table__(self):
-        pass
     
     def decode_arm(self, opcode):        
         decoder_entry = None
@@ -1395,7 +1393,7 @@ class ARMDisasembler(object):
         """
         Number of conditional instructions.
         """
-        TZ = countTrailingZeros(ITMask)
+        TZ = CountTrailingZeros(ITMask)
         return 4 - TZ
 
     def InitIT(self, ITState):
@@ -2978,7 +2976,7 @@ class ARMDisasembler(object):
             CondBit0 = firstcond & 1
             
             # (3 - the number of trailing zeros) is the number of then / else.
-            trailing_zeros = countTrailingZeros(condition_mask)
+            trailing_zeros = CountTrailingZeros(condition_mask)
             
             conds = ""
             
@@ -4219,7 +4217,7 @@ class ARMDisasembler(object):
             setflags = not self.InITBlock()
 
             condition = None
-            operands = [Register(Rd),  Register(Rm)]
+            operands = [Register(Rd), Register(Rm)]
             ins = Instruction("ASR", setflags, condition, operands, encoding)
             
         elif encoding == eEncodingT2:
@@ -4233,7 +4231,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd),  Register(Rn), Register(Rm)]
+            operands = [Register(Rd), Register(Rn), Register(Rm)]
             ins = Instruction("ASR", setflags, condition, operands, encoding)
                         
         elif encoding == eEncodingA1:
@@ -4246,7 +4244,7 @@ class ARMDisasembler(object):
             if (Rd == 15 or Rn == 15 or Rm == 15):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd),  Register(Rn), Register(Rm)]
+            operands = [Register(Rd), Register(Rn), Register(Rm)]
             ins = Instruction("ASR", setflags, condition, operands, encoding)
 
         else:
@@ -4371,7 +4369,7 @@ class ARMDisasembler(object):
             shift_n = 0
 
             condition = None
-            operands = [Register(Rd),  Register(Rm)]
+            operands = [Register(Rd), Register(Rm)]
             ins = Instruction("BIC", setflags, condition, operands, encoding)
 
         elif encoding == eEncodingT2:
@@ -4388,7 +4386,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
             
             condition = None
-            operands = [Register(Rd),  Register(Rn),  Register(Rm), RegisterShift(shift_t, shift_n)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             ins = Instruction("BIC", setflags, condition, operands, encoding, ".W")
                                     
         elif encoding == eEncodingA1:
@@ -4406,7 +4404,7 @@ class ARMDisasembler(object):
                 encoding = eEncodingA2
                 return self.decode_subs_pc_lr_arm(opcode, encoding)
 
-            operands = [Register(Rd),  Register(Rn),  Register(Rm), RegisterShift(shift_t, shift_n)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             ins = Instruction("BIC", setflags, condition, operands, encoding)
 
         else:
@@ -6000,6 +5998,13 @@ class ARMDisasembler(object):
         
         return ins
 
+    def decode_unknown(self, opcode, encoding):
+        """
+        Default value for instructions we do not know how to decode.
+        """
+        ins = Instruction("UNK", False, None, [], encoding)
+        return ins
+
     def decode_sev(self, opcode, encoding):
         """
         A8.8.168
@@ -6334,7 +6339,7 @@ class ARMDisasembler(object):
             t, imm5 = DecodeImmShift(0b10, imm5)
 
             condition = None
-            operands = [Register(Rd),  Register(Rm), Immediate(imm5)]
+            operands = [Register(Rd), Register(Rm), Immediate(imm5)]
             ins = Instruction("ASR", setflags, condition, operands, encoding)            
             
         elif encoding == eEncodingT2:
@@ -6348,7 +6353,7 @@ class ARMDisasembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd),  Register(Rm), Immediate(imm5)]
+            operands = [Register(Rd), Register(Rm), Immediate(imm5)]
             ins = Instruction("ASR", setflags, condition, operands, encoding, ".W")            
 
         elif encoding == eEncodingA1:
@@ -6362,7 +6367,7 @@ class ARMDisasembler(object):
             if Rd == 15 and setflags:
                 return self.decode_subs_pc_lr_arm(opcode, encoding)            
 
-            operands = [Register(Rd),  Register(Rm), Immediate(imm5)]
+            operands = [Register(Rd), Register(Rm), Immediate(imm5)]
             ins = Instruction("ASR", setflags, condition, operands, encoding)
 
         else:
@@ -6461,7 +6466,7 @@ class ARMDisasembler(object):
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
 
-        operands = [Register(Rd),  Register(Rn), Immediate(imm32)]
+        operands = [Register(Rd), Register(Rn), Immediate(imm32)]
         ins = Instruction("BIC", setflags, condition, operands, encoding)            
         
         return ins
@@ -6714,7 +6719,7 @@ class ARMDisasembler(object):
 
             condition = None
             operands = [Register(Rt), Memory(Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n))]
-            ins = Instruction("STR", False, condition, operands, encoding,".W")
+            ins = Instruction("STR", False, condition, operands, encoding, ".W")
             
         elif encoding == eEncodingA1:
             P = get_bit(opcode, 24)
@@ -8430,7 +8435,7 @@ class ARMDisasembler(object):
                 return self.decode_pop_thumb(opcode, encoding)
         
             # registers = P:M:'0':register_list;
-            registers =  (P << 15) | (M << 14) | register_list
+            registers = (P << 15) | (M << 14) | register_list
             wback = W == 1
             
             # if n == 15 || BitCount(registers) < 2 || (P == '1' && M == '1') then UNPREDICTABLE;
