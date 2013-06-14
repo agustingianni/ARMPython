@@ -23,7 +23,18 @@ def SignExtend64(number, bits):
     
     return number
 
-def countTrailingZeros(n):
+def CountLeadingZeroBits(n):
+    i = 31
+    c = 0
+    while i > 0:
+        if get_bit(n, i):
+            break
+        
+        c += 1
+        
+    return c        
+
+def CountTrailingZeros(n):
     if not n:
         return 0
     
