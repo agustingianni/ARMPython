@@ -15,6 +15,9 @@ from emulator.memory import DummyMemoryMap
 from bits import get_bits, get_bit, SignExtend32, SignExtend64, Align, \
     CountLeadingZeroBits, BitCount
 
+
+
+
 def AddWithCarry(x, y, carry_in):
     from ctypes import c_uint32, c_int32
 
@@ -222,8 +225,38 @@ class ARMEmulator(object):
     
     def ConditionPassed(self, ins):
         """
-        TODO: Implement this.
+        boolean ConditionPassed() cond = CurrentCond();
+        
+        // Evaluate base condition.
+        case cond<3:1> of
+            when ‘000’ result = (APSR.Z == ‘1’);
+            when ‘001’ result = (APSR.C == ‘1’);
+            when ‘010’ result = (APSR.N == ‘1’);
+            when ‘011’ result = (APSR.V == ‘1’);
+            when ‘100’ result = (APSR.C == ‘1’) && (APSR.Z == ‘0’);
+            when ‘101’ result = (APSR.N == APSR.V);
+            when ‘110’ result = (APSR.N == APSR.V) && (APSR.Z == ‘0’);
+            when ‘111’ result = TRUE;
+
+        // Condition bits ‘111x’ indicate the instruction is always executed. Otherwise, 
+        // invert condition if necessary.
+        if cond<0> == ‘1’ && cond != ‘1111’ then
+            result = !result; 
+        
+        return result;        
         """
+        cond = get_bits(ins, 0, 0)
+        cond_3_1 = get_bits(cond, 3, 1)
+        
+        if cond_3_1 == 0b000:
+            result = self.getZeroFlag() == 1
+        elif cond_3_1 == 0b001:
+            result = self.getCarryFlag() == 1
+        elif cond_3_1 == 0b010:
+            result = self.getNFlag() == 1
+        elif cond_3_1 == 0b011:
+            result = self.getCarryFlag() == 1
+        
         return True
     
     def getCurrentMode(self):
