@@ -7,16 +7,13 @@ Created on Jun 12, 2013
 import logging
 from constants.arm import *
 
-from arm import InstructionNotImplementedException, ARMv7, \
+from arm import InstructionNotImplementedException, \
     UnpredictableInstructionException, InvalidModeException, Instruction, \
-    eEncodingA1, Immediate, Register, eEncodingT1, RegisterShift
+    Register, RegisterShift, ThumbExpandImm_C, ARMExpandImm_C
 
 from emulator.memory import DummyMemoryMap
-from bits import get_bits, get_bit, SignExtend32, SignExtend64, Align, \
+from bits import get_bits, get_bit, SignExtend64, Align, \
     CountLeadingZeroBits, BitCount
-
-
-
 
 def AddWithCarry(x, y, carry_in):
     from ctypes import c_uint32, c_int32
@@ -229,18 +226,18 @@ class ARMEmulator(object):
         
         // Evaluate base condition.
         case cond<3:1> of
-            when Ô000Õ result = (APSR.Z == Ô1Õ);
-            when Ô001Õ result = (APSR.C == Ô1Õ);
-            when Ô010Õ result = (APSR.N == Ô1Õ);
-            when Ô011Õ result = (APSR.V == Ô1Õ);
-            when Ô100Õ result = (APSR.C == Ô1Õ) && (APSR.Z == Ô0Õ);
-            when Ô101Õ result = (APSR.N == APSR.V);
-            when Ô110Õ result = (APSR.N == APSR.V) && (APSR.Z == Ô0Õ);
-            when Ô111Õ result = TRUE;
+            when ï¿½000ï¿½ result = (APSR.Z == ï¿½1ï¿½);
+            when ï¿½001ï¿½ result = (APSR.C == ï¿½1ï¿½);
+            when ï¿½010ï¿½ result = (APSR.N == ï¿½1ï¿½);
+            when ï¿½011ï¿½ result = (APSR.V == ï¿½1ï¿½);
+            when ï¿½100ï¿½ result = (APSR.C == ï¿½1ï¿½) && (APSR.Z == ï¿½0ï¿½);
+            when ï¿½101ï¿½ result = (APSR.N == APSR.V);
+            when ï¿½110ï¿½ result = (APSR.N == APSR.V) && (APSR.Z == ï¿½0ï¿½);
+            when ï¿½111ï¿½ result = TRUE;
 
-        // Condition bits Ô111xÕ indicate the instruction is always executed. Otherwise, 
+        // Condition bits ï¿½111xï¿½ indicate the instruction is always executed. Otherwise, 
         // invert condition if necessary.
-        if cond<0> == Ô1Õ && cond != Ô1111Õ then
+        if cond<0> == ï¿½1ï¿½ && cond != ï¿½1111ï¿½ then
             result = !result; 
         
         return result;        
@@ -378,6 +375,17 @@ class ARMEmulator(object):
         
         else:
             raise InvalidModeException()
+    
+    def LoadWritePC(self, address):
+        """
+        The LoadWritePC() and ALUWritePC() functions are used for two cases where the behavior was systematically
+        modified between architecture versions
+        """
+        if self.ArchVersion() >= ARMv5T:
+            self.BXWritePC(address)
+        
+        else:
+            self.BranchWritePC(address)
     
     def ALUWritePC(self, address):
         """
@@ -1173,7 +1181,52 @@ class ARMEmulator(object):
     
     def emulate_ldr_immediate_arm(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
+            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
+            # operands = [Register(Rt), Memory(Register(Rn), None, None            , wback), Immediate(imm12)]
+            
+            if len(ins.operands) == 2:
+                # Deal with the indexed form of the opcode
+                index = True
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op3
+                wback = mem.wback
+                
+            else:
+                # Deal with the non indexed form of the opcode.
+                index = False
+                Rt, mem, imm32 = ins.operands
+                Rn = mem.op1
+                wback = mem.wback                
+            
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+            
+            # data = MemU[address,4];
+            data = self.memory_map.get_dword(address)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+                
+            if Rt.n == ARMRegister.PC:
+                if get_bits(address, 1, 0) == 0b00:
+                    self.LoadWritePC(data)
+                else:
+                    raise UnpredictableInstructionException()
+            
+            elif self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00:
+                self.setRegister(Rt, data)
+                
+            else:
+                self.setRegister(Rt, ROR(data, 8 * get_bits(address, 1, 0)))
+                
     
     def emulate_ldr_immediate_thumb(self, ins):
         if self.ConditionPassed(ins):
@@ -1229,15 +1282,44 @@ class ARMEmulator(object):
     
     def emulate_mov_immediate(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Immediate(imm32)]
+            Rd, immediate = ins.operands
+            
+            if ins.encoding == eEncodingT1:
+                carry = self.getCarryFlag()
+                immediate_val = immediate.n
+            
+            elif ins.encoding == eEncodingT2:
+                immediate_val, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag())
+            
+            elif ins.encoding == eEncodingA1:
+                immediate_val, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
+            
+            else:
+                # In other encodings setflags == False so no carry is set
+                immediate_val = immediate.n
+                carry = None
+            
+            if Rd.n == ARMRegister.PC:
+                self.ALUWritePC(immediate_val)
+                
+            else:
+                self.__write_reg_and_set_flags__(Rd, immediate_val, carry, None, ins.setflags)
     
     def emulate_mov_register_arm(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rm)]
+            Rd, Rm = ins.operands
+            
+            if Rd.n == ARMRegister.PC:
+                self.ALUWritePC(self.getRegister(Rm))
+            
+            else:
+                self.__write_reg_and_set_flags__(Rd, self.getRegister(Rm), None, None, ins.setflags)
     
     def emulate_mov_register_thumb(self, ins):
-        if self.ConditionPassed(ins):
-            pass
+        # Same as ARM version.
+        self.emulate_mov_register_arm(ins)
     
     def emulate_mov_rsr(self, ins):
         if self.ConditionPassed(ins):
