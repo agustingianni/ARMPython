@@ -1,21 +1,22 @@
-Mnemonic        MOV has a frequency of 1194521
-Mnemonic        LDR has a frequency of 1053143
-Mnemonic        ADD has a frequency of 775199
-Mnemonic         BL has a frequency of 595180
-Mnemonic        STR has a frequency of 519491
-Mnemonic          B has a frequency of 440496
-Mnemonic        CMP has a frequency of 252208
-Mnemonic        POP has a frequency of 137176
-Mnemonic        CBZ has a frequency of 133278
-Mnemonic       PUSH has a frequency of 131969
-Mnemonic        SUB has a frequency of 107970
-Mnemonic        BLX has a frequency of 86471
-Mnemonic         IT has a frequency of 52240
-Mnemonic       CBNZ has a frequency of 47549
-Mnemonic        STM has a frequency of 35001
-Mnemonic        LDM has a frequency of 28804
-Mnemonic        LSL has a frequency of 25263
-Mnemonic        AND has a frequency of 22159
+Mnemonic        MOV has a frequency of 1194521      --
+Mnemonic        LDR has a frequency of 1053143      --
+Mnemonic        ADD has a frequency of 775199       -- 
+Mnemonic         BL has a frequency of 595180       --
+Mnemonic        STR has a frequency of 519491       --
+Mnemonic          B has a frequency of 440496       --
+Mnemonic        CMP has a frequency of 252208       --
+Mnemonic        POP has a frequency of 137176       --
+Mnemonic        CBZ has a frequency of 133278       --
+Mnemonic       PUSH has a frequency of 131969       --
+Mnemonic        SUB has a frequency of 107970       --
+Mnemonic        BLX has a frequency of 86471        --
+Mnemonic         IT has a frequency of 52240        --
+Mnemonic       CBNZ has a frequency of 47549        --
+Mnemonic        STM has a frequency of 35001        --
+Mnemonic        LDM has a frequency of 28804        --
+Mnemonic        LSL has a frequency of 25263        --
+Mnemonic        AND has a frequency of 22159        --
+
 Mnemonic        ORR has a frequency of 20961
 Mnemonic         BX has a frequency of 17554
 

@@ -6334,7 +6334,7 @@ class ARMDisasembler(object):
             setflags = get_bit(opcode, 20)
             
             imm5 = get_bits(opcode, 11, 7)
-            t, imm5 = DecodeImmShift(0b00, imm5)
+            #t, imm5 = DecodeImmShift(0b00, imm5)
 
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 15 and setflags:

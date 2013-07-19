@@ -34,6 +34,16 @@ def CountLeadingZeroBits(n):
         
     return c        
 
+def LowestSetBit(n):
+    bit = 32
+    for i in xrange(0, 32):
+        if get_bit(n, i):
+            bit = i
+            break
+        
+    return bit
+    
+
 def CountTrailingZeros(n):
     if not n:
         return 0

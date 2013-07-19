@@ -9,11 +9,60 @@ from constants.arm import *
 
 from arm import InstructionNotImplementedException, \
     UnpredictableInstructionException, InvalidModeException, Instruction, \
-    Register, RegisterShift, ThumbExpandImm_C, ARMExpandImm_C
+    Register, RegisterShift, ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 
 from emulator.memory import DummyMemoryMap
 from bits import get_bits, get_bit, SignExtend64, Align, \
-    CountLeadingZeroBits, BitCount
+    CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros
+
+class ARMProcessor(object):
+    def __init__(self):
+        self.USR_MODE = 0x10
+        self.FIQ_MODE = 0x11
+        self.IRQ_MODE = 0x12
+        self.SVC_MODE = 0x13
+        self.MON_MODE = 0x16
+        self.ABT_MODE = 0x17
+        self.UND_MODE = 0x1b
+        self.SYS_MODE = 0x1f
+        
+        self.cpsr = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        
+        # SPSR: banked Saved Program Status Register.
+        self.spsr_svc = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        self.spsr_mon = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        self.spsr_abt = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        self.spsr_und = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        self.spsr_irq = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        self.spsr_fiq = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        
+        self.regs = {}
+        
+        # Banked registers
+        self.regs_usr = {}
+        self.regs_svc = {}
+        self.regs_mon = {}
+        self.regs_abt = {}
+        self.regs_und = {}
+        self.regs_irq = {}
+        self.regs_fiq = {}
+    
+    def save(self):
+        pass
+    
+    def restore(self):
+        pass
+    
+    def interrupt(self):
+        pass
+    
+    def supervisor(self):
+        # svc
+        pass
+    
+    def undefined(self):
+        pass
+        
 
 def AddWithCarry(x, y, carry_in):
     from ctypes import c_uint32, c_int32
@@ -169,6 +218,50 @@ def Shift(value, type_, amount, carry_in):
     result, carry_out = Shift_C(value, type_, amount, carry_in)
     return result
 
+class ITSession(object):
+    def __init__(self):
+        self.it_counter = 0
+        self.it_state = 0
+
+    def CountITSize(self, ITMask):
+        """
+        Number of conditional instructions.
+        """
+        TZ = CountTrailingZeros(ITMask)
+        return 4 - TZ
+
+    def InitIT(self, ITState):
+        """
+        Init ITState.
+        """
+        self.ITCounter = self.CountITSize(ITState & 0b1111)
+        self.ITState = ITState
+
+    def ITAdvance(self):
+        """
+        Update ITState if necessary.
+        """
+        self.ITCounter -= 1
+        
+        if self.ITCounter == 0:
+            self.ITState = 0
+        else:
+            NewITState4_0 = (self.ITState & 0b11111) << 1
+            self.ITState = (self.ITState & 0b11100000) | NewITState4_0
+
+    def LastInITBlock(self):
+        """
+        Return true if we're the last instruction inside an IT Block.
+        """
+        return self.ITCounter == 1
+
+    def InITBlock(self):
+        """
+        Return true if we're inside an IT Block.
+        """
+        return self.ITCounter != 0
+
+
 class ARMEmulator(object):
     """
     ARMEmulator is an ARM/THUMB emulator capable of
@@ -182,6 +275,8 @@ class ARMEmulator(object):
         self.arm_mode = ARMMode.ARM
         self.__init_flags_map__()
         self.__init_register_map__()
+        
+        self.it_session = ITSession()
    
     def __init_register_map__(self):
         """
@@ -219,6 +314,20 @@ class ARMEmulator(object):
        
     def CurrentCondition(self, opcode):
         pass
+    
+    def UnalignedSupport(self):
+        """
+        This function returns TRUE if the processor currently provides support for unaligned memory accesses, or FALSE
+        otherwise. This is always TRUE in ARMv7, controllable by the SCTLR.U bit in ARMv6, and always FALSE before
+        ARMv6.
+        """
+        if self.ArchVersion() == ARMv7:
+            return True
+        elif self.ArchVersion() == ARMv6:
+            # TODO: Implement this
+            raise "Implement SCTLR.U"
+        else:
+            return False
     
     def ConditionPassed(self, ins):
         """
@@ -490,17 +599,25 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_immediate_arm(self, ins):
+        """
+        Done
+        """
         # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
         if self.ConditionPassed(ins):
             Rd, Rn, imm32 = ins.operands
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], imm32, '0');
             result, carry_out, overflow = AddWithCarry(Rn_val, imm32_val, 0)
             
             # Set the result and adjust flags accordingly.
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_immediate_thumb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
             # operands = [Register(Rd), Immediate(imm32)]
@@ -512,10 +629,27 @@ class ARMEmulator(object):
                 
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], imm32, '0');
             result, carry_out, overflow = AddWithCarry(Rn_val, imm32_val, 0)
-            self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
+            
+            # R[d] = result;
+            self.setRegister(Rd, result)
+            
+            if ins.setflags:
+                n_flag = get_bit(result, 31)
+                self.setFlag(ARMFLag.N, n_flag)
+                
+                z_flag = int(result == 0)
+                self.setFlag(ARMFLag.Z, z_flag)
+                
+                self.setFlag(ARMFLag.C, carry_out)
+                self.setFlag(ARMFLag.V, overflow)
             
     def emulate_add_register_arm(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             Rd, Rn, Rm, shift = ins.operands
@@ -529,6 +663,9 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_register_thumb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):            
             if ins.encoding == eEncodingT1:
                 # operands = [Register(Rd), Register(Rn), Register(Rm)]
@@ -557,36 +694,53 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_rsr(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(self.getRegister(shift.value), 7, 0)
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], shifted, '0');
             result, carry_out, overflow = AddWithCarry(Rn_val, shifted, 0)
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_sp_plus_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
             Rd, Rn, imm32 = ins.operands
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
+            
+            # (result, carry, overflow) = AddWithCarry(SP, imm32, '0');
             result, carry_out, overflow = AddWithCarry(Rn_val, imm32_val, 0)
+            
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
     
     def emulate_add_sp_plus_register_thumb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm)]
             # operands = [Register(Rd), Register(Rm)]
             # operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
-                Rn = Rd
+                Rn = Register(ARMRegister.SP)
                 shift_t = SRType_LSL
                 shift_n = 0
 
@@ -603,11 +757,17 @@ class ARMEmulator(object):
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(SP, shifted, '0');
             result, carry_out, overflow = AddWithCarry(Rn_val, shifted, 0)
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_sp_plus_register_arm(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
@@ -616,7 +776,10 @@ class ARMEmulator(object):
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(SP, shifted, '0');
             result, carry_out, overflow = AddWithCarry(Rn_val, shifted, 0)
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
             
@@ -646,17 +809,32 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result)
 
     def emulate_and_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
-            Rd, Rn, imm32 = ins.operands
+            Rd, Rn, unused = ins.operands
             Rn_val = self.getRegister(Rn)
-            imm32_val = imm32.n
-            result = Rn_val & imm32_val
+            
+            if ins.encoding == eEncodingT1:
+                # (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
+                imm32, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag());
+                
+            elif ins.encoding == eEncodingA1:
+                # (imm32, carry) = ARMExpandImm_C(imm12, APSR.C);
+                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag());
+
+            # result = R[n] AND imm32;
+            result = self.getRegister(Rn) & imm32;
             
             # Does not change the overflow.
-            self.__write_reg_and_set_flags__(Rd, result, 0, None, ins.setflags)
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
 
     def emulate_and_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
@@ -672,23 +850,32 @@ class ARMEmulator(object):
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
             
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] AND shifted;
             result = Rn_val & shifted
             
             # Does not change the overflow.
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
             
     def emulate_and_rsr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+            shift_n = self.getRegister(shift.value)
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] AND shifted;
             result = Rn_val & shifted
             
             # Does not change the overflow.
@@ -722,6 +909,9 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
 
     def emulate_b(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             jmp = ins.operands
             self.BranchWritePC(self.self.getPC() + jmp.addr)
@@ -783,6 +973,9 @@ class ARMEmulator(object):
         self.BKPTInstrDebugEvent()
 
     def emulate_bl_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Jump(imm)]
             jmp = ins.operands
@@ -794,6 +987,7 @@ class ARMEmulator(object):
                 
             self.setRegister(ARMRegister.LR, lr_val)
             
+            # The target instruction set is defined on the decoding phase.
             if ins.encoding == eEncodingT1:
                 # bl
                 targetInstrSet = ARMMode.THUMB
@@ -819,6 +1013,9 @@ class ARMEmulator(object):
         return self.getRegister(ARMRegister.PC)
     
     def emulate_blx_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rm = ins.operands
             target = self.getRegister(Rm)
@@ -841,6 +1038,9 @@ class ARMEmulator(object):
         self.log("BXJ is not supported.")       
     
     def emulate_cbz(self, ins):
+        """
+        Done
+        """
         Rn, imm32 = ins.operands
         Rn_val = self.getRegister(Rn)
         
@@ -927,15 +1127,22 @@ class ARMEmulator(object):
             self.setFlag(ARMFLag.V, overflow)                
     
     def emulate_cmp_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rn, imm32 = ins.operands
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
             
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), '1');
             result, carry, overflow = AddWithCarry(Rn_val, ~imm32_val, 1)
             self.__set_flags__(result, carry, overflow)
     
     def emulate_cmp_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             if len(ins.operands) == 2:
                 Rn, Rm = ins.operands
@@ -948,24 +1155,34 @@ class ARMEmulator(object):
             
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
             result, carry, overflow = AddWithCarry(Rn_val, ~shifted, 1)
             self.__set_flags__(result, carry, overflow)
                     
     def emulate_cmp_rsr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
             Rn, Rm, shift = ins.operands
             shift_t = shift.type_
             
-            # Shift ammount is on a register
+            # shift_n = UInt(R[s]<7:0>);
             shift_n = self.getRegister(shift.value)
             shift_n = get_bits(shift_n, 7, 0)
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
             result, carry, overflow = AddWithCarry(Rn_val, ~shifted, 1)
             self.__set_flags__(result, carry, overflow)
         
@@ -1031,8 +1248,11 @@ class ARMEmulator(object):
         raise Exception("HVC")
     
     def emulate_it(self, ins):
-        raise Exception("HVC")
-        
+        """
+        Done
+        """
+        self.it_session.InitIT(get_bits(ins.opcode, 7, 0))
+                
     def emulate_ldc_immediate(self, ins):
         raise Exception("HVC")
         
@@ -1040,49 +1260,67 @@ class ARMEmulator(object):
         raise Exception("HVC")
     
     def emulate_ldmda(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rn, wback), RegisterSet(registers)]
-            Rn, registers = ins.operands
+            Rn, regset = ins.operands
+            registers = regset.registers
             Rn_val = self.getRegister(Rn)
+            
+            # address = R[n] - 4*BitCount(registers) + 4;
             address = Rn_val - 4 * BitCount(registers) + 4
             
             for i in xrange(0, 15):
-                if get_bit(registers.registers, i):
+                if get_bit(registers, i):
+                    # R[i] = MemA[address,4]; address = address + 4;
                     value = self.memory_map.get_dword(address)
                     self.setRegister(i, value)
                     address += 4
                     
-            if get_bit(registers.registers, 15):
+            if get_bit(registers, 15):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
+            # if wback && registers<n> == '0' then R[n] = R[n] - 4*BitCount(registers);
             if Rn.wback and get_bit(registers, Rn.n) == 0:
-                val = Rn_val - 4 * BitCount(registers.registers)
+                val = Rn_val - 4 * BitCount(registers)
                 self.setRegister(Rn, val)
-                
-            elif Rn.wback and get_bit(registers, Rn.n) == 1:
+            
+            # if wback && registers<n> == '1' then R[n] = bits(32) UNKNOWN;    
+            if Rn.wback and get_bit(registers, Rn.n) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldmdb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rn, wback), RegisterSet(registers)]
-            Rn, registers = ins.operands
+            Rn, regset = ins.operands
+            registers = regset.registers
             Rn_val = self.getRegister(Rn)
+            
+            # address = R[n] - 4*BitCount(registers);
             address = Rn_val - 4 * BitCount(registers)
             
             for i in xrange(0, 15):
-                if get_bit(registers.registers, i):
+                if get_bit(registers, i):
+                    # R[i] = MemA[address,4]; address = address + 4;
                     value = self.memory_map.get_dword(address)
                     self.setRegister(i, value)
                     address += 4
                     
-            if get_bit(registers.registers, 15):
+            if get_bit(registers, 15):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
+            # if wback && registers<n> == '0' then R[n] = R[n] - 4*BitCount(registers);
             if Rn.wback and get_bit(registers, Rn.n) == 0:
-                val = Rn_val - 4 * BitCount(registers.registers)
+                val = Rn_val - 4 * BitCount(registers)
                 self.setRegister(Rn, val)
-                
-            elif Rn.wback and get_bit(registers, Rn.n) == 1:
+            
+            # if wback && registers<n> == '1' then R[n] = bits(32) UNKNOWN;    
+            if Rn.wback and get_bit(registers, Rn.n) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldm_exception_return(self, ins):
@@ -1090,53 +1328,74 @@ class ARMEmulator(object):
             pass
     
     def emulate_ldmia_arm(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            # operands = [Register(Rn, wback), RegisterSet(registers)]
-            Rn, registers = ins.operands
-            Rn_val = self.getRegister(Rn)
-            address = Rn_val
+            if len(ins.operands) == 1:
+                # In case we've decoded it as POP
+                Rn = Register(ARMRegister.SP)
+                regset = ins.operands
+                registers = regset.registers
+                
+            else:
+                Rn, registers = ins.operands
+                registers = regset.registers
+                
+            address = self.getRegister(Rn)
             
             for i in xrange(0, 15):
-                if get_bit(registers.registers, i):
+                if get_bit(registers, i):
                     value = self.memory_map.get_dword(address)
                     self.setRegister(i, value)
                     address += 4
                     
-            if get_bit(registers.registers, 15):
+            if get_bit(registers, 15):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
             if Rn.wback and get_bit(registers, Rn.n) == 0:
-                val = Rn_val + 4 * BitCount(registers.registers)
+                val = self.getRegister(Rn) + 4 * BitCount(registers)
                 self.setRegister(Rn, val)
                 
             elif Rn.wback and get_bit(registers, Rn.n) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldmia_thumb(self, ins):
-        # Same thing
+        """
+        Done
+        """
         self.emulate_ldmia_arm(self, ins)
     
     def emulate_ldmib(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rn, wback), RegisterSet(registers)]
-            Rn, registers = ins.operands
+            Rn, regset = ins.operands
+            registers = regset.registers
             Rn_val = self.getRegister(Rn)
+            
+            # address = R[n] + 4;
             address = Rn_val + 4
             
             for i in xrange(0, 15):
-                if get_bit(registers.registers, i):
+                if get_bit(registers, i):
+                    # R[i] = MemA[address,4]; address = address + 4;
                     value = self.memory_map.get_dword(address)
                     self.setRegister(i, value)
                     address += 4
                     
-            if get_bit(registers.registers, 15):
+            if get_bit(registers, 15):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
+            # if wback && registers<n> == '0' then R[n] = R[n] - 4*BitCount(registers);
             if Rn.wback and get_bit(registers, Rn.n) == 0:
-                val = Rn_val + 4 * BitCount(registers.registers)
+                val = Rn_val + 4 * BitCount(registers)
                 self.setRegister(Rn, val)
-                
-            elif Rn.wback and get_bit(registers, Rn.n) == 1:
+            
+            # if wback && registers<n> == '1' then R[n] = bits(32) UNKNOWN;    
+            if Rn.wback and get_bit(registers, Rn.n) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldm_user_registers(self, ins):
@@ -1180,6 +1439,9 @@ class ARMEmulator(object):
             pass
     
     def emulate_ldr_immediate_arm(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
             # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
@@ -1226,35 +1488,240 @@ class ARMEmulator(object):
                 
             else:
                 self.setRegister(Rt, ROR(data, 8 * get_bits(address, 1, 0)))
-                
     
     def emulate_ldr_immediate_thumb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
+            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
+            # operands = [Register(Rt), Memory(Register(Rn), None, None            , wback), Immediate(imm12)]
+            
+            if len(ins.operands) == 2:
+                # Deal with the indexed form of the opcode
+                index = True
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op3
+                wback = mem.wback
+                
+            else:
+                # Deal with the non indexed form of the opcode.
+                index = False
+                Rt, mem, imm32 = ins.operands
+                Rn = mem.op1
+                wback = mem.wback                
+            
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+            
+            # data = MemU[address,4];
+            data = self.memory_map.get_dword(address)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+                
+            if Rt.n == ARMRegister.PC:
+                if get_bits(address, 1, 0) == 0b00:
+                    self.LoadWritePC(data)
+                else:
+                    raise UnpredictableInstructionException()
+            
+            elif self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00:
+                self.setRegister(Rt, data)
+                
+            else:
+                # TODO: ???
+                # else R[t] = bits(32) UNKNOWN; // Can only apply before ARMv7
+                self.setRegister(Rt, 0)
+            
     def emulate_ldr_literal(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if len(ins.operands) == 2:
+                Rt, imm32 = ins.operands
+                Rt_val = self.getRegister(Rt)
+                imm32_val = imm32.n
+                
+            else:
+                Rt, memory = ins.operands
+                Rt_val = self.getRegister(Rt)
+                imm32 = memory.op2
+                imm32_val = imm32.n
+
+            
+            PC = self.getPC()
+            base = Align(PC, 4)
+            
+            # address = if add then (base + imm32) else (base - imm32);
+            address = base + imm32.n
+            
+            # data = MemU[address,4];
+            data = self.memory_map.get_dword(address)
+
+            if Rt.n == ARMRegister.PC:
+                if get_bits(address, 1, 0) == 0b00:
+                    self.LoadWritePC(data)
+                else:
+                    raise UnpredictableInstructionException()
+            
+            elif self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00:
+                self.setRegister(Rt, data)
+                
+            else:
+                if self.CurrentInstrSet() == ARMMode.ARM:
+                    # R[t] = ROR(data, 8*UInt(address<1:0>));
+                    self.setRegister(Rt, ROR(data, 8 * get_bits(address, 1, 0)))
+                    
+                else:
+                    # TODO: ???
+                    # R[t] = bits(32) UNKNOWN;
+                    self.setRegister(Rt, 0)
+
     
     def emulate_ldr_register_arm(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if len(ins.operands) == 2:
+                index = True
+                Rt, memory = ins.operands
+                Rn = memory.op1
+                Rm = memory.op2
+                shift_t = memory.op3.type_
+                shift_n = memory.op3.value
+                wback = memory.wback
+                
+            else:
+                index = False
+                Rt, memory, Rm, shift = ins.operands
+                Rn = memory.op1
+                shift_t = shift.type_
+                shift_n = shift.value
+                wback = False
+                
+            # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+            offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+            offset_addr = self.getRegister(Rn) + offset
+            
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+                
+            # data = MemU[address,4];
+            data = self.memory_map.get_dword(address)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+                
+            if Rt.n == ARMRegister.PC:
+                if get_bits(address, 1, 0) == 0b00:
+                    self.LoadWritePC(data)
+                else:
+                    raise UnpredictableInstructionException()
+                
+            elif self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00:
+                self.setRegister(Rt, data)
+                
+            else:
+                # R[t] = ROR(data, 8*UInt(address<1:0>));
+                self.setRegister(Rt, ROR(data, 8 * get_bits(address, 1, 0)))
     
     def emulate_ldr_register_thumb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            Rt, memory = ins.operands
+            Rn = memory.op1
+            Rm = memory.op2
+            
+            if not memory.op3:
+                # Default shift values
+                shift_t = SRType_LSL
+                shift_n = 0
+                
+            else:
+                shift_t = memory.op3.type_
+                shift_n = memory.op3.value  
+            
+            # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+            offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # offset_addr = (R[n] + offset);
+            offset_addr = self.getRegister(Rn) + offset
+            
+            address = offset_addr
+            
+            # data = MemU[address,4];
+            data = self.memory_map.get_dword(address)
+            
+            if Rt.n == ARMRegister.PC:
+                if get_bits(address, 1, 0) == 0b00:
+                    self.LoadWritePC(data)
+                else:
+                    raise UnpredictableInstructionException()
+                
+            elif self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00:
+                self.setRegister(Rt, data)
+            
     
     def emulate_ldrt(self, ins):
         if self.ConditionPassed(ins):
             pass
     
     def emulate_lsl_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rm), Immediate(imm5)]
+            Rd, Rm, imm32 = ins.operands
+            
+            # (-, shift_n) = DecodeImmShift('00', imm5);
+            t, shift_n = DecodeImmShift(0b00, imm32.n)
+            
+            # (result, carry) = Shift_C(R[m], SRType_LSL, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rm), SRType_LSL, shift_n, self.getCarryFlag());
+    
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
+            
     
     def emulate_lsl_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if len(ins.operands) == 2:
+                Rd, Rm  = ins.operands
+                Rn = Rd
+            else:
+                Rd, Rn, Rm = ins.operands
+                
+        # shift_n = UInt(R[m]<7:0>);
+        shift_n = get_bits(self.getRegister(Rm), 7, 0)
+        
+        # (result, carry) = Shift_C(R[n], SRType_LSL, shift_n, APSR.C);
+        result, carry = Shift_C(self.getRegister(Rn), SRType_LSL, shift_n, self.getCarryFlag());
+            
+        # R[d] = result;
+        self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
+
     
     def emulate_lsr_immediate(self, ins):
         if self.ConditionPassed(ins):
@@ -1281,6 +1748,9 @@ class ARMEmulator(object):
             pass
     
     def emulate_mov_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Immediate(imm32)]
             Rd, immediate = ins.operands
@@ -1307,6 +1777,9 @@ class ARMEmulator(object):
                 self.__write_reg_and_set_flags__(Rd, immediate_val, carry, None, ins.setflags)
     
     def emulate_mov_register_arm(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rm)]
             Rd, Rm = ins.operands
@@ -1318,6 +1791,9 @@ class ARMEmulator(object):
                 self.__write_reg_and_set_flags__(Rd, self.getRegister(Rm), None, None, ins.setflags)
     
     def emulate_mov_register_thumb(self, ins):
+        """
+        Done
+        """
         # Same as ARM version.
         self.emulate_mov_register_arm(ins)
     
@@ -1386,16 +1862,78 @@ class ARMEmulator(object):
             pass
     
     def emulate_pop_arm(self, ins):
-        if self.ConditionPassed(ins):
-            pass
+        """
+        operands = [RegisterSet(registers)]
+        """
+        # Same as THUMB
+        self.emulate_pop_thumb(ins)
     
     def emulate_pop_thumb(self, ins):
+        """
+        """
         if self.ConditionPassed(ins):
-            pass
+            # Unaligned is only allowed on T3
+            UnalignedAllowed = ins.encoding == eEncodingT3
+            
+            regset = ins.operands
+            registers = regset.registers
+            
+            # address = SP;
+            address = self.getRegister(Register(ARMRegister.SP))
+            
+            # for i = 0 to 14
+            for i in xrange(0, 14 + 1):
+                if get_bit(registers, i):
+                    self.setRegister(Register(i), self.memory_map.get_dword(address))
+                    address = address + 4
+                    
+            if get_bit(registers, 15) == 1:
+                if UnalignedAllowed:
+                    if get_bits(address, 1, 0) == 0b00:
+                        self.LoadWritePC(self.memory_map.get_dword(address))
+                    else:
+                        raise UnpredictableInstructionException()
+                else:
+                    self.LoadWritePC(self.memory_map.get_dword(address))
+                    
+            if get_bit(registers, 13) == 0:
+                sp_val = Register(ARMRegister.SP)
+                self.setRegister(Register(ARMRegister.SP), sp_val + 4 * BitCount(registers))
+            
+            if get_bit(registers, 13) == 1:
+                raise "if registers<13> == '1' then SP = bits(32) UNKNOWN;"
     
     def emulate_push(self, ins):
+        """
+        
+        """
         if self.ConditionPassed(ins):
-            pass
+            regset = ins.operands
+            registers = regset.registers
+            
+            UnalignedAllowed = ins.encoding == eEncodingT3 or ins.encoding == eEncodingA2
+            
+            # address = SP - 4*BitCount(registers);
+            address = self.getRegister(Register(ARMRegister.SP)) - 4 * BitCount(registers)
+            
+            # for i = 0 to 14
+            for i in xrange(0, 14 + 1):
+                if get_bit(registers, i) == 1:
+                    if i == ARMRegister.SP and i != LowestSetBit(registers):
+                        raise "MemA[address,4] = bits(32) UNKNOWN;"
+                    else:
+                        self.memory_map.set_dword(address, self.getRegister(Register(i)))
+                        
+                    address = address + 4
+            
+            if get_bit(registers, ARMRegister.PC):
+                # MemA[address,4] = PCStoreValue();
+                self.memory_map.set_dword(address, self.getPC())
+                
+            # SP = SP - 4*BitCount(registers);
+            sp_val = self.getRegister(Register(ARMRegister.SP))
+            self.setRegister(Register(ARMRegister.SP), sp_val - 4 * BitCount(registers))
+                            
     
     def emulate_rfe(self, ins):
         if self.ConditionPassed(ins):
@@ -1502,20 +2040,120 @@ class ARMEmulator(object):
             pass
     
     def emulate_stmda(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rn, wback), RegisterSet(registers)]
+            Rn, regset = ins.operands
+            registers = regset.registers
+            
+            # address = R[n] - 4*BitCount(registers) + 4;
+            address = self.getRegister(Rn) - 4 * BitCount(registers) + 4
+            
+            for i in xrange(0, 14 + 1):
+                if get_bit(registers, i):
+                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+
+                    else:
+                        self.memory_map.set_dword(address, self.getRegister(Register(i)))
+                        
+                    address = address + 4
+            
+            if get_bit(registers, 15):
+                self.memory_map.set_dword(address, self.getPC())
+                
+            if Rn.wback:
+                Rn_val = self.getRegister(Rn)
+                self.setRegister(Rn, Rn_val - 4 * BitCount(registers))
     
     def emulate_stmdb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rn, wback), RegisterSet(registers)]
+            Rn, regset = ins.operands
+            registers = regset.registers
+            
+            # address = R[n] - 4*BitCount(registers);
+            address = self.getRegister(Rn) - 4 * BitCount(registers)
+            
+            for i in xrange(0, 14 + 1):
+                if get_bit(registers, i):
+                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+
+                    else:
+                        self.memory_map.set_dword(address, self.getRegister(Register(i)))
+                        
+                    address = address + 4
+            
+            if get_bit(registers, 15):
+                self.memory_map.set_dword(address, self.getPC())
+                
+            if Rn.wback:
+                Rn_val = self.getRegister(Rn)
+                self.setRegister(Rn, Rn_val - 4 * BitCount(registers))
     
     def emulate_stmia(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rn, wback), RegisterSet(registers)]
+            Rn, regset = ins.operands
+            registers = regset.registers
+            
+            # address = R[n];
+            address = self.getRegister(Rn)
+            
+            for i in xrange(0, 14 + 1):
+                if get_bit(registers, i):
+                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+
+                    else:
+                        self.memory_map.set_dword(address, self.getRegister(Register(i)))
+                        
+                    address = address + 4
+            
+            if get_bit(registers, 15):
+                self.memory_map.set_dword(address, self.getPC())
+                
+            if Rn.wback:
+                Rn_val = self.getRegister(Rn)
+                self.setRegister(Rn, Rn_val + 4 * BitCount(registers))
     
     def emulate_stmib(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rn, wback), RegisterSet(registers)]
+            Rn, regset = ins.operands
+            registers = regset.registers
+            
+            # address = R[n] + 4;
+            address = self.getRegister(Rn) + 4
+            
+            for i in xrange(0, 14 + 1):
+                if get_bit(registers, i):
+                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+
+                    else:
+                        self.memory_map.set_dword(address, self.getRegister(Register(i)))
+                        
+                    address = address + 4
+            
+            if get_bit(registers, 15):
+                self.memory_map.set_dword(address, self.getPC())
+                
+            if Rn.wback:
+                Rn_val = self.getRegister(Rn)
+                self.setRegister(Rn, Rn_val + 4 * BitCount(registers))
     
     def emulate_stm_user_registers(self, ins):
         if self.ConditionPassed(ins):
@@ -1554,52 +2192,311 @@ class ARMEmulator(object):
             pass
     
     def emulate_str_immediate_arm(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            if len(ins.operands) == 2:
+                index = True
+                Rt, memory = ins.operands
+                Rn = memory.op1
+                imm32 = memory.op2
+                wback = memory.wback
+                
+            else:
+                index = False
+                wback = True
+                Rt, memory, imm32 = ins.operands
+                Rn = memory.op1
+            
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+                
+            # MemU[address,4] = if t == 15 then PCStoreValue() else R[t];
+            if Rt.n == ARMRegister.PC:
+                self.memory_map.set_dword(address, self.getPC())
+            else:
+                self.memory_map.set_dword(address, self.getRegister(Rt))
+                
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+                            
+        
     def emulate_str_immediate_thumb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+
+            if ins.encoding == eEncodingT4:
+                # NOTE: I do not like the fact that I have to re decode.
+                P = get_bit(ins.opcode, 10)
+                W = get_bit(ins.opcode, 8)
+                index = P == 1
+                wback = W == 1
+
+                if index == True:
+                    Rt, memory = ins.operands
+                    Rn = memory.op1
+                    imm32 = memory.op2
+            
+                else:
+                    # operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+                    Rt, memory, imm32 = ins.operands
+                    Rn = memory.op1
+
+            else:
+                index = True
+                wback = False
+                
+                # operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+                Rt, memory = ins.operands
+                Rn = memory.op1
+                imm32 = memory.op2
+                
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+                
+            # if UnalignedSupport() || address<1:0> == '00' then
+            if self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00:
+                # MemU[address,4] = R[t];
+                self.memory_map.set_dword(address, self.getRegister(Rt))
+            else:
+                # MemU[address,4] = bits(32) UNKNOWN;
+                raise "MemU[address,4] = bits(32) UNKNOWN;"
+            
+            # if wback then R[n] = offset_addr;
+            if wback :
+                self.setRegister(Rn, offset_addr)
     
     def emulate_str_reg(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingA1:
+                P = get_bit(ins.opcode, 24)
+                U = get_bit(ins.opcode, 23)
+                W = get_bit(ins.opcode, 21)
+
+                # add is important here since the register may be negative
+                index = P == 1
+                add = U == 1
+                wback = P == 0 or W == 1
+
+                if index == True:
+                    # operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, add == False), RegisterShift(shift_t, shift_n), wback=False)]
+                    Rt, memory = ins.operands
+                    Rn = memory.op1
+                    Rm = memory.op2
+                    shift_t = memory.op3.type_
+                    shift_n = memory.op3.value
+                    
+                else:
+                    # operands = [Register(Rt), Memory(Register(Rn)), Register(Rm, False, add == False), RegisterShift(shift_t, shift_n)]
+                    Rt, memory, Rm, shift = ins.operands
+                    Rn = memory.op1
+                    shift_t = shift.type_
+                    shift_n = shift.value
+
+            else:
+                index = True
+                add = True
+                wback = False
+                
+                # operands = [Register(Rt), Memory(Register(Rn), Register(Rm))]
+                # operands = [Register(Rt), Memory(Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n))]
+                Rt, memory = ins.operands
+                Rn = memory.op1
+                Rm = memory.op2
+                if memory.op3:
+                    shift_t = memory.op3.type_
+                    shift_n = memory.op3.value
+                else:
+                    shift_t = SRType_LSL
+                    shift_n = 0 
+    
+            # papa
+            # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+            offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+            if add:
+                offset_addr = self.getRegister(Rn) + offset
+            else:
+                offset_addr = self.getRegister(Rn) - offset
+                
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+                
+            if Rt.n == ARMRegister.PC:
+                data = self.getPC()
+            else:
+                data = self.getRegister(Rt)
+
+            if self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00 or self.CurrentInstrSet() == ARMMode.ARM:
+                self.memory_map.set_dword(address, data)
+            else:
+                raise "MemU[address,4] = bits(32) UNKNOWN;"
+            
+            if wback:
+                self.setRegister(Rn, offset_addr)
+            
     
     def emulate_strt(self, ins):
         if self.ConditionPassed(ins):
             pass
     
     def emulate_sub_immediate_arm(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
+            Rd, Rn, imm32 = ins.operands
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), '1');
+            Rn_val = self.getRegister(Rn)
+            result, carry, overflow = AddWithCarry(Rn_val, ~imm32.n, 1)
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)        
     
     def emulate_sub_immediate_thumb(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if len(ins.operands) == 2:
+                Rd, imm32 = ins.operands
+                Rn = Rd
+            else:
+                Rd, Rn, imm32 = ins.operands
+
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), '1');
+            Rn_val = self.getRegister(Rn)
+            result, carry, overflow = AddWithCarry(Rn_val, ~imm32.n, 1)            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_sub_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if len(ins.operands) == 3:
+                Rd, Rn, Rm = ins.operands
+                shift_t = SRType_LSL
+                shift_n = 0
+                
+            else:
+                Rd, Rn, Rm, shift = ins.operands
+                shift_t = shift.type_
+                shift_n = shift.value
+
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
+            Rn_val = self.getRegister(Rn)
+            result, carry, overflow = AddWithCarry(Rn_val, ~shifted, 1)            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)                
+            
     
     def emulate_sub_rsr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
-    def emulate_subs_pc_lr_arm(self, ins):
-        if self.ConditionPassed(ins):
-            pass
-    
-    def emulate_subs_pc_lr_thumb(self, ins):
-        if self.ConditionPassed(ins):
-            pass
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+                        
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(self.getRegister(shift.value), 7, 0)
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~shifted, 1)
+            
+            self.__write_reg_and_set_flags__(Rn, result, carry, overflow, ins.setflags)
     
     def emulate_sub_sp_minus_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            Rd, Rn, imm32 = ins.operands
+            
+            # (result, carry, overflow) = AddWithCarry(SP, NOT(imm32), '1');
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~imm32.n, '1');
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_sub_sp_minus_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = shift.value
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(SP, NOT(shifted), '1');
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~shifted, 1)
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
+
+    def emulate_subs_pc_lr_arm(self, ins):
+        """
+        TODO:
+        """
+        if self.ConditionPassed(ins):
+            raise NotImplementedError()
+    
+    def emulate_subs_pc_lr_thumb(self, ins):
+        """
+        TODO:
+        Half-Done: We need to get the value of SPSR regiter.
+        """
+        if self.ConditionPassed(ins):
+            Rd, Rn, imm32 = ins.operands
+    
+            # TODO: add  or self.CurrentInstrSet() == InstrSet_ThumbEE
+            if self.CurrentModeIsUserOrSystem():
+                raise UnpredictableInstructionException()
+            else:
+                operand2 = imm32.n
+                
+                # (result, -, -) = AddWithCarry(R[n], NOT(operand2), '1');
+                result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~operand2, 1)
+                
+                # TODO: Get the "Saved Program Status Register (SPSR)"
+                # CPSRWriteByInstr(SPSR[], '1111', TRUE);
+                # self.CPSRWriteByInstr(data, 0b1111, True)
+                #
+                # if CPSR<4:0> == '11010' && CPSR.J == '1' && CPSR.T == '1' then
+                #     UNPREDICTABLE
+                # else
+                #     BranchWritePC(result);
     
     def emulate_svc(self, ins):
         if self.ConditionPassed(ins):
