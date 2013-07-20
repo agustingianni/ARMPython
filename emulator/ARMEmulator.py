@@ -1106,9 +1106,14 @@ class ARMEmulator(object):
         self.log("CDP is not supported.")
             
     def emulate_clz(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rd, Rm = ins.operands
             Rm_val = self.getRegister(Rm)
+            
+            # result = CountLeadingZeroBits(R[m]);
             result = CountLeadingZeroBits(Rm_val)
             self.setRegister(Rd, result)
     
