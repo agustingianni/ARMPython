@@ -1741,12 +1741,41 @@ class ARMEmulator(object):
 
     
     def emulate_lsr_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rm), Immediate(imm5)]
+            Rd, Rm, imm32 = ins.operands
+            
+            shift_n = imm32.n
+            
+            # (result, carry) = Shift_C(R[m], SRType_LSR, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rm), SRType_LSR, shift_n, self.getCarryFlag());
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_lsr_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                # operands = [Register(Rd), Register(Rm)]
+                Rd, Rm = ins.operands
+                Rn = Rd
+                
+            else:
+                # operands = [Register(Rd), Register(Rn), Register(Rm)]
+                Rd, Rn, Rm = ins.operands
+                
+            # shift_n = UInt(R[m]<7:0>);
+            shift_n = get_bits(self.getRegister(Rm), 7, 0)
+            
+            # (result, carry) = Shift_C(R[n], SRType_LSR, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rn), SRType_LSR, shift_n, self.getCarryFlag())
+            
+            self.__set_flags__(result, carry, None)            
     
     def emulate_mcrr(self, ins):
         if self.ConditionPassed(ins):
