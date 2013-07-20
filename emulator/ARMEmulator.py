@@ -1001,6 +1001,8 @@ class ARMEmulator(object):
             # result = R[n] AND NOT(shifted);
             result = self.getRegister(Rn) & (NOT(shifted))
             
+            # R[d] = result;
+            self.setRegister(Rd, result)
             if ins.setflags:
                 self.__set_flags__(result, carry, None)
 
@@ -1300,6 +1302,8 @@ class ARMEmulator(object):
             # result = R[n] EOR shifted;
             result = Rn_val ^ shifted
             
+            # R[d] = result;
+            self.setRegister(Rd, result)
             if ins.setflags:
                 self.__set_flags__(result, carry, None)
                 
@@ -1819,8 +1823,11 @@ class ARMEmulator(object):
             
             # (result, carry) = Shift_C(R[n], SRType_LSR, shift_n, APSR.C);
             result, carry = Shift_C(self.getRegister(Rn), SRType_LSR, shift_n, self.getCarryFlag())
-            
-            self.__set_flags__(result, carry, None)            
+
+            # R[d] = result;
+            self.setRegister(Rd, result)
+            if ins.setflags:
+                self.__set_flags__(result, carry, None)            
     
     def emulate_mcrr(self, ins):
         if self.ConditionPassed(ins):
@@ -1852,8 +1859,8 @@ class ARMEmulator(object):
             
             # R[d] = result<31:0>;
             self.setRegister(Rd, get_bits(result, 31, 0))
-            
-            self.__set_flags__(result, None, None)
+            if ins.setflags:
+                self.__set_flags__(result, None, None)
     
     def emulate_mls(self, ins):
         if self.ConditionPassed(ins):
@@ -1956,8 +1963,8 @@ class ARMEmulator(object):
             
             # R[d] = result<31:0>;
             self.setRegister(Rd, get_bits(result, 31, 0))
-            
-            self.__set_flags__(result, None, None)
+            if ins.setflags:
+                self.__set_flags__(result, None, None)
                 
     def emulate_mvn_immediate(self, ins):
         """
@@ -2336,7 +2343,9 @@ class ARMEmulator(object):
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), APSR.C);
             result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(shifted), self.getCarryFlag())
-            
+
+            # R[d] = result;
+            self.setRegister(Rd, result)
             if ins.setflags:
                 self.__set_flags__(result, carry, overflow)
     
