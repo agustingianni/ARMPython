@@ -2408,8 +2408,24 @@ class ARMEmulator(object):
             pass
     
     def emulate_smull(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(RdLo), Register(RdHi), Register(Rn), Register(Rm)]
+            RdLo, RdHi, Rn, Rm = ins.operands
+            
+            # result = SInt(R[n]) * SInt(R[m]);
+            result = SInt(self.getRegister(Rn), 32) * SInt(self.getRegister(Rm), 32)
+            
+            # R[dHi] = result<63:32>;
+            self.setRegister(RdHi, get_bits(result, 63, 32))
+            
+            # R[dLo] = result<31:0>;
+            self.setRegister(RdLo, get_bits(result, 31, 0))
+            
+            if ins.setflags:
+                self.__set_flags__(result, None, None)
     
     def emulate_smul(self, ins):
         """
