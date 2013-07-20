@@ -13,7 +13,7 @@ from arm import InstructionNotImplementedException, \
 
 from emulator.memory import DummyMemoryMap
 from bits import get_bits, get_bit, SignExtend64, Align, \
-    CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros
+    CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
 
 class ARMProcessor(object):
     def __init__(self):
@@ -2313,8 +2313,45 @@ class ARMEmulator(object):
             pass
     
     def emulate_smul(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                N = get_bit(ins.opcode, 5)
+                M = get_bit(ins.opcode, 4)   
+                
+                # n_high = (N == '1'); m_high = (M == '1');
+                n_high = N == 1
+                m_high = M == 1                         
+                
+            elif ins.encoding == eEncodingA1:
+                N = get_bit(ins.opcode, 5)
+                M = get_bit(ins.opcode, 6)
+                
+                # n_high = (N == '1'); m_high = (M == '1');
+                n_high = N == 1
+                m_high = M == 1
+                
+            Rd, Rn, Rm = ins.operands
+            
+            # operand1 = if n_high then R[n]<31:16> else R[n]<15:0>;
+            if n_high:
+                operand1 = get_bits(self.getRegister(Rn), 31, 16)
+            else:
+                operand1 = get_bits(self.getRegister(Rn), 15, 0)
+                
+            # operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
+            if n_high:
+                operand2 = get_bits(self.getRegister(Rm), 31, 16)
+            else:
+                operand2 = get_bits(self.getRegister(Rm), 15, 0)
+            
+            # result = SInt(operand1) * SInt(operand2);
+            result = SInt(operand1, 16) * SInt(operand2, 16)
+    
+            # R[d] = result<31:0>;
+            self.setRegister(Rd, get_bits(result, 31, 0))
     
     def emulate_smulw(self, ins):
         if self.ConditionPassed(ins):
