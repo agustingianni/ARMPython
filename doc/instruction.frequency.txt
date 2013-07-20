@@ -16,9 +16,8 @@ Mnemonic        STM has a frequency of 35001        --
 Mnemonic        LDM has a frequency of 28804        --
 Mnemonic        LSL has a frequency of 25263        --
 Mnemonic        AND has a frequency of 22159        --
-
-Mnemonic        ORR has a frequency of 20961
-Mnemonic         BX has a frequency of 17554
+Mnemonic        ORR has a frequency of 20961        --
+Mnemonic         BX has a frequency of 17554        --
 
 Mnemonic       VLDR has a frequency of 16880    x
 Mnemonic       VMOV has a frequency of 16023    x

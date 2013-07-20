@@ -1030,6 +1030,9 @@ class ARMEmulator(object):
             self.BXWritePC(target)
 
     def emulate_bx(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rm = ins.operands
             self.BXWritePC(self.getRegister(Rm))
