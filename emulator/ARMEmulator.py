@@ -3149,9 +3149,26 @@ class ARMEmulator(object):
             pass
     
     def emulate_umlal(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(RdLo), Register(RdHi), Register(Rn), Register(Rm)]
+            RdLo, RdHi, Rn, Rm = ins.operands
+            
+            # result = UInt(R[n]) * UInt(R[m]) + UInt(R[dHi]:R[dLo]);
+            accum = self.getRegister(RdHi) << 32 | self.getRegister(RdLo)
+            result = self.getRegister(Rn) * self.getRegister(Rm) + accum
     
+            # R[dHi] = result<63:32>;
+            self.setRegister(RdHi, get_bits(result, 63, 32))
+            
+            # R[dLo] = result<31:0>;
+            self.setRegister(RdLo, get_bits(result, 31, 0))
+            
+            if ins.setflags:
+                self.__set_flags__(result, None, None)
+            
     def emulate_umull(self, ins):
         """
         Done
