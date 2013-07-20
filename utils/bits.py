@@ -3,9 +3,35 @@ Created on Jun 12, 2013
 
 @author: anon
 '''
+def get_bits(value, end, start):
+    return (value >> start) & ((1 << (end - start + 1)) - 1)
+
+def get_bit(value, bit):
+    return ((value >> bit) & 1)
 
 def Align(val, alignment):
     return alignment * (val / alignment)
+
+# If x is a bitstring, SInt(x) is the integer whose two’s complement representation is x
+def SInt(x, N):
+    result = 0
+    for i in xrange(0, N):
+        if get_bit(x, i):
+            result = result + 2 ** i
+    
+    if get_bit(x, N-1):
+        result = result - 2 ** N
+        
+    return result
+
+# UInt(x) is the integer whose unsigned representation is x:
+def UInt(x, N):
+    result = 0
+    for i in xrange(0, N):
+        if get_bit(x, i):
+            result = result + 2 ** i    
+
+    return result
 
 def SignExtend32(number, bits):
     if number & (1 << (bits - 1)):
@@ -54,12 +80,6 @@ def CountTrailingZeros(n):
         t += 1
     
     return t
-
-def get_bits(value, end, start):
-    return (value >> start) & ((1 << (end - start + 1)) - 1)
-
-def get_bit(value, bit):
-    return ((value >> bit) & 1)
 
 def BitCount(x):
     c = 0
