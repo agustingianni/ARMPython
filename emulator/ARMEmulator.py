@@ -1021,6 +1021,9 @@ class ARMEmulator(object):
         raise Exception("BKPTInstrDebugEvent")
 
     def emulate_bkpt(self, ins):
+        """
+        Done
+        """
         self.BKPTInstrDebugEvent()
 
     def emulate_bl_immediate(self, ins):
@@ -1268,6 +1271,9 @@ class ARMEmulator(object):
         self.log("Hint_Debug")    
     
     def emulate_dbg(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             option = ins.operands
             self.Hint_Debug(option)
@@ -2096,6 +2102,9 @@ class ARMEmulator(object):
                 self.__set_flags__(result, carry, None)
     
     def emulate_nop(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             pass
     
@@ -2501,9 +2510,6 @@ class ARMEmulator(object):
             raise InstructionNotImplementedException("emulate_smlalb")
     
     def emulate_smlal(self, ins):
-        """
-        Done
-        """
         if self.ConditionPassed(ins):
             pass
     
