@@ -535,7 +535,7 @@ class ARMEmulator(object):
     
     def emulate_adc_immediate(self, ins):
         """
-        ADC (immediate)
+        Done
         """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
@@ -546,17 +546,15 @@ class ARMEmulator(object):
             imm32_val = imm32.n
             carry_in = self.getCarryFlag()
             
-            # Perform the operation.
+            # (result, carry, overflow) = AddWithCarry(R[n], imm32, APSR.C);
             result, carry_out, overflow = AddWithCarry(Rn_val, imm32_val, carry_in)
             
             # Set the result and adjust flags accordingly.
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
-            
-        return
-    
+                
     def emulate_adc_register(self, ins):
         """
-        ADC (register)
+        Done
         """
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingA1:
@@ -575,10 +573,10 @@ class ARMEmulator(object):
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
-            # Perform shift operation (does not set flags).
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
             
-            # Perform de addition operation
+            # (result, carry, overflow) = AddWithCarry(R[n], shifted, APSR.C);
             result, carry_out, overflow = AddWithCarry(Rn_val, shifted, self.getCarryFlag())
 
             # Set the result and adjust flags accordingly.
@@ -586,19 +584,25 @@ class ARMEmulator(object):
 
     def emulate_adc_rsr(self, ins):
         """
-        ADC (register-shifted register)
+        Done
         """
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+            
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(shift.value, 7, 0)
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], shifted, APSR.C);
             result, carry_out, overflow = AddWithCarry(Rn_val, shifted, self.getCarryFlag())
+            
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_immediate_arm(self, ins):
