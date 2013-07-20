@@ -1106,10 +1106,15 @@ class ARMEmulator(object):
             self.setRegister(Rd, result)
     
     def emulate_cmn_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rn, imm32 = ins.operands
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], imm32, '0');
             result, carry, overflow = AddWithCarry(Rn_val, imm32_val, 0)
             self.__set_flags__(result, carry, overflow)
     
@@ -1126,6 +1131,9 @@ class ARMEmulator(object):
         return self.getFlag(ARMFLag.N)
     
     def emulate_cmn_register(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
             if len(ins.operands) == 2:
                 Rn, Rm = ins.operands
@@ -1138,24 +1146,35 @@ class ARMEmulator(object):
                 
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], shifted, '0'); 
             result, carry, overflow = AddWithCarry(Rn_val, shifted, 0)
+            
             self.__set_flags__(result, carry, overflow)
     
     def emulate_cmn_rsr(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
             # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
             Rn, Rm, shift = ins.operands
             shift_t = shift.type_
             
-            # Shift ammount is on a register
+            # shift_n = UInt(R[s]<7:0>);
             shift_n = self.getRegister(shift.value)
             shift_n = get_bits(shift_n, 7, 0)
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], shifted, '0');
             result, carry, overflow = AddWithCarry(Rn_val, shifted, 0)
             self.__set_flags__(result, carry, overflow)
 
