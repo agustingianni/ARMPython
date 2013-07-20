@@ -1947,8 +1947,16 @@ class ARMEmulator(object):
             pass
     
     def emulate_movt(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Immediate(imm16)]
+            Rd, imm16 = ins.operands
+            
+            # R[d]<31:16> = imm16;
+            Rd_val = (imm16.n << 16) | get_bits(self.getRegister(Rd), 15, 0)
+            self.setRegister(Rd, Rd_val)
     
     def emulate_mrc(self, ins):
         if self.ConditionPassed(ins):
