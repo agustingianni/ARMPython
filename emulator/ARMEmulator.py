@@ -885,16 +885,24 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_asr_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rd, Rm, imm32 = ins.operands
             Rm_val = self.getRegister(Rm)
             imm32_val = imm32.n
+            
+            # (result, carry) = Shift_C(R[m], SRType_ASR, shift_n, APSR.C);
             result, carry = Shift_C(Rm_val, SRType_ASR, imm32_val, self.getCarryFlag())
             
             # Does not change the overflow.
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
 
     def emulate_asr_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
@@ -905,7 +913,10 @@ class ARMEmulator(object):
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
 
+            # shift_n = UInt(R[m]<7:0>);
             shift_n = get_bits(Rm_val, 7, 0)
+            
+            # (result, carry) = Shift_C(R[n], SRType_ASR, shift_n, APSR.C);
             result, carry = Shift_C(Rn_val, SRType_ASR, shift_n, self.getCarryFlag())
             
             # Does not change the overflow.
