@@ -2218,16 +2218,71 @@ class ARMEmulator(object):
             pass
     
     def emulate_sbc_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
+            Rd, Rn, imm32 = ins.operands
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), APSR.C);
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(imm32.n), self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_sbc_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                # operands = [Register(Rd), Register(Rm)]
+                Rd, Rm = ins.operands
+                Rn = Rd
+                shift_t = SRType_LSL
+                shift_n = 0
+    
+            elif ins.encoding == eEncodingT2:
+                # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+                Rd, Rn, Rm, shift = ins.operands
+                shift_t = shift.type_
+                shift_n = shift.value
+                
+            elif ins.encoding == eEncodingA1:
+                # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+                Rd, Rn, Rm, shift = ins.operands
+                shift_t = shift.type_
+                shift_n = shift.value
+                
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), APSR.C);
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(shifted), self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
+            
     
     def emulate_sbc_rsr(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(self.getRegister(shift.value), 7, 0)
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), APSR.C);
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(shifted), self.getCarryFlag())
+            
+            if ins.setflags:
+                self.__set_flags__(result, carry, overflow)
     
     def emulate_sev(self, ins):
         if self.ConditionPassed(ins):
