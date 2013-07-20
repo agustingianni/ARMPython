@@ -1960,16 +1960,72 @@ class ARMEmulator(object):
             self.__set_flags__(result, None, None)
                 
     def emulate_mvn_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                imm32, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag())
+                
+            elif ins.encoding == eEncodingA1:
+                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
+
+            # operands = [Register(Rd), Immediate(imm32)]
+            Rd, t = ins.operands
+            
+            # result = NOT(imm32);
+            result = NOT(imm32)
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_mvn_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                shift_t = SRType_LSL
+                shift_n = 0
+                
+                # operands = [Register(Rd), Register(Rm)]
+                Rd, Rm = ins.operands
+
+            else:
+                # operands = [Register(Rd), Register(Rm), RegisterShift(shift_t, shift_n)]
+                Rd, Rm, shift = ins.operands
+                shift_t = shift.type_
+                shift_n = shift.value
+
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # result = NOT(shifted);
+            result = NOT(shifted)
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_mvn_rsr(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rd, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = self.getRegister(shift.value)
+            
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(shift_n, 7, 0)
+            
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # result = NOT(shifted);
+            result = NOT(shifted)
+            
+            self.setRegister(Rd, result)
+            if ins.setflags:
+                self.__set_flags__(result, carry, None)
     
     def emulate_nop(self, ins):
         if self.ConditionPassed(ins):
