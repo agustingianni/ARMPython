@@ -1894,8 +1894,26 @@ class ARMEmulator(object):
                 self.__set_flags__(result, None, None)
     
     def emulate_mls(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), Register(Ra)]
+            Rd, Rn, Rm, Ra = ins.operands
+            
+            # operand1 = SInt(R[n]); // operand1 = UInt(R[n]) produces the same final results
+            operand1 = self.getRegister(Rn)
+            
+            # operand2 = SInt(R[m]); // operand2 = UInt(R[m]) produces the same final results
+            operand2 = self.getRegister(Rm)
+            
+            # addend = SInt(R[a]); // addend = UInt(R[a]) produces the same final results
+            addend = self.getRegister(Ra)
+            
+            # result = addend - operand1 * operand2;
+            result = addend - operand1 * operand2
+            
+            self.setRegister(Rd, get_bits(result, 31, 0))
     
     def emulate_mov_immediate(self, ins):
         """
