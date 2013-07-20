@@ -314,7 +314,11 @@ class ARMEmulator(object):
         self.flags_map[ARMFLag.C] = 0
         self.flags_map[ARMFLag.V] = 0
         self.flags_map[ARMFLag.Z] = 0
-       
+    
+    def CallSupervisor(self, imm):
+        # TODO: Implement
+        pass   
+    
     def CurrentCondition(self, opcode):
         pass
     
@@ -3010,8 +3014,15 @@ class ARMEmulator(object):
                 #     BranchWritePC(result);
     
     def emulate_svc(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Immediate(imm)]
+            imm32 = ins.operands
+            
+            # CallSupervisor(imm32<15:0>);
+            self.CallSupervisor(get_bits(imm32.n, 15, 0))
     
     def emulate_swp(self, ins):
         if self.ConditionPassed(ins):
