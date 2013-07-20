@@ -2928,17 +2928,63 @@ class ARMEmulator(object):
             pass
     
     def emulate_teq_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            if ins.encoding == eEncodingT1:
+                imm32, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag()) 
+                
+            elif ins.encoding == eEncodingA1:
+                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag()) 
+            
+            # operands = [Register(Rn), Immediate(imm32)]
+            Rn, t = ins.operands
+            
+            # result = R[n] EOR imm32;
+            result = self.getRegister(Rn) ^ imm32
+            
+            self.__set_flags__(result, carry, None)
+            
     def emulate_teq_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+            Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = shift.value
+            
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] EOR shifted;
+            result = self.getRegister(Rn) ^ shifted
+            
+            self.__set_flags__(result, carry, None)
     
     def emulate_teq_rsr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = self.getRegister(shift.value)
+            
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(shift_n, 7, 0)
+            
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] EOR shifted;
+            result = self.getRegister(Rn) ^ shifted
+
+            self.__set_flags__(result, carry, None)
+            
     def emulate_thumb(self, opcode):
         if self.ConditionPassed(ins):
             pass
