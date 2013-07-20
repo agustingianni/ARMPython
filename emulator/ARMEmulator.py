@@ -2326,16 +2326,58 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsc_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
+            Rd, Rn, imm32 = ins.operands
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), imm32, APSR.C);
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), imm32.n, self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsc_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = shift.value
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, APSR.C);
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsc_rsr(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = self.getRegister(shift.value)
+            
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(shift_n, 7, 0)
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, APSR.C);
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, self.getCarryFlag())
+            
+            self.setRegister(Rd, result)
+            if ins.setflags:
+                self.__set_flags__(result, carry, overflow)
     
     def emulate_sat_add_and_sub(self, ins):
         if self.ConditionPassed(ins):
@@ -2420,9 +2462,12 @@ class ARMEmulator(object):
     
     def emulate_smlalb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException("emulate_smlalb")
     
     def emulate_smlal(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             pass
     
