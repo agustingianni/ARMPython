@@ -2257,12 +2257,48 @@ class ARMEmulator(object):
             pass
     
     def emulate_ror_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rm), Immediate(imm5)]
+            Rd, Rm, imm32 = ins.operands
+            
+            shift_n = imm32.n
+            
+            # (result, carry) = Shift_C(R[m], SRType_ROR, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rm), SRType_ROR, shift_n, self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_ror_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                # operands = [Register(Rd), Register(Rm)]
+                Rd, Rm = ins.operand
+                Rn = Rd
+                
+            elif ins.encoding == eEncodingT2:
+                # operands = [Register(Rd), Register(Rn), Register(Rm)]
+                Rd, Rn, Rm = ins.operand
+
+            elif ins.encoding == eEncodingA1:
+                # operands = [Register(Rd), Register(Rn), Register(Rm)]
+                Rd, Rn, Rm = ins.operand
+                
+            # shift_n = UInt(R[m]<7:0>);
+            shift_n = get_bits(self.getRegister(Rm), 7, 0)
+            
+            # (result, carry) = Shift_C(R[n], SRType_ROR, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rn), SRType_ROR, shift_n, self.getCarryFlag())
+    
+            # R[d] = result;
+            self.setRegister(Rd, result)
+            if ins.setflags:
+                self.__set_flags__(result, carry, None)
     
     def emulate_rrx(self, ins):
         if self.ConditionPassed(ins):
