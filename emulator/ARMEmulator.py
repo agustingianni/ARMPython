@@ -1843,9 +1843,27 @@ class ARMEmulator(object):
             pass
     
     def emulate_mul(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            # operands = [Register(Rd), Register(Rn), Register(Rm)]
+            Rd, Rn, Rm = ins.operands
+            
+            # operand1 = SInt(R[n]); // operand1 = UInt(R[n]) produces the same final results
+            operand1 = self.getRegister(Rn)
+            
+            # operand2 = SInt(R[m]); // operand2 = UInt(R[m]) produces the same final results
+            operand2 = self.getRegister(Rm)
+            
+            # result = operand1 * operand2;
+            result = operand1 * operand2
+            
+            # R[d] = result<31:0>;
+            self.setRegister(Rd, get_bits(result, 31, 0))
+            
+            self.__set_flags__(result, None, None)
+                
     def emulate_mvn_immediate(self, ins):
         if self.ConditionPassed(ins):
             pass
