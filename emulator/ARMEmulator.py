@@ -1846,16 +1846,79 @@ class ARMEmulator(object):
             pass
     
     def emulate_orr_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
+
+            Rd, Rn, t = ins.operands
+
+            if ins.encoding == eEncodingT1:
+                immediate_val, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag())
+                
+            elif ins.encoding == eEncodingA1:
+                immediate_val, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
+                
+            # result = R[n] OR imm32;
+            result = self.getRegister(Rn) | immediate_val
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_orr_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                # operands = [Register(Rd), Register(Rm)]
+                Rd, Rm = ins.operands
+                Rn = Rd
+                shift_t = SRType_LSL
+                shift_n = 0
+    
+            elif ins.encoding == eEncodingT2:
+                # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+                Rd, Rn, Rm, shift = ins.operands
+                shift_t = shift.type_
+                shift_n = shift.value
+                
+            elif ins.encoding == eEncodingA1:
+                # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+                Rd, Rn, Rm, shift = ins.operands
+                shift_t = shift.type_
+                shift_n = shift.value
+            
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] OR shifted;
+            result = self.getRegister(Rn) | shifted
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)            
     
     def emulate_orr_rsr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(self.getRegister(shift.value), 7, 0)
+            
+            Rn_val = self.getRegister(Rn)
+            Rm_val = self.getRegister(Rm)
+            
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] OR shifted;
+            result = Rn_val | shifted
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_pld(self, ins):
         if self.ConditionPassed(ins):
