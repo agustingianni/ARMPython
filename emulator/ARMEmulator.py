@@ -64,6 +64,9 @@ class ARMProcessor(object):
         pass
         
 
+def NOT(val):
+    return ~val
+
 def AddWithCarry(x, y, carry_in):
     from ctypes import c_uint32, c_int32
 
@@ -922,7 +925,7 @@ class ARMEmulator(object):
             Rd, Rn, imm32 = ins.operands
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
-            result = Rn_val & (~imm32_val)
+            result = Rn_val & (NOT(imm32_val))
 
             # Does not change the overflow.
             self.__write_reg_and_set_flags__(Rd, result, 0, None, ins.setflags)
@@ -945,7 +948,7 @@ class ARMEmulator(object):
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             shifted, carry = Shift_C(Rm_val, shift_t, shift_n, self.getCarryFlag())
-            result = Rn_val & (~shifted)    
+            result = Rn_val & (NOT(shifted))    
 
             # Does not change the overflow.
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
@@ -961,7 +964,7 @@ class ARMEmulator(object):
             Rm_val = self.getRegister(Rm)
             
             shifted, carry = Shift_C(Rm_val, shift_t, shift_n, self.getCarryFlag())
-            result = Rn_val & (~shifted)
+            result = Rn_val & (NOT(shifted))
             
             # Does not change the overflow.
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
@@ -1139,7 +1142,7 @@ class ARMEmulator(object):
             imm32_val = imm32.n
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), '1');
-            result, carry, overflow = AddWithCarry(Rn_val, ~imm32_val, 1)
+            result, carry, overflow = AddWithCarry(Rn_val, NOT(imm32_val), 1)
             self.__set_flags__(result, carry, overflow)
     
     def emulate_cmp_register(self, ins):
@@ -1163,7 +1166,7 @@ class ARMEmulator(object):
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
-            result, carry, overflow = AddWithCarry(Rn_val, ~shifted, 1)
+            result, carry, overflow = AddWithCarry(Rn_val, NOT(shifted), 1)
             self.__set_flags__(result, carry, overflow)
                     
     def emulate_cmp_rsr(self, ins):
@@ -1186,7 +1189,7 @@ class ARMEmulator(object):
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
-            result, carry, overflow = AddWithCarry(Rn_val, ~shifted, 1)
+            result, carry, overflow = AddWithCarry(Rn_val, NOT(shifted), 1)
             self.__set_flags__(result, carry, overflow)
         
     def Hint_Debug(self, option):
@@ -1916,7 +1919,7 @@ class ARMEmulator(object):
             Rm_val = self.getRegister(Rm)
             
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
-            shifted, carry = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            shifted, carry = Shift_C(Rm_val, shift_t, shift_n, self.getCarryFlag())
             
             # result = R[n] OR shifted;
             result = Rn_val | shifted
@@ -2018,16 +2021,61 @@ class ARMEmulator(object):
             pass
     
     def emulate_rsb_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
+            Rd, Rn, imm32 = ins.operands
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), imm32, '1');
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), imm32.n, 1)
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsb_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n  = shift.value
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, '1');
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, 1)
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
+            
     def emulate_rsb_rsr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(self.getRegister(shift.value), 7, 0)
+            
+            Rn_val = self.getRegister(Rn)
+            Rm_val = self.getRegister(Rm)
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag());
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, '1');
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, 1);
+            
+            # R[d] = result;
+            self.setRegister(Rd, result)
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsc_immediate(self, ins):
         if self.ConditionPassed(ins):
@@ -2439,7 +2487,7 @@ class ARMEmulator(object):
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), '1');
             Rn_val = self.getRegister(Rn)
-            result, carry, overflow = AddWithCarry(Rn_val, ~imm32.n, 1)
+            result, carry, overflow = AddWithCarry(Rn_val, NOT(imm32.n), 1)
             
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)        
     
@@ -2456,7 +2504,7 @@ class ARMEmulator(object):
 
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), '1');
             Rn_val = self.getRegister(Rn)
-            result, carry, overflow = AddWithCarry(Rn_val, ~imm32.n, 1)            
+            result, carry, overflow = AddWithCarry(Rn_val, NOT(imm32.n), 1)            
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_sub_register(self, ins):
@@ -2479,7 +2527,7 @@ class ARMEmulator(object):
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
             Rn_val = self.getRegister(Rn)
-            result, carry, overflow = AddWithCarry(Rn_val, ~shifted, 1)            
+            result, carry, overflow = AddWithCarry(Rn_val, NOT(shifted), 1)            
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)                
             
     
@@ -2498,7 +2546,7 @@ class ARMEmulator(object):
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
-            result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~shifted, 1)
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(shifted), 1)
             
             self.__write_reg_and_set_flags__(Rn, result, carry, overflow, ins.setflags)
     
@@ -2510,7 +2558,7 @@ class ARMEmulator(object):
             Rd, Rn, imm32 = ins.operands
             
             # (result, carry, overflow) = AddWithCarry(SP, NOT(imm32), '1');
-            result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~imm32.n, '1');
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(imm32.n), '1');
             
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
@@ -2527,7 +2575,7 @@ class ARMEmulator(object):
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
             
             # (result, carry, overflow) = AddWithCarry(SP, NOT(shifted), '1');
-            result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~shifted, 1)
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(shifted), 1)
             
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
 
@@ -2553,7 +2601,7 @@ class ARMEmulator(object):
                 operand2 = imm32.n
                 
                 # (result, -, -) = AddWithCarry(R[n], NOT(operand2), '1');
-                result, carry, overflow = AddWithCarry(self.getRegister(Rn), ~operand2, 1)
+                result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(operand2), 1)
                 
                 # TODO: Get the "Saved Program Status Register (SPSR)"
                 # CPSRWriteByInstr(SPSR[], '1111', TRUE);
