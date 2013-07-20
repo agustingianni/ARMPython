@@ -2405,8 +2405,51 @@ class ARMEmulator(object):
             pass
     
     def emulate_smla(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                N = get_bit(ins.opcode, 5)
+                M = get_bit(ins.opcode, 4)
+                
+                # n_high = (N == '1'); m_high = (M == '1');
+                n_high = N == 1
+                m_high = M == 1
+                
+            elif ins.encoding == eEncodingA1:
+                N = get_bit(ins.opcode, 5)
+                M = get_bit(ins.opcode, 6)
+
+                # n_high = (N == '1'); m_high = (M == '1');
+                n_high = N == 1
+                m_high = M == 1
+            
+            # operands = [Register(Rd), Register(Rn), Register(Rm), Register(Ra)]
+            Rd, Rn, Rm, Ra = ins.operands
+            
+            # operand1 = if n_high then R[n]<31:16> else R[n]<15:0>;
+            if n_high:
+                operand1 = get_bits(self.getRegister(Rn), 31, 16)
+            else:
+                operand1 = get_bits(self.getRegister(Rn), 15, 0)
+            
+            # operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
+            if n_high:
+                operand2 = get_bits(self.getRegister(Rm), 31, 16)
+            else:
+                operand2 = get_bits(self.getRegister(Rm), 15, 0)
+                
+            # result = SInt(operand1) * SInt(operand2) + SInt(R[a]);
+            result = SInt(operand1) * SInt(operand2) + SInt(self.getRegister(Ra))
+            
+            # R[d] = result<31:0>;
+            self.setRegister(Rd, get_bits(result, 31, 0))
+            
+            # if result != SInt(result<31:0>) then // Signed overflow
+            #    APSR.Q = '1';
+            if result != SInt(get_bits(result, 31, 0)):
+                self.setFlag(ARMFLag.Q, 1)
     
     def emulate_smlaw(self, ins):
         if self.ConditionPassed(ins):
