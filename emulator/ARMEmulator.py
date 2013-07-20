@@ -2539,8 +2539,32 @@ class ARMEmulator(object):
             self.setRegister(Rd, get_bits(result, 31, 0))
     
     def emulate_smulw(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm)]
+            Rd, Rn, Rm = ins.operands
+
+            if ins.encoding == eEncodingT1:
+                M = get_bit(ins.opcode, 4)
+                
+            elif ins.encoding == eEncodingA1:
+                M = get_bit(ins.opcode, 6)            
+            
+            m_high = M == 1
+            
+            # operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
+            if m_high:
+                operand2 = get_bits(self.getRegister(Rm), 31, 16)
+            else:
+                operand2 = get_bits(self.getRegister(Rm), 15, 0)
+                            
+            # product = SInt(R[n]) * SInt(operand2);
+            product = SInt(self.getRegister(Rn), 32 * SInt(operand2, 32))
+            
+            # R[d] = product<47:16>;
+            self.setRegister(Rd, get_bits(product, 47, 16))
     
     def emulate_srs_arm(self, ins):
         if self.ConditionPassed(ins):
