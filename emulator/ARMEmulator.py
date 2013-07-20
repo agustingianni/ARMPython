@@ -1786,8 +1786,29 @@ class ARMEmulator(object):
             pass
     
     def emulate_mla(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), Register(Ra)]
+            Rd, Rn, Rm, Ra = ins.operands
+            
+            # operand1 = SInt(R[n]); // operand1 = UInt(R[n]) produces the same final results
+            operand1 = self.getRegister(Rn)
+            
+            # operand2 = SInt(R[m]); // operand2 = UInt(R[m]) produces the same final results
+            operand2 = self.getRegister(Rm)
+            
+            # addend = SInt(R[a]); // addend = UInt(R[a]) produces the same final results
+            addend = self.getRegister(Ra)
+            
+            # result = operand1 * operand2 + addend;
+            result = operand1 * operand2 + addend
+            
+            # R[d] = result<31:0>;
+            self.setRegister(Rd, get_bits(result, 31, 0))
+            
+            self.__set_flags__(result, None, None)
     
     def emulate_mls(self, ins):
         if self.ConditionPassed(ins):
