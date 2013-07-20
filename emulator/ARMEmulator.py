@@ -791,6 +791,9 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
             
     def emulate_adr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingA1: 
                 add = True
@@ -808,12 +811,16 @@ class ARMEmulator(object):
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
 
+            # result = if add then (Align(PC,4) + imm32) else (Align(PC,4) - imm32);
             if add:            
                 result = Align(Rn_val, 4) + imm32_val
             else:
                 result = Align(Rn_val, 4) - imm32_val
                 
-            self.__write_reg_and_set_flags__(Rd, result)
+            if Rd.n == ARMRegister.PC:
+                self.ALUWritePC(result)
+            else:
+                self.setRegister(Rd, result)
 
     def emulate_and_immediate(self, ins):
         """
