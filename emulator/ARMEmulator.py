@@ -3485,7 +3485,7 @@ class ARMEmulator(object):
         elif ins.id == ARMInstruction.adc_rsr:
             self.emulate_adc_rsr(ins)
         elif ins.id == ARMInstruction.add_immediate:
-            self.emulate_add_immediate_arm(ins)
+            self.emulate_add_immediate(ins)
         elif ins.id == ARMInstruction.add_register:
             self.emulate_add_register(ins)
         elif ins.id == ARMInstruction.add_rsr:
