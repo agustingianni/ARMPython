@@ -69,7 +69,8 @@ class ARMFLag:
 class ARMMode:
     THUMB = 0
     ARM = 1
-    
+
+# TODO: These should be instances of Register
 class ARMRegister:
     """
     ARM core registers
