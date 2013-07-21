@@ -718,7 +718,7 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            if ins.encoding == eEncodingA1:
+            if ins.encoding == eEncodingT1:
                 # operands = [Register(Rd), Register(Rm)]
                 Rd, Rm = ins.operands
                 Rn = Rd
