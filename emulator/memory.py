@@ -50,8 +50,8 @@ class ConcreteMemoryMap(MemoryMap):
 
     def __set_bytes__(self, address, value, size):
         for i in xrange(0, size):
-            offset = i * 8
-            self.__setitem__(address + i, (value >> offset) & 0xff)
+            #print "[%.8x]  = %.2x" % (address + i, ord(value[i]))
+            self.__setitem__(address + i, ord(value[i]))
     
     def __get_bytes__(self, address, size):
         values = []
