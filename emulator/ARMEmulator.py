@@ -284,6 +284,155 @@ class ARMEmulator(object):
         self.disassembler = ARMDisasembler()
         
         self.it_session = ITSession()
+
+        self.instructions={}        
+        self.instructions[ARMInstruction.adc_immediate]=self.emulate_adc_immediate
+        self.instructions[ARMInstruction.adc_register]=self.emulate_adc_register
+        self.instructions[ARMInstruction.adc_rsr]=self.emulate_adc_rsr
+        self.instructions[ARMInstruction.add_immediate]=self.emulate_add_immediate_arm
+        self.instructions[ARMInstruction.add_register]=self.emulate_add_register
+        self.instructions[ARMInstruction.add_rsr]=self.emulate_add_rsr
+        self.instructions[ARMInstruction.add_sp_plus_immediate]=self.emulate_add_sp_plus_immediate
+        self.instructions[ARMInstruction.add_sp_plus_register]=self.emulate_add_sp_plus_register
+        self.instructions[ARMInstruction.adr]=self.emulate_adr
+        self.instructions[ARMInstruction.and_immediate]=self.emulate_and_immediate
+        self.instructions[ARMInstruction.and_register]=self.emulate_and_register
+        self.instructions[ARMInstruction.and_rsr]=self.emulate_and_rsr
+        self.instructions[ARMInstruction.asr_immediate]=self.emulate_asr_immediate
+        self.instructions[ARMInstruction.asr_register]=self.emulate_asr_register
+        self.instructions[ARMInstruction.b]=self.emulate_b
+        self.instructions[ARMInstruction.bic_immediate]=self.emulate_bic_immediate
+        self.instructions[ARMInstruction.bic_register]=self.emulate_bic_register
+        self.instructions[ARMInstruction.bic_rsr]=self.emulate_bic_rsr
+        self.instructions[ARMInstruction.bkpt]=self.emulate_bkpt
+        self.instructions[ARMInstruction.bl_immediate]=self.emulate_bl_immediate
+        self.instructions[ARMInstruction.blx_register]=self.emulate_blx_register
+        self.instructions[ARMInstruction.bx]=self.emulate_bx
+        self.instructions[ARMInstruction.bxj]=self.emulate_bxj
+        self.instructions[ARMInstruction.cbz]=self.emulate_cbz
+        self.instructions[ARMInstruction.cdp]=self.emulate_cdp
+        self.instructions[ARMInstruction.clz]=self.emulate_clz
+        self.instructions[ARMInstruction.cmn_immediate]=self.emulate_cmn_immediate
+        self.instructions[ARMInstruction.cmn_register]=self.emulate_cmn_register
+        self.instructions[ARMInstruction.cmn_rsr]=self.emulate_cmn_rsr
+        self.instructions[ARMInstruction.cmp_immediate]=self.emulate_cmp_immediate
+        self.instructions[ARMInstruction.cmp_register]=self.emulate_cmp_register
+        self.instructions[ARMInstruction.cmp_rsr]=self.emulate_cmp_rsr
+        self.instructions[ARMInstruction.dbg]=self.emulate_dbg
+        self.instructions[ARMInstruction.eor_immediate]=self.emulate_eor_immediate
+        self.instructions[ARMInstruction.eor_register]=self.emulate_eor_register
+        self.instructions[ARMInstruction.eor_rsr]=self.emulate_eor_rsr
+        self.instructions[ARMInstruction.eret]=self.emulate_eret
+        self.instructions[ARMInstruction.hvc]=self.emulate_hvc
+        self.instructions[ARMInstruction.it]=self.emulate_it
+        self.instructions[ARMInstruction.ldc_immediate]=self.emulate_ldc_immediate
+        self.instructions[ARMInstruction.ldc_literal]=self.emulate_ldc_literal
+        self.instructions[ARMInstruction.ldmda]=self.emulate_ldmda
+        self.instructions[ARMInstruction.ldmdb]=self.emulate_ldmdb
+        self.instructions[ARMInstruction.ldm_exception_return]=self.emulate_ldm_exception_return
+        self.instructions[ARMInstruction.ldmia]=self.emulate_ldmia
+        self.instructions[ARMInstruction.ldmib]=self.emulate_ldmib
+        self.instructions[ARMInstruction.ldm_user_registers]=self.emulate_ldm_user_registers
+        self.instructions[ARMInstruction.ldrb_immediate]=self.emulate_ldrb_immediate
+        self.instructions[ARMInstruction.ldrb_literal]=self.emulate_ldrb_literal
+        self.instructions[ARMInstruction.ldrb_register]=self.emulate_ldrb_register
+        self.instructions[ARMInstruction.ldrbt]=self.emulate_ldrbt
+        self.instructions[ARMInstruction.ldrex]=self.emulate_ldrex
+        self.instructions[ARMInstruction.ldrexb]=self.emulate_ldrexb
+        self.instructions[ARMInstruction.ldrexd]=self.emulate_ldrexd
+        self.instructions[ARMInstruction.ldrexh]=self.emulate_ldrexh
+        self.instructions[ARMInstruction.ldr_immediate]=self.emulate_ldr_immediate
+        self.instructions[ARMInstruction.ldr_literal]=self.emulate_ldr_literal
+        self.instructions[ARMInstruction.ldr_register]=self.emulate_ldr_register
+        self.instructions[ARMInstruction.ldrt]=self.emulate_ldrt
+        self.instructions[ARMInstruction.lsl_immediate]=self.emulate_lsl_immediate
+        self.instructions[ARMInstruction.lsl_register]=self.emulate_lsl_register
+        self.instructions[ARMInstruction.lsr_immediate]=self.emulate_lsr_immediate
+        self.instructions[ARMInstruction.lsr_register]=self.emulate_lsr_register
+        self.instructions[ARMInstruction.mcr]=self.emulate_mcr
+        self.instructions[ARMInstruction.mcrr]=self.emulate_mcrr
+        self.instructions[ARMInstruction.mla]=self.emulate_mla
+        self.instructions[ARMInstruction.mls]=self.emulate_mls
+        self.instructions[ARMInstruction.mov_immediate]=self.emulate_mov_immediate
+        self.instructions[ARMInstruction.mov_register]=self.emulate_mov_register
+        self.instructions[ARMInstruction.mov_rsr]=self.emulate_mov_rsr
+        self.instructions[ARMInstruction.movt]=self.emulate_movt
+        self.instructions[ARMInstruction.mrc]=self.emulate_mrc
+        self.instructions[ARMInstruction.mrrc]=self.emulate_mrrc
+        self.instructions[ARMInstruction.mrs]=self.emulate_mrs
+        self.instructions[ARMInstruction.msr]=self.emulate_msr
+        self.instructions[ARMInstruction.mul]=self.emulate_mul
+        self.instructions[ARMInstruction.mull]=self.emulate_mull
+        self.instructions[ARMInstruction.mvn_immediate]=self.emulate_mvn_immediate
+        self.instructions[ARMInstruction.mvn_register]=self.emulate_mvn_register
+        self.instructions[ARMInstruction.mvn_rsr]=self.emulate_mvn_rsr
+        self.instructions[ARMInstruction.nop]=self.emulate_nop
+        self.instructions[ARMInstruction.orr_immediate]=self.emulate_orr_immediate
+        self.instructions[ARMInstruction.orr_register]=self.emulate_orr_register
+        self.instructions[ARMInstruction.orr_rsr]=self.emulate_orr_rsr
+        self.instructions[ARMInstruction.pld]=self.emulate_pld
+        self.instructions[ARMInstruction.pop]=self.emulate_pop
+        self.instructions[ARMInstruction.push]=self.emulate_push
+        self.instructions[ARMInstruction.rfe]=self.emulate_rfe
+        self.instructions[ARMInstruction.ror_immediate]=self.emulate_ror_immediate
+        self.instructions[ARMInstruction.ror_register]=self.emulate_ror_register
+        self.instructions[ARMInstruction.rrx]=self.emulate_rrx
+        self.instructions[ARMInstruction.rsb_immediate]=self.emulate_rsb_immediate
+        self.instructions[ARMInstruction.rsb_register]=self.emulate_rsb_register
+        self.instructions[ARMInstruction.rsb_rsr]=self.emulate_rsb_rsr
+        self.instructions[ARMInstruction.rsc_immediate]=self.emulate_rsc_immediate
+        self.instructions[ARMInstruction.rsc_register]=self.emulate_rsc_register
+        self.instructions[ARMInstruction.rsc_rsr]=self.emulate_rsc_rsr
+        self.instructions[ARMInstruction.sat_add_and_sub]=self.emulate_sat_add_and_sub
+        self.instructions[ARMInstruction.sbc_immediate]=self.emulate_sbc_immediate
+        self.instructions[ARMInstruction.sbc_register]=self.emulate_sbc_register
+        self.instructions[ARMInstruction.sbc_rsr]=self.emulate_sbc_rsr
+        self.instructions[ARMInstruction.sev]=self.emulate_sev
+        self.instructions[ARMInstruction.smc]=self.emulate_smc
+        self.instructions[ARMInstruction.smla]=self.emulate_smla
+        self.instructions[ARMInstruction.smlal]=self.emulate_smlal
+        self.instructions[ARMInstruction.smlalb]=self.emulate_smlalb
+        self.instructions[ARMInstruction.smlaw]=self.emulate_smlaw
+        self.instructions[ARMInstruction.smul]=self.emulate_smul
+        self.instructions[ARMInstruction.smull]=self.emulate_smull
+        self.instructions[ARMInstruction.smulw]=self.emulate_smulw
+        self.instructions[ARMInstruction.srs]=self.emulate_srs
+        self.instructions[ARMInstruction.stc]=self.emulate_stc
+        self.instructions[ARMInstruction.stmda]=self.emulate_stmda
+        self.instructions[ARMInstruction.stmdb]=self.emulate_stmdb
+        self.instructions[ARMInstruction.stmia]=self.emulate_stmia
+        self.instructions[ARMInstruction.stmib]=self.emulate_stmib
+        self.instructions[ARMInstruction.stm_user_registers]=self.emulate_stm_user_registers
+        self.instructions[ARMInstruction.strb_immediate]=self.emulate_strb_immediate
+        self.instructions[ARMInstruction.strb_register]=self.emulate_strb_register
+        self.instructions[ARMInstruction.strbt]=self.emulate_strbt
+        self.instructions[ARMInstruction.strex]=self.emulate_strex
+        self.instructions[ARMInstruction.strexb]=self.emulate_strexb
+        self.instructions[ARMInstruction.strexd]=self.emulate_strexd
+        self.instructions[ARMInstruction.strexh]=self.emulate_strexh
+        self.instructions[ARMInstruction.str_immediate]=self.emulate_str_immediate
+        self.instructions[ARMInstruction.str_reg]=self.emulate_str_reg
+        self.instructions[ARMInstruction.strt]=self.emulate_strt
+        self.instructions[ARMInstruction.sub_immediate]=self.emulate_sub_immediate
+        self.instructions[ARMInstruction.sub_register]=self.emulate_sub_register
+        self.instructions[ARMInstruction.sub_rsr]=self.emulate_sub_rsr
+        self.instructions[ARMInstruction.subs_pc_lr]=self.emulate_subs_pc_lr
+        self.instructions[ARMInstruction.sub_sp_minus_immediate]=self.emulate_sub_sp_minus_immediate
+        self.instructions[ARMInstruction.sub_sp_minus_register]=self.emulate_sub_sp_minus_register
+        self.instructions[ARMInstruction.svc]=self.emulate_svc
+        self.instructions[ARMInstruction.swp]=self.emulate_swp
+        self.instructions[ARMInstruction.teq_immediate]=self.emulate_teq_immediate
+        self.instructions[ARMInstruction.teq_register]=self.emulate_teq_register
+        self.instructions[ARMInstruction.teq_rsr]=self.emulate_teq_rsr
+        self.instructions[ARMInstruction.tst_immediate]=self.emulate_tst_immediate
+        self.instructions[ARMInstruction.tst_register]=self.emulate_tst_register
+        self.instructions[ARMInstruction.tst_rsr]=self.emulate_tst_rsr
+        self.instructions[ARMInstruction.umaal]=self.emulate_umaal
+        self.instructions[ARMInstruction.umlal]=self.emulate_umlal
+        self.instructions[ARMInstruction.umull]=self.emulate_umull
+        self.instructions[ARMInstruction.wfe]=self.emulate_wfe
+        self.instructions[ARMInstruction.wfi]=self.emulate_wfi
+        self.instructions[ARMInstruction.yield_]=self.emulate_yield
    
     def __init_register_map__(self):
         """
@@ -3478,301 +3627,9 @@ class ARMEmulator(object):
             print self.dump_state()
             print ins
         
-        if ins.id == ARMInstruction.adc_immediate:
-            self.emulate_adc_immediate(ins)
-        elif ins.id == ARMInstruction.adc_register:
-            self.emulate_adc_register(ins)
-        elif ins.id == ARMInstruction.adc_rsr:
-            self.emulate_adc_rsr(ins)
-        elif ins.id == ARMInstruction.add_immediate:
-            self.emulate_add_immediate_arm(ins)
-        elif ins.id == ARMInstruction.add_register:
-            self.emulate_add_register(ins)
-        elif ins.id == ARMInstruction.add_rsr:
-            self.emulate_add_rsr(ins)
-        elif ins.id == ARMInstruction.add_sp_plus_immediate:
-            self.emulate_add_sp_plus_immediate(ins)
-        elif ins.id == ARMInstruction.add_sp_plus_register:
-            self.emulate_add_sp_plus_register(ins)
-        elif ins.id == ARMInstruction.adr:
-            self.emulate_adr(ins)
-        elif ins.id == ARMInstruction.and_immediate:
-            self.emulate_and_immediate(ins)
-        elif ins.id == ARMInstruction.and_register:
-            self.emulate_and_register(ins)
-        elif ins.id == ARMInstruction.and_rsr:
-            self.emulate_and_rsr(ins)
-        elif ins.id == ARMInstruction.asr_immediate:
-            self.emulate_asr_immediate(ins)
-        elif ins.id == ARMInstruction.asr_register:
-            self.emulate_asr_register(ins)
-        elif ins.id == ARMInstruction.b:
-            self.emulate_b(ins)
-        elif ins.id == ARMInstruction.bic_immediate:
-            self.emulate_bic_immediate(ins)
-        elif ins.id == ARMInstruction.bic_register:
-            self.emulate_bic_register(ins)
-        elif ins.id == ARMInstruction.bic_rsr:
-            self.emulate_bic_rsr(ins)
-        elif ins.id == ARMInstruction.bkpt:
-            self.emulate_bkpt(ins)
-        elif ins.id == ARMInstruction.bl_immediate:
-            self.emulate_bl_immediate(ins)
-        elif ins.id == ARMInstruction.blx_register:
-            self.emulate_blx_register(ins)
-        elif ins.id == ARMInstruction.bx:
-            self.emulate_bx(ins)
-        elif ins.id == ARMInstruction.bxj:
-            self.emulate_bxj(ins)
-        elif ins.id == ARMInstruction.cbz:
-            self.emulate_cbz(ins)
-        elif ins.id == ARMInstruction.cdp:
-            self.emulate_cdp(ins)
-        elif ins.id == ARMInstruction.clz:
-            self.emulate_clz(ins)
-        elif ins.id == ARMInstruction.cmn_immediate:
-            self.emulate_cmn_immediate(ins)
-        elif ins.id == ARMInstruction.cmn_register:
-            self.emulate_cmn_register(ins)
-        elif ins.id == ARMInstruction.cmn_rsr:
-            self.emulate_cmn_rsr(ins)
-        elif ins.id == ARMInstruction.cmp_immediate:
-            self.emulate_cmp_immediate(ins)
-        elif ins.id == ARMInstruction.cmp_register:
-            self.emulate_cmp_register(ins)
-        elif ins.id == ARMInstruction.cmp_rsr:
-            self.emulate_cmp_rsr(ins)
-        elif ins.id == ARMInstruction.dbg:
-            self.emulate_dbg(ins)
-        elif ins.id == ARMInstruction.eor_immediate:
-            self.emulate_eor_immediate(ins)
-        elif ins.id == ARMInstruction.eor_register:
-            self.emulate_eor_register(ins)
-        elif ins.id == ARMInstruction.eor_rsr:
-            self.emulate_eor_rsr(ins)
-        elif ins.id == ARMInstruction.eret:
-            self.emulate_eret(ins)
-        elif ins.id == ARMInstruction.hvc:
-            self.emulate_hvc(ins)
-        elif ins.id == ARMInstruction.it:
-            self.emulate_it(ins)
-        elif ins.id == ARMInstruction.ldc_immediate:
-            self.emulate_ldc_immediate(ins)
-        elif ins.id == ARMInstruction.ldc_literal:
-            self.emulate_ldc_literal(ins)
-        elif ins.id == ARMInstruction.ldmda:
-            self.emulate_ldmda(ins)
-        elif ins.id == ARMInstruction.ldmdb:
-            self.emulate_ldmdb(ins)
-        elif ins.id == ARMInstruction.ldm_exception_return:
-            self.emulate_ldm_exception_return(ins)
-        elif ins.id == ARMInstruction.ldmia:
-            self.emulate_ldmia(ins)
-        elif ins.id == ARMInstruction.ldmib:
-            self.emulate_ldmib(ins)
-        elif ins.id == ARMInstruction.ldm_user_registers:
-            self.emulate_ldm_user_registers(ins)
-        elif ins.id == ARMInstruction.ldrb_immediate:
-            self.emulate_ldrb_immediate(ins)
-        elif ins.id == ARMInstruction.ldrb_literal:
-            self.emulate_ldrb_literal(ins)
-        elif ins.id == ARMInstruction.ldrb_register:
-            self.emulate_ldrb_register(ins)
-        elif ins.id == ARMInstruction.ldrbt:
-            self.emulate_ldrbt(ins)
-        elif ins.id == ARMInstruction.ldrex:
-            self.emulate_ldrex(ins)
-        elif ins.id == ARMInstruction.ldrexb:
-            self.emulate_ldrexb(ins)
-        elif ins.id == ARMInstruction.ldrexd:
-            self.emulate_ldrexd(ins)
-        elif ins.id == ARMInstruction.ldrexh:
-            self.emulate_ldrexh(ins)
-        elif ins.id == ARMInstruction.ldr_immediate:
-            self.emulate_ldr_immediate(ins)
-        elif ins.id == ARMInstruction.ldr_literal:
-            self.emulate_ldr_literal(ins)
-        elif ins.id == ARMInstruction.ldr_register:
-            self.emulate_ldr_register(ins)
-        elif ins.id == ARMInstruction.ldrt:
-            self.emulate_ldrt(ins)
-        elif ins.id == ARMInstruction.lsl_immediate:
-            self.emulate_lsl_immediate(ins)
-        elif ins.id == ARMInstruction.lsl_register:
-            self.emulate_lsl_register(ins)
-        elif ins.id == ARMInstruction.lsr_immediate:
-            self.emulate_lsr_immediate(ins)
-        elif ins.id == ARMInstruction.lsr_register:
-            self.emulate_lsr_register(ins)
-        elif ins.id == ARMInstruction.mcr:
-            self.emulate_mcr(ins)
-        elif ins.id == ARMInstruction.mcrr:
-            self.emulate_mcrr(ins)
-        elif ins.id == ARMInstruction.mla:
-            self.emulate_mla(ins)
-        elif ins.id == ARMInstruction.mls:
-            self.emulate_mls(ins)
-        elif ins.id == ARMInstruction.mov_immediate:
-            self.emulate_mov_immediate(ins)
-        elif ins.id == ARMInstruction.mov_register:
-            self.emulate_mov_register(ins)
-        elif ins.id == ARMInstruction.mov_rsr:
-            self.emulate_mov_rsr(ins)
-        elif ins.id == ARMInstruction.movt:
-            self.emulate_movt(ins)
-        elif ins.id == ARMInstruction.mrc:
-            self.emulate_mrc(ins)
-        elif ins.id == ARMInstruction.mrrc:
-            self.emulate_mrrc(ins)
-        elif ins.id == ARMInstruction.mrs:
-            self.emulate_mrs(ins)
-        elif ins.id == ARMInstruction.msr:
-            self.emulate_msr(ins)
-        elif ins.id == ARMInstruction.mul:
-            self.emulate_mul(ins)
-        elif ins.id == ARMInstruction.mull:
-            self.emulate_mull(ins)
-        elif ins.id == ARMInstruction.mvn_immediate:
-            self.emulate_mvn_immediate(ins)
-        elif ins.id == ARMInstruction.mvn_register:
-            self.emulate_mvn_register(ins)
-        elif ins.id == ARMInstruction.mvn_rsr:
-            self.emulate_mvn_rsr(ins)
-        elif ins.id == ARMInstruction.nop:
-            self.emulate_nop(ins)
-        elif ins.id == ARMInstruction.orr_immediate:
-            self.emulate_orr_immediate(ins)
-        elif ins.id == ARMInstruction.orr_register:
-            self.emulate_orr_register(ins)
-        elif ins.id == ARMInstruction.orr_rsr:
-            self.emulate_orr_rsr(ins)
-        elif ins.id == ARMInstruction.pld:
-            self.emulate_pld(ins)
-        elif ins.id == ARMInstruction.pop:
-            self.emulate_pop(ins)
-        elif ins.id == ARMInstruction.push:
-            self.emulate_push(ins)
-        elif ins.id == ARMInstruction.rfe:
-            self.emulate_rfe(ins)
-        elif ins.id == ARMInstruction.ror_immediate:
-            self.emulate_ror_immediate(ins)
-        elif ins.id == ARMInstruction.ror_register:
-            self.emulate_ror_register(ins)
-        elif ins.id == ARMInstruction.rrx:
-            self.emulate_rrx(ins)
-        elif ins.id == ARMInstruction.rsb_immediate:
-            self.emulate_rsb_immediate(ins)
-        elif ins.id == ARMInstruction.rsb_register:
-            self.emulate_rsb_register(ins)
-        elif ins.id == ARMInstruction.rsb_rsr:
-            self.emulate_rsb_rsr(ins)
-        elif ins.id == ARMInstruction.rsc_immediate:
-            self.emulate_rsc_immediate(ins)
-        elif ins.id == ARMInstruction.rsc_register:
-            self.emulate_rsc_register(ins)
-        elif ins.id == ARMInstruction.rsc_rsr:
-            self.emulate_rsc_rsr(ins)
-        elif ins.id == ARMInstruction.sat_add_and_sub:
-            self.emulate_sat_add_and_sub(ins)
-        elif ins.id == ARMInstruction.sbc_immediate:
-            self.emulate_sbc_immediate(ins)
-        elif ins.id == ARMInstruction.sbc_register:
-            self.emulate_sbc_register(ins)
-        elif ins.id == ARMInstruction.sbc_rsr:
-            self.emulate_sbc_rsr(ins)
-        elif ins.id == ARMInstruction.sev:
-            self.emulate_sev(ins)
-        elif ins.id == ARMInstruction.smc:
-            self.emulate_smc(ins)
-        elif ins.id == ARMInstruction.smla:
-            self.emulate_smla(ins)
-        elif ins.id == ARMInstruction.smlal:
-            self.emulate_smlal(ins)
-        elif ins.id == ARMInstruction.smlalb:
-            self.emulate_smlalb(ins)
-        elif ins.id == ARMInstruction.smlaw:
-            self.emulate_smlaw(ins)
-        elif ins.id == ARMInstruction.smul:
-            self.emulate_smul(ins)
-        elif ins.id == ARMInstruction.smull:
-            self.emulate_smull(ins)
-        elif ins.id == ARMInstruction.smulw:
-            self.emulate_smulw(ins)
-        elif ins.id == ARMInstruction.srs:
-            self.emulate_srs(ins)
-        elif ins.id == ARMInstruction.stc:
-            self.emulate_stc(ins)
-        elif ins.id == ARMInstruction.stmda:
-            self.emulate_stmda(ins)
-        elif ins.id == ARMInstruction.stmdb:
-            self.emulate_stmdb(ins)
-        elif ins.id == ARMInstruction.stmia:
-            self.emulate_stmia(ins)
-        elif ins.id == ARMInstruction.stmib:
-            self.emulate_stmib(ins)
-        elif ins.id == ARMInstruction.stm_user_registers:
-            self.emulate_stm_user_registers(ins)
-        elif ins.id == ARMInstruction.strb_immediate:
-            self.emulate_strb_immediate(ins)
-        elif ins.id == ARMInstruction.strb_register:
-            self.emulate_strb_register(ins)
-        elif ins.id == ARMInstruction.strbt:
-            self.emulate_strbt(ins)
-        elif ins.id == ARMInstruction.strex:
-            self.emulate_strex(ins)
-        elif ins.id == ARMInstruction.strexb:
-            self.emulate_strexb(ins)
-        elif ins.id == ARMInstruction.strexd:
-            self.emulate_strexd(ins)
-        elif ins.id == ARMInstruction.strexh:
-            self.emulate_strexh(ins)
-        elif ins.id == ARMInstruction.str_immediate:
-            self.emulate_str_immediate(ins)
-        elif ins.id == ARMInstruction.str_reg:
-            self.emulate_str_reg(ins)
-        elif ins.id == ARMInstruction.strt:
-            self.emulate_strt(ins)
-        elif ins.id == ARMInstruction.sub_immediate:
-            self.emulate_sub_immediate(ins)
-        elif ins.id == ARMInstruction.sub_register:
-            self.emulate_sub_register(ins)
-        elif ins.id == ARMInstruction.sub_rsr:
-            self.emulate_sub_rsr(ins)
-        elif ins.id == ARMInstruction.subs_pc_lr:
-            self.emulate_subs_pc_lr(ins)
-        elif ins.id == ARMInstruction.sub_sp_minus_immediate:
-            self.emulate_sub_sp_minus_immediate(ins)
-        elif ins.id == ARMInstruction.sub_sp_minus_register:
-            self.emulate_sub_sp_minus_register(ins)
-        elif ins.id == ARMInstruction.svc:
-            self.emulate_svc(ins)
-        elif ins.id == ARMInstruction.swp:
-            self.emulate_swp(ins)
-        elif ins.id == ARMInstruction.teq_immediate:
-            self.emulate_teq_immediate(ins)
-        elif ins.id == ARMInstruction.teq_register:
-            self.emulate_teq_register(ins)
-        elif ins.id == ARMInstruction.teq_rsr:
-            self.emulate_teq_rsr(ins)
-        elif ins.id == ARMInstruction.tst_immediate:
-            self.emulate_tst_immediate(ins)
-        elif ins.id == ARMInstruction.tst_register:
-            self.emulate_tst_register(ins)
-        elif ins.id == ARMInstruction.tst_rsr:
-            self.emulate_tst_rsr(ins)
-        elif ins.id == ARMInstruction.umaal:
-            self.emulate_umaal(ins)
-        elif ins.id == ARMInstruction.umlal:
-            self.emulate_umlal(ins)
-        elif ins.id == ARMInstruction.umull:
-            self.emulate_umull(ins)
-        elif ins.id == ARMInstruction.wfe:
-            self.emulate_wfe(ins)
-        elif ins.id == ARMInstruction.wfi:
-            self.emulate_wfi(ins)
-        elif ins.id == ARMInstruction.yield_:
-            self.emulate_yield(ins)
-        else:
+        try:
+            self.instructions[ins.id](ins)
+        except KeyError:
             raise InstructionNotImplementedException()
 
         if dump_state:
