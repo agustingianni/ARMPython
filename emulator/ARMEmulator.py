@@ -289,7 +289,7 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.adc_immediate]=self.emulate_adc_immediate
         self.instructions[ARMInstruction.adc_register]=self.emulate_adc_register
         self.instructions[ARMInstruction.adc_rsr]=self.emulate_adc_rsr
-        self.instructions[ARMInstruction.add_immediate]=self.emulate_add_immediate_arm
+        self.instructions[ARMInstruction.add_immediate]=self.emulate_add_immediate
         self.instructions[ARMInstruction.add_register]=self.emulate_add_register
         self.instructions[ARMInstruction.add_rsr]=self.emulate_add_rsr
         self.instructions[ARMInstruction.add_sp_plus_immediate]=self.emulate_add_sp_plus_immediate
