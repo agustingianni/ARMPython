@@ -42,4 +42,10 @@ Miscellaneous
     ITE
     ZEROEXTEND
     SIGNEXTEND
+
+Constants
+    FALSE
+    TRUE
+    BV
+
 '''
