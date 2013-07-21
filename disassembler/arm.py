@@ -57,15 +57,15 @@ Conditional execution
     
 """
 
-from disassembler.constants.arm import *  # @UnusedWildImport
+from disassembler.constants.arm import *
 from disassembler.utils.bits import get_bit, get_bits, CountTrailingZeros, BitCount, SignExtend32
 from disassembler.utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, DecodeImmShiftThumb
 from disassembler.utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
 from disassembler.utils.arm import ThumbImm12
-from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding,\
-    UnpredictableInstructionException, InstructionNotImplementedException,\
-    Memory, RegisterShift, Condition, ProcessorFlag, RegisterSet,\
-    UndefinedOpcode, Jump
+from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding
+from disassembler.arch import UnpredictableInstructionException, InstructionNotImplementedException
+from disassembler.arch import Memory, RegisterShift, Condition, ProcessorFlag, RegisterSet
+from disassembler.arch import UndefinedOpcode, Jump, Register
 
 class ARMDisassembler(object):
     SYNTAX_DEFAULT = 0

@@ -1,7 +1,8 @@
 from emulator.memory import DummyMemoryMap
 from ARMEmulator import ARMEmulator
-from arm import Immediate, Instruction, Register, RegisterShift
-from constants.arm import ARMRegister, ARMInstruction, eEncodingA1, eEncodingA2, SRType_ASR
+from disassembler.constants.arm import ARMRegister, eEncodingA1, ARMInstruction
+from disassembler.constants.arm import eEncodingA2, SRType_ASR
+from disassembler.arch import Immediate, Instruction, Register, RegisterShift
 
 memory_map = DummyMemoryMap() 
 emulator = ARMEmulator(memory_map)

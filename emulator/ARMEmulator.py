@@ -7,16 +7,12 @@ Created on Jun 12, 2013
 import logging
 from disassembler.constants.arm import *
 
-from disassembler.arm import InstructionNotImplementedException, \
-    UnpredictableInstructionException, InvalidModeException, Instruction, \
-    Register, RegisterShift, ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
-
+from disassembler.arm import InstructionNotImplementedException, UnpredictableInstructionException
+from disassembler.arm import ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 from disassembler.arm import ARMDisassembler
-
-from emulator.memory import DummyMemoryMap
-from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, \
-    CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
-from emulator.memory import ConcreteMemoryMap
+from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align
+from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
+from disassembler.arch import InvalidModeException, Register
 
 class ARMProcessor(object):
     def __init__(self):
@@ -489,6 +485,9 @@ class ARMEmulator(object):
         else:
             return False
     
+    def CurrentModeIsUserOrSystem(self):
+        pass
+    
     def ConditionPassed(self, ins):
         """
         """
@@ -574,7 +573,7 @@ class ARMEmulator(object):
         # I fail at duck typing.
         if type(register) in [int, long]:
             register = Register(register)
-            
+
         self.log.debug("Setting register %s = %d " % (register, value))
         self.register_map[register.n] = value
     
@@ -676,7 +675,7 @@ class ARMEmulator(object):
         Auxiliary function to save the value of an operation into a register
         and set the flags of the processor accordingly. 
         """
-        if register == ARMRegister.PC:
+        if register.n == ARMRegister.PC:
             self.ALUWritePC(result)
             
         else:
@@ -1119,7 +1118,7 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             jmp = ins.operands
-            self.BranchWritePC(self.self.getPC() + jmp.addr)
+            self.BranchWritePC(self.getPC() + jmp.addr)
             
     def emulate_bic_immediate(self, ins):
         """
@@ -1211,9 +1210,9 @@ class ARMEmulator(object):
             jmp = ins.operands
             
             if self.CurrentInstrSet() == ARMMode.ARM:
-                lr_val = self.self.getPC() - 4                
+                lr_val = self.getPC() - 4                
             else:
-                lr_val = self.self.getPC() | 1
+                lr_val = self.getPC() | 1
                 
             self.setRegister(ARMRegister.LR, lr_val)
             
@@ -1232,9 +1231,9 @@ class ARMEmulator(object):
                 targetInstrSet = ARMMode.THUMB
                 
             if targetInstrSet == ARMMode.ARM:
-                targetAddress = Align(self.self.getPC(), 4) + jmp.addr
+                targetAddress = Align(self.getPC(), 4) + jmp.addr
             else:
-                targetAddress = self.self.getPC() + jmp.addr
+                targetAddress = self.getPC() + jmp.addr
                 
             self.SelectInstrSet(targetInstrSet)
             self.BranchWritePC(targetAddress)
@@ -1587,7 +1586,7 @@ class ARMEmulator(object):
                 if get_bit(registers, i):
                     # R[i] = MemA[address,4]; address = address + 4;
                     value = self.memory_map.get_dword(address)
-                    self.setRegister(i, value)
+                    self.setRegister(Register(i), value)
                     address += 4
                     
             if get_bit(registers, 15):
@@ -1619,7 +1618,7 @@ class ARMEmulator(object):
                 if get_bit(registers, i):
                     # R[i] = MemA[address,4]; address = address + 4;
                     value = self.memory_map.get_dword(address)
-                    self.setRegister(i, value)
+                    self.setRegister(Register(i), value)
                     address += 4
                     
             if get_bit(registers, 15):
@@ -1658,7 +1657,7 @@ class ARMEmulator(object):
             for i in xrange(0, 15):
                 if get_bit(registers, i):
                     value = self.memory_map.get_dword(address)
-                    self.setRegister(i, value)
+                    self.setRegister(Register(i), value)
                     address += 4
                     
             if get_bit(registers, 15):
@@ -1675,7 +1674,7 @@ class ARMEmulator(object):
         """
         Done
         """
-        self.emulate_ldmia_arm(self, ins)
+        self.emulate_ldmia_arm(ins)
     
     def emulate_ldmia(self, ins):
         if self.arm_mode == ARMMode.ARM:
@@ -1700,7 +1699,7 @@ class ARMEmulator(object):
                 if get_bit(registers, i):
                     # R[i] = MemA[address,4]; address = address + 4;
                     value = self.memory_map.get_dword(address)
-                    self.setRegister(i, value)
+                    self.setRegister(Register(i), value)
                     address += 4
                     
             if get_bit(registers, 15):
@@ -2438,7 +2437,7 @@ class ARMEmulator(object):
             registers = regset.registers
             
             # address = SP;
-            address = self.getRegister(Register(ARMRegister.SP))
+            address = self.getRegister(ARMRegister.SP)
             
             # for i = 0 to 14
             for i in xrange(0, 14 + 1):
@@ -2456,7 +2455,7 @@ class ARMEmulator(object):
                     self.LoadWritePC(self.memory_map.get_dword(address))
                     
             if get_bit(registers, 13) == 0:
-                sp_val = Register(ARMRegister.SP)
+                sp_val = self.getRegister(ARMRegister.SP)
                 self.setRegister(Register(ARMRegister.SP), sp_val + 4 * BitCount(registers))
             
             if get_bit(registers, 13) == 1:
@@ -2479,7 +2478,7 @@ class ARMEmulator(object):
             UnalignedAllowed = ins.encoding == eEncodingT3 or ins.encoding == eEncodingA2
             
             # address = SP - 4*BitCount(registers);
-            address = self.getRegister(Register(ARMRegister.SP)) - 4 * BitCount(registers)
+            address = self.getRegister(ARMRegister.SP) - 4 * BitCount(registers)
             
             # for i = 0 to 14
             for i in xrange(0, 14 + 1):
@@ -2496,10 +2495,9 @@ class ARMEmulator(object):
                 self.memory_map.set_dword(address, self.getPC())
                 
             # SP = SP - 4*BitCount(registers);
-            sp_val = self.getRegister(Register(ARMRegister.SP))
-            self.setRegister(Register(ARMRegister.SP), sp_val - 4 * BitCount(registers))
+            sp_val = self.getRegister(ARMRegister.SP)
+            self.setRegister(ARMRegister.SP, sp_val - 4 * BitCount(registers))
                             
-    
     def emulate_rfe(self, ins):
         if self.ConditionPassed(ins):
             pass
@@ -2789,14 +2787,14 @@ class ARMEmulator(object):
                 operand2 = get_bits(self.getRegister(Rm), 15, 0)
                 
             # result = SInt(operand1) * SInt(operand2) + SInt(R[a]);
-            result = SInt(operand1) * SInt(operand2) + SInt(self.getRegister(Ra))
+            result = SInt(operand1, 32) * SInt(operand2, 32) + SInt(self.getRegister(Ra), 32)
             
             # R[d] = result<31:0>;
             self.setRegister(Rd, get_bits(result, 31, 0))
             
             # if result != SInt(result<31:0>) then // Signed overflow
             #    APSR.Q = '1';
-            if result != SInt(get_bits(result, 31, 0)):
+            if result != SInt(get_bits(result, 31, 0), 32):
                 self.setFlag(ARMFLag.Q, 1)
     
     def emulate_smlaw(self, ins):
@@ -3466,7 +3464,7 @@ class ARMEmulator(object):
 
             self.__set_flags__(result, carry, None)
             
-    def emulate_thumb(self, opcode):
+    def emulate_thumb(self, ins):
         if self.ConditionPassed(ins):
             pass
     
@@ -3643,11 +3641,17 @@ class ARMEmulator(object):
         Return a string representation of the emulator state.
         """
         regs = []
-        for i in xrange(0, 16):
+        for i in xrange(0, 15):
             r = Register(i)
             v = self.getRegister(r)
             if v:
                 regs.append("%s=%x" % (r, v))
+
+        r = Register(ARMRegister.PC)
+        v = self.getActualPC()
+        if v:
+            regs.append("%s=%x" % (r, v))
+
             
         flags = []
         flags.append("%s=%d" % ("C", self.getFlag(ARMFLag.C)))
