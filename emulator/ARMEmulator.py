@@ -314,7 +314,11 @@ class ARMEmulator(object):
         self.flags_map[ARMFLag.C] = 0
         self.flags_map[ARMFLag.V] = 0
         self.flags_map[ARMFLag.Z] = 0
-       
+    
+    def CallSupervisor(self, imm):
+        # TODO: Implement
+        pass   
+    
     def CurrentCondition(self, opcode):
         pass
     
@@ -334,39 +338,44 @@ class ARMEmulator(object):
     
     def ConditionPassed(self, ins):
         """
-        boolean ConditionPassed() cond = CurrentCond();
-        
-        // Evaluate base condition.
-        case cond<3:1> of
-            when �000� result = (APSR.Z == �1�);
-            when �001� result = (APSR.C == �1�);
-            when �010� result = (APSR.N == �1�);
-            when �011� result = (APSR.V == �1�);
-            when �100� result = (APSR.C == �1�) && (APSR.Z == �0�);
-            when �101� result = (APSR.N == APSR.V);
-            when �110� result = (APSR.N == APSR.V) && (APSR.Z == �0�);
-            when �111� result = TRUE;
-
-        // Condition bits �111x� indicate the instruction is always executed. Otherwise, 
-        // invert condition if necessary.
-        if cond<0> == �1� && cond != �1111� then
-            result = !result; 
-        
-        return result;        
         """
-        cond = get_bits(ins, 0, 0)
+        # For ARM instructions, it returns bits[31:28] of the instruction.
+        cond = get_bits(ins.opcode, 31, 28)
+        
+        # TODO:
+        #
+        # - For the T1 and T3 encodings of the Branch instruction (see B on page A8-332), it returns the 4-bit cond field of the encoding.
+        # - For all other Thumb and ThumbEE instructions:
+        #   if ITSTATE.IT<3:0> != '0000' it returns ITSTATE.IT<7:4>
+        #   if ITSTATE.IT<7:0> == '00000000' it returns '1110'
+        #   otherwise, execution of the instruction is UNPREDICTABLE.
         cond_3_1 = get_bits(cond, 3, 1)
         
         if cond_3_1 == 0b000:
             result = self.getZeroFlag() == 1
+            
         elif cond_3_1 == 0b001:
             result = self.getCarryFlag() == 1
+            
         elif cond_3_1 == 0b010:
             result = self.getNFlag() == 1
+            
         elif cond_3_1 == 0b011:
             result = self.getCarryFlag() == 1
+
+        elif cond_3_1 == 0b100:
+            result = self.getCarryFlag() == 1 and self.getZeroFlag()
+
+        elif cond_3_1 == 0b101:
+            result = self.getNFlag() == self.getOverflowFlag()
+            
+        elif cond_3_1 == 0b110:
+            result = self.getNFlag() == self.getOverflowFlag() and self.getZeroFlag() == 0
+            
+        elif cond_3_1 == 0b111:
+            result = True
         
-        return True
+        return result
     
     def getCurrentMode(self):
         """
@@ -791,6 +800,9 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
             
     def emulate_adr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingA1: 
                 add = True
@@ -808,12 +820,16 @@ class ARMEmulator(object):
             Rn_val = self.getRegister(Rn)
             imm32_val = imm32.n
 
+            # result = if add then (Align(PC,4) + imm32) else (Align(PC,4) - imm32);
             if add:            
                 result = Align(Rn_val, 4) + imm32_val
             else:
                 result = Align(Rn_val, 4) - imm32_val
                 
-            self.__write_reg_and_set_flags__(Rd, result)
+            if Rd.n == ARMRegister.PC:
+                self.ALUWritePC(result)
+            else:
+                self.setRegister(Rd, result)
 
     def emulate_and_immediate(self, ins):
         """
@@ -1010,6 +1026,9 @@ class ARMEmulator(object):
         raise Exception("BKPTInstrDebugEvent")
 
     def emulate_bkpt(self, ins):
+        """
+        Done
+        """
         self.BKPTInstrDebugEvent()
 
     def emulate_bl_immediate(self, ins):
@@ -1099,9 +1118,14 @@ class ARMEmulator(object):
         self.log("CDP is not supported.")
             
     def emulate_clz(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             Rd, Rm = ins.operands
             Rm_val = self.getRegister(Rm)
+            
+            # result = CountLeadingZeroBits(R[m]);
             result = CountLeadingZeroBits(Rm_val)
             self.setRegister(Rd, result)
     
@@ -1252,6 +1276,9 @@ class ARMEmulator(object):
         self.log("Hint_Debug")    
     
     def emulate_dbg(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             option = ins.operands
             self.Hint_Debug(option)
@@ -1882,8 +1909,26 @@ class ARMEmulator(object):
                 self.__set_flags__(result, None, None)
     
     def emulate_mls(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), Register(Ra)]
+            Rd, Rn, Rm, Ra = ins.operands
+            
+            # operand1 = SInt(R[n]); // operand1 = UInt(R[n]) produces the same final results
+            operand1 = self.getRegister(Rn)
+            
+            # operand2 = SInt(R[m]); // operand2 = UInt(R[m]) produces the same final results
+            operand2 = self.getRegister(Rm)
+            
+            # addend = SInt(R[a]); // addend = UInt(R[a]) produces the same final results
+            addend = self.getRegister(Ra)
+            
+            # result = addend - operand1 * operand2;
+            result = addend - operand1 * operand2
+            
+            self.setRegister(Rd, get_bits(result, 31, 0))
     
     def emulate_mov_immediate(self, ins):
         """
@@ -1940,8 +1985,16 @@ class ARMEmulator(object):
             pass
     
     def emulate_movt(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Immediate(imm16)]
+            Rd, imm16 = ins.operands
+            
+            # R[d]<31:16> = imm16;
+            Rd_val = (imm16.n << 16) | get_bits(self.getRegister(Rd), 15, 0)
+            self.setRegister(Rd, Rd_val)
     
     def emulate_mrc(self, ins):
         if self.ConditionPassed(ins):
@@ -2054,6 +2107,9 @@ class ARMEmulator(object):
                 self.__set_flags__(result, carry, None)
     
     def emulate_nop(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
             pass
     
@@ -2215,12 +2271,48 @@ class ARMEmulator(object):
             pass
     
     def emulate_ror_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rm), Immediate(imm5)]
+            Rd, Rm, imm32 = ins.operands
+            
+            shift_n = imm32.n
+            
+            # (result, carry) = Shift_C(R[m], SRType_ROR, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rm), SRType_ROR, shift_n, self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
     def emulate_ror_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                # operands = [Register(Rd), Register(Rm)]
+                Rd, Rm = ins.operand
+                Rn = Rd
+                
+            elif ins.encoding == eEncodingT2:
+                # operands = [Register(Rd), Register(Rn), Register(Rm)]
+                Rd, Rn, Rm = ins.operand
+
+            elif ins.encoding == eEncodingA1:
+                # operands = [Register(Rd), Register(Rn), Register(Rm)]
+                Rd, Rn, Rm = ins.operand
+                
+            # shift_n = UInt(R[m]<7:0>);
+            shift_n = get_bits(self.getRegister(Rm), 7, 0)
+            
+            # (result, carry) = Shift_C(R[n], SRType_ROR, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rn), SRType_ROR, shift_n, self.getCarryFlag())
+    
+            # R[d] = result;
+            self.setRegister(Rd, result)
+            if ins.setflags:
+                self.__set_flags__(result, carry, None)
     
     def emulate_rrx(self, ins):
         if self.ConditionPassed(ins):
@@ -2284,16 +2376,58 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsc_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
+            Rd, Rn, imm32 = ins.operands
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), imm32, APSR.C);
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), imm32.n, self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsc_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = shift.value
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, APSR.C);
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, self.getCarryFlag())
+            
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
     def emulate_rsc_rsr(self, ins):
+        """
+        Done
+        """        
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rd, Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = self.getRegister(shift.value)
+            
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(shift_n, 7, 0)
+            
+            # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, APSR.C);
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, self.getCarryFlag())
+            
+            self.setRegister(Rd, result)
+            if ins.setflags:
+                self.__set_flags__(result, carry, overflow)
     
     def emulate_sat_add_and_sub(self, ins):
         if self.ConditionPassed(ins):
@@ -2378,23 +2512,82 @@ class ARMEmulator(object):
     
     def emulate_smlalb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException("emulate_smlalb")
     
     def emulate_smlal(self, ins):
         if self.ConditionPassed(ins):
             pass
     
     def emulate_smla(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            if ins.encoding == eEncodingT1:
+                N = get_bit(ins.opcode, 5)
+                M = get_bit(ins.opcode, 4)
+                
+                # n_high = (N == '1'); m_high = (M == '1');
+                n_high = N == 1
+                m_high = M == 1
+                
+            elif ins.encoding == eEncodingA1:
+                N = get_bit(ins.opcode, 5)
+                M = get_bit(ins.opcode, 6)
+
+                # n_high = (N == '1'); m_high = (M == '1');
+                n_high = N == 1
+                m_high = M == 1
+            
+            # operands = [Register(Rd), Register(Rn), Register(Rm), Register(Ra)]
+            Rd, Rn, Rm, Ra = ins.operands
+            
+            # operand1 = if n_high then R[n]<31:16> else R[n]<15:0>;
+            if n_high:
+                operand1 = get_bits(self.getRegister(Rn), 31, 16)
+            else:
+                operand1 = get_bits(self.getRegister(Rn), 15, 0)
+            
+            # operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
+            if n_high:
+                operand2 = get_bits(self.getRegister(Rm), 31, 16)
+            else:
+                operand2 = get_bits(self.getRegister(Rm), 15, 0)
+                
+            # result = SInt(operand1) * SInt(operand2) + SInt(R[a]);
+            result = SInt(operand1) * SInt(operand2) + SInt(self.getRegister(Ra))
+            
+            # R[d] = result<31:0>;
+            self.setRegister(Rd, get_bits(result, 31, 0))
+            
+            # if result != SInt(result<31:0>) then // Signed overflow
+            #    APSR.Q = '1';
+            if result != SInt(get_bits(result, 31, 0)):
+                self.setFlag(ARMFLag.Q, 1)
     
     def emulate_smlaw(self, ins):
         if self.ConditionPassed(ins):
             pass
     
     def emulate_smull(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(RdLo), Register(RdHi), Register(Rn), Register(Rm)]
+            RdLo, RdHi, Rn, Rm = ins.operands
+            
+            # result = SInt(R[n]) * SInt(R[m]);
+            result = SInt(self.getRegister(Rn), 32) * SInt(self.getRegister(Rm), 32)
+            
+            # R[dHi] = result<63:32>;
+            self.setRegister(RdHi, get_bits(result, 63, 32))
+            
+            # R[dLo] = result<31:0>;
+            self.setRegister(RdLo, get_bits(result, 31, 0))
+            
+            if ins.setflags:
+                self.__set_flags__(result, None, None)
     
     def emulate_smul(self, ins):
         """
@@ -2438,8 +2631,32 @@ class ARMEmulator(object):
             self.setRegister(Rd, get_bits(result, 31, 0))
     
     def emulate_smulw(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rd), Register(Rn), Register(Rm)]
+            Rd, Rn, Rm = ins.operands
+
+            if ins.encoding == eEncodingT1:
+                M = get_bit(ins.opcode, 4)
+                
+            elif ins.encoding == eEncodingA1:
+                M = get_bit(ins.opcode, 6)            
+            
+            m_high = M == 1
+            
+            # operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
+            if m_high:
+                operand2 = get_bits(self.getRegister(Rm), 31, 16)
+            else:
+                operand2 = get_bits(self.getRegister(Rm), 15, 0)
+                            
+            # product = SInt(R[n]) * SInt(operand2);
+            product = SInt(self.getRegister(Rn), 32 * SInt(operand2, 32))
+            
+            # R[d] = product<47:16>;
+            self.setRegister(Rd, get_bits(product, 47, 16))
     
     def emulate_srs_arm(self, ins):
         if self.ConditionPassed(ins):
@@ -2913,25 +3130,78 @@ class ARMEmulator(object):
                 #     BranchWritePC(result);
     
     def emulate_svc(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Immediate(imm)]
+            imm32 = ins.operands
+            
+            # CallSupervisor(imm32<15:0>);
+            self.CallSupervisor(get_bits(imm32.n, 15, 0))
     
     def emulate_swp(self, ins):
         if self.ConditionPassed(ins):
             pass
     
     def emulate_teq_immediate(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            if ins.encoding == eEncodingT1:
+                imm32, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag()) 
+                
+            elif ins.encoding == eEncodingA1:
+                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag()) 
+            
+            # operands = [Register(Rn), Immediate(imm32)]
+            Rn, t = ins.operands
+            
+            # result = R[n] EOR imm32;
+            result = self.getRegister(Rn) ^ imm32
+            
+            self.__set_flags__(result, carry, None)
+            
     def emulate_teq_register(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+            Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = shift.value
+            
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] EOR shifted;
+            result = self.getRegister(Rn) ^ shifted
+            
+            self.__set_flags__(result, carry, None)
     
     def emulate_teq_rsr(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
-    
+            # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, Register(Rs))]
+            Rn, Rm, shift = ins.operands
+            shift_t = shift.type_
+            shift_n = self.getRegister(shift.value)
+            
+            # shift_n = UInt(R[s]<7:0>);
+            shift_n = get_bits(shift_n, 7, 0)
+            
+            # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+            shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+            
+            # result = R[n] EOR shifted;
+            result = self.getRegister(Rn) ^ shifted
+
+            self.__set_flags__(result, carry, None)
+            
     def emulate_thumb(self, opcode):
         if self.ConditionPassed(ins):
             pass
@@ -3006,12 +3276,45 @@ class ARMEmulator(object):
             pass
     
     def emulate_umlal(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(RdLo), Register(RdHi), Register(Rn), Register(Rm)]
+            RdLo, RdHi, Rn, Rm = ins.operands
+            
+            # result = UInt(R[n]) * UInt(R[m]) + UInt(R[dHi]:R[dLo]);
+            accum = self.getRegister(RdHi) << 32 | self.getRegister(RdLo)
+            result = self.getRegister(Rn) * self.getRegister(Rm) + accum
     
+            # R[dHi] = result<63:32>;
+            self.setRegister(RdHi, get_bits(result, 63, 32))
+            
+            # R[dLo] = result<31:0>;
+            self.setRegister(RdLo, get_bits(result, 31, 0))
+            
+            if ins.setflags:
+                self.__set_flags__(result, None, None)
+            
     def emulate_umull(self, ins):
+        """
+        Done
+        """
         if self.ConditionPassed(ins):
-            pass
+            # operands = [Register(RdLo), Register(RdHi), Register(Rn), Register(Rm)]
+            RdLo, RdHi, Rn, Rm = ins.operands
+            
+            # result = UInt(R[n]) * UInt(R[m]);
+            result = self.getRegister(Rn) * self.getRegister(Rm)
+            
+            # R[dHi] = result<63:32>;
+            self.setRegister(RdHi, get_bits(result, 63, 32))
+            
+            # R[dLo] = result<31:0>;
+            self.setRegister(RdLo, get_bits(result, 31, 0))
+            
+            if ins.setflags:
+                self.__set_flags__(result, None, None)
     
     def emulate_unknown(self, ins):
         if self.ConditionPassed(ins):
@@ -3040,13 +3343,298 @@ class ARMEmulator(object):
         
         if ins.id == ARMInstruction.adc_immediate:
             self.emulate_adc_immediate(ins)
-        
         elif ins.id == ARMInstruction.adc_register:
             self.emulate_adc_register(ins)
-            
         elif ins.id == ARMInstruction.adc_rsr:
             self.emulate_adc_rsr(ins)
-            
+        elif ins.id == ARMInstruction.add_immediate:
+            self.emulate_add_immediate_arm(ins)
+        elif ins.id == ARMInstruction.add_register:
+            self.emulate_add_register(ins)
+        elif ins.id == ARMInstruction.add_rsr:
+            self.emulate_add_rsr(ins)
+        elif ins.id == ARMInstruction.add_sp_plus_immediate:
+            self.emulate_add_sp_plus_immediate(ins)
+        elif ins.id == ARMInstruction.add_sp_plus_register:
+            self.emulate_add_sp_plus_register(ins)
+        elif ins.id == ARMInstruction.adr:
+            self.emulate_adr(ins)
+        elif ins.id == ARMInstruction.and_immediate:
+            self.emulate_and_immediate(ins)
+        elif ins.id == ARMInstruction.and_register:
+            self.emulate_and_register(ins)
+        elif ins.id == ARMInstruction.and_rsr:
+            self.emulate_and_rsr(ins)
+        elif ins.id == ARMInstruction.asr_immediate:
+            self.emulate_asr_immediate(ins)
+        elif ins.id == ARMInstruction.asr_register:
+            self.emulate_asr_register(ins)
+        elif ins.id == ARMInstruction.b:
+            self.emulate_b(ins)
+        elif ins.id == ARMInstruction.bic_immediate:
+            self.emulate_bic_immediate(ins)
+        elif ins.id == ARMInstruction.bic_register:
+            self.emulate_bic_register(ins)
+        elif ins.id == ARMInstruction.bic_rsr:
+            self.emulate_bic_rsr(ins)
+        elif ins.id == ARMInstruction.bkpt:
+            self.emulate_bkpt(ins)
+        elif ins.id == ARMInstruction.bl_immediate:
+            self.emulate_bl_immediate(ins)
+        elif ins.id == ARMInstruction.blx_register:
+            self.emulate_blx_register(ins)
+        elif ins.id == ARMInstruction.bx:
+            self.emulate_bx(ins)
+        elif ins.id == ARMInstruction.bxj:
+            self.emulate_bxj(ins)
+        elif ins.id == ARMInstruction.cbz:
+            self.emulate_cbz(ins)
+        elif ins.id == ARMInstruction.cdp:
+            self.emulate_cdp(ins)
+        elif ins.id == ARMInstruction.clz:
+            self.emulate_clz(ins)
+        elif ins.id == ARMInstruction.cmn_immediate:
+            self.emulate_cmn_immediate(ins)
+        elif ins.id == ARMInstruction.cmn_register:
+            self.emulate_cmn_register(ins)
+        elif ins.id == ARMInstruction.cmn_rsr:
+            self.emulate_cmn_rsr(ins)
+        elif ins.id == ARMInstruction.cmp_immediate:
+            self.emulate_cmp_immediate(ins)
+        elif ins.id == ARMInstruction.cmp_register:
+            self.emulate_cmp_register(ins)
+        elif ins.id == ARMInstruction.cmp_rsr:
+            self.emulate_cmp_rsr(ins)
+        elif ins.id == ARMInstruction.dbg:
+            self.emulate_dbg(ins)
+        elif ins.id == ARMInstruction.eor_immediate:
+            self.emulate_eor_immediate(ins)
+        elif ins.id == ARMInstruction.eor_register:
+            self.emulate_eor_register(ins)
+        elif ins.id == ARMInstruction.eor_rsr:
+            self.emulate_eor_rsr(ins)
+        elif ins.id == ARMInstruction.eret:
+            self.emulate_eret(ins)
+        elif ins.id == ARMInstruction.hvc:
+            self.emulate_hvc(ins)
+        elif ins.id == ARMInstruction.it:
+            self.emulate_it(ins)
+        elif ins.id == ARMInstruction.ldc_immediate:
+            self.emulate_ldc_immediate(ins)
+        elif ins.id == ARMInstruction.ldc_literal:
+            self.emulate_ldc_literal(ins)
+        elif ins.id == ARMInstruction.ldmda:
+            self.emulate_ldmda(ins)
+        elif ins.id == ARMInstruction.ldmdb:
+            self.emulate_ldmdb(ins)
+        elif ins.id == ARMInstruction.ldm_exception_return:
+            self.emulate_ldm_exception_return(ins)
+        elif ins.id == ARMInstruction.ldmia:
+            self.emulate_ldmia(ins)
+        elif ins.id == ARMInstruction.ldmib:
+            self.emulate_ldmib(ins)
+        elif ins.id == ARMInstruction.ldm_user_registers:
+            self.emulate_ldm_user_registers(ins)
+        elif ins.id == ARMInstruction.ldrb_immediate:
+            self.emulate_ldrb_immediate(ins)
+        elif ins.id == ARMInstruction.ldrb_literal:
+            self.emulate_ldrb_literal(ins)
+        elif ins.id == ARMInstruction.ldrb_register:
+            self.emulate_ldrb_register(ins)
+        elif ins.id == ARMInstruction.ldrbt:
+            self.emulate_ldrbt(ins)
+        elif ins.id == ARMInstruction.ldrex:
+            self.emulate_ldrex(ins)
+        elif ins.id == ARMInstruction.ldrexb:
+            self.emulate_ldrexb(ins)
+        elif ins.id == ARMInstruction.ldrexd:
+            self.emulate_ldrexd(ins)
+        elif ins.id == ARMInstruction.ldrexh:
+            self.emulate_ldrexh(ins)
+        elif ins.id == ARMInstruction.ldr_immediate:
+            self.emulate_ldr_immediate(ins)
+        elif ins.id == ARMInstruction.ldr_literal:
+            self.emulate_ldr_literal(ins)
+        elif ins.id == ARMInstruction.ldr_register:
+            self.emulate_ldr_register(ins)
+        elif ins.id == ARMInstruction.ldrt:
+            self.emulate_ldrt(ins)
+        elif ins.id == ARMInstruction.lsl_immediate:
+            self.emulate_lsl_immediate(ins)
+        elif ins.id == ARMInstruction.lsl_register:
+            self.emulate_lsl_register(ins)
+        elif ins.id == ARMInstruction.lsr_immediate:
+            self.emulate_lsr_immediate(ins)
+        elif ins.id == ARMInstruction.lsr_register:
+            self.emulate_lsr_register(ins)
+        elif ins.id == ARMInstruction.mcr:
+            self.emulate_mcr(ins)
+        elif ins.id == ARMInstruction.mcrr:
+            self.emulate_mcrr(ins)
+        elif ins.id == ARMInstruction.mla:
+            self.emulate_mla(ins)
+        elif ins.id == ARMInstruction.mls:
+            self.emulate_mls(ins)
+        elif ins.id == ARMInstruction.mov_immediate:
+            self.emulate_mov_immediate(ins)
+        elif ins.id == ARMInstruction.mov_register:
+            self.emulate_mov_register(ins)
+        elif ins.id == ARMInstruction.mov_rsr:
+            self.emulate_mov_rsr(ins)
+        elif ins.id == ARMInstruction.movt:
+            self.emulate_movt(ins)
+        elif ins.id == ARMInstruction.mrc:
+            self.emulate_mrc(ins)
+        elif ins.id == ARMInstruction.mrrc:
+            self.emulate_mrrc(ins)
+        elif ins.id == ARMInstruction.mrs:
+            self.emulate_mrs(ins)
+        elif ins.id == ARMInstruction.msr:
+            self.emulate_msr(ins)
+        elif ins.id == ARMInstruction.mul:
+            self.emulate_mul(ins)
+        elif ins.id == ARMInstruction.mull:
+            self.emulate_mull(ins)
+        elif ins.id == ARMInstruction.mvn_immediate:
+            self.emulate_mvn_immediate(ins)
+        elif ins.id == ARMInstruction.mvn_register:
+            self.emulate_mvn_register(ins)
+        elif ins.id == ARMInstruction.mvn_rsr:
+            self.emulate_mvn_rsr(ins)
+        elif ins.id == ARMInstruction.nop:
+            self.emulate_nop(ins)
+        elif ins.id == ARMInstruction.orr_immediate:
+            self.emulate_orr_immediate(ins)
+        elif ins.id == ARMInstruction.orr_register:
+            self.emulate_orr_register(ins)
+        elif ins.id == ARMInstruction.orr_rsr:
+            self.emulate_orr_rsr(ins)
+        elif ins.id == ARMInstruction.pld:
+            self.emulate_pld(ins)
+        elif ins.id == ARMInstruction.pop:
+            self.emulate_pop(ins)
+        elif ins.id == ARMInstruction.push:
+            self.emulate_push(ins)
+        elif ins.id == ARMInstruction.rfe:
+            self.emulate_rfe(ins)
+        elif ins.id == ARMInstruction.ror_immediate:
+            self.emulate_ror_immediate(ins)
+        elif ins.id == ARMInstruction.ror_register:
+            self.emulate_ror_register(ins)
+        elif ins.id == ARMInstruction.rrx:
+            self.emulate_rrx(ins)
+        elif ins.id == ARMInstruction.rsb_immediate:
+            self.emulate_rsb_immediate(ins)
+        elif ins.id == ARMInstruction.rsb_register:
+            self.emulate_rsb_register(ins)
+        elif ins.id == ARMInstruction.rsb_rsr:
+            self.emulate_rsb_rsr(ins)
+        elif ins.id == ARMInstruction.rsc_immediate:
+            self.emulate_rsc_immediate(ins)
+        elif ins.id == ARMInstruction.rsc_register:
+            self.emulate_rsc_register(ins)
+        elif ins.id == ARMInstruction.rsc_rsr:
+            self.emulate_rsc_rsr(ins)
+        elif ins.id == ARMInstruction.sat_add_and_sub:
+            self.emulate_sat_add_and_sub(ins)
+        elif ins.id == ARMInstruction.sbc_immediate:
+            self.emulate_sbc_immediate(ins)
+        elif ins.id == ARMInstruction.sbc_register:
+            self.emulate_sbc_register(ins)
+        elif ins.id == ARMInstruction.sbc_rsr:
+            self.emulate_sbc_rsr(ins)
+        elif ins.id == ARMInstruction.sev:
+            self.emulate_sev(ins)
+        elif ins.id == ARMInstruction.smc:
+            self.emulate_smc(ins)
+        elif ins.id == ARMInstruction.smla:
+            self.emulate_smla(ins)
+        elif ins.id == ARMInstruction.smlal:
+            self.emulate_smlal(ins)
+        elif ins.id == ARMInstruction.smlalb:
+            self.emulate_smlalb(ins)
+        elif ins.id == ARMInstruction.smlaw:
+            self.emulate_smlaw(ins)
+        elif ins.id == ARMInstruction.smul:
+            self.emulate_smul(ins)
+        elif ins.id == ARMInstruction.smull:
+            self.emulate_smull(ins)
+        elif ins.id == ARMInstruction.smulw:
+            self.emulate_smulw(ins)
+        elif ins.id == ARMInstruction.srs:
+            self.emulate_srs(ins)
+        elif ins.id == ARMInstruction.stc:
+            self.emulate_stc(ins)
+        elif ins.id == ARMInstruction.stmda:
+            self.emulate_stmda(ins)
+        elif ins.id == ARMInstruction.stmdb:
+            self.emulate_stmdb(ins)
+        elif ins.id == ARMInstruction.stmia:
+            self.emulate_stmia(ins)
+        elif ins.id == ARMInstruction.stmib:
+            self.emulate_stmib(ins)
+        elif ins.id == ARMInstruction.stm_user_registers:
+            self.emulate_stm_user_registers(ins)
+        elif ins.id == ARMInstruction.strb_immediate:
+            self.emulate_strb_immediate(ins)
+        elif ins.id == ARMInstruction.strb_register:
+            self.emulate_strb_register(ins)
+        elif ins.id == ARMInstruction.strbt:
+            self.emulate_strbt(ins)
+        elif ins.id == ARMInstruction.strex:
+            self.emulate_strex(ins)
+        elif ins.id == ARMInstruction.strexb:
+            self.emulate_strexb(ins)
+        elif ins.id == ARMInstruction.strexd:
+            self.emulate_strexd(ins)
+        elif ins.id == ARMInstruction.strexh:
+            self.emulate_strexh(ins)
+        elif ins.id == ARMInstruction.str_immediate:
+            self.emulate_str_immediate(ins)
+        elif ins.id == ARMInstruction.str_reg:
+            self.emulate_str_reg(ins)
+        elif ins.id == ARMInstruction.strt:
+            self.emulate_strt(ins)
+        elif ins.id == ARMInstruction.sub_immediate:
+            self.emulate_sub_immediate(ins)
+        elif ins.id == ARMInstruction.sub_register:
+            self.emulate_sub_register(ins)
+        elif ins.id == ARMInstruction.sub_rsr:
+            self.emulate_sub_rsr(ins)
+        elif ins.id == ARMInstruction.subs_pc_lr:
+            self.emulate_subs_pc_lr(ins)
+        elif ins.id == ARMInstruction.sub_sp_minus_immediate:
+            self.emulate_sub_sp_minus_immediate(ins)
+        elif ins.id == ARMInstruction.sub_sp_minus_register:
+            self.emulate_sub_sp_minus_register(ins)
+        elif ins.id == ARMInstruction.svc:
+            self.emulate_svc(ins)
+        elif ins.id == ARMInstruction.swp:
+            self.emulate_swp(ins)
+        elif ins.id == ARMInstruction.teq_immediate:
+            self.emulate_teq_immediate(ins)
+        elif ins.id == ARMInstruction.teq_register:
+            self.emulate_teq_register(ins)
+        elif ins.id == ARMInstruction.teq_rsr:
+            self.emulate_teq_rsr(ins)
+        elif ins.id == ARMInstruction.tst_immediate:
+            self.emulate_tst_immediate(ins)
+        elif ins.id == ARMInstruction.tst_register:
+            self.emulate_tst_register(ins)
+        elif ins.id == ARMInstruction.tst_rsr:
+            self.emulate_tst_rsr(ins)
+        elif ins.id == ARMInstruction.umaal:
+            self.emulate_umaal(ins)
+        elif ins.id == ARMInstruction.umlal:
+            self.emulate_umlal(ins)
+        elif ins.id == ARMInstruction.umull:
+            self.emulate_umull(ins)
+        elif ins.id == ARMInstruction.wfe:
+            self.emulate_wfe(ins)
+        elif ins.id == ARMInstruction.wfi:
+            self.emulate_wfi(ins)
+        elif ins.id == ARMInstruction.yield_:
+            self.emulate_yield_(ins)
         else:
             raise InstructionNotImplementedException()
 
@@ -3073,12 +3661,22 @@ class ARMEmulator(object):
         
         return "Flags: [%s] - Registers: [%s]" % (", ".join(flags), ", ".join(regs))
 
+from arm import ARMDisasembler
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     
+    ins = "\x00\x00\xa0\xe3\x01\x10\xa0\xe3\x02\x20\xa0\xe3\x03\x30\xa0\xe3\x04\x40\xa0\xe3\x05\x50\xa0\xe3\x06\x60\xa0\xe3\x07\x70\xa0\xe3\x08\x80\xa0\xe3\x09\x90\xa0\xe3\x01\x00\x80\xe2\x01\x10\x81\xe2\x01\x20\x82\xe2\x01\x30\x83\xe2\x01\x40\x84\xe2\x01\x50\x85\xe2\x01\x60\x86\xe2\x01\x70\x87\xe2\x01\x80\x88\xe2\x01\x90\x89\xe2"
+    
+    # e3 a0 00 00 mov r0, #0
+    # ins = "\x00\x00\xa0\xe3"
+    
+    # Default: ARM | ARMv7
+    disassembler = ARMDisasembler()
+    instructions = disassembler.disassemblerBuffer(ins)
+    
     memory_map = DummyMemoryMap() 
     emulator = ARMEmulator(memory_map)
-         
-    ins = Instruction("ADC", True, None, [Register(ARMRegister.R0), Register(ARMRegister.R1), Register(ARMRegister.R2), RegisterShift(SRType_ASR, 4)], eEncodingA2)
-    ins.id = ARMInstruction.adc_register
-    emulator.emulate(ins, dump_state=True)
+
+    for ins in instructions:
+        emulator.emulate(ins, dump_state=True)

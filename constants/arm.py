@@ -64,6 +64,7 @@ class ARMFLag:
     Z = 1
     C = 2
     V = 3
+    Q = 4
 
 class ARMMode:
     THUMB = 0

@@ -1376,6 +1376,30 @@ class ARMDisasembler(object):
 
         return ins
      
+    def disassemblerBuffer(self, ins_stream):
+        """
+        Disassemble a stream of instructions in string form.
+        Return a list of all the disassembled instructions.
+        So far we do not take into account changes of processor mode. We will have to decide what we do 
+        in those cases.
+        """
+        import struct
+        ret = []
+        
+        if self.mode == ARMMode.ARM:
+            opcodes = struct.unpack("<" + ("L" * (len(ins_stream) / 4)), ins_stream)           
+            for opcode in opcodes:
+                ins = self.decode_arm(opcode)
+                ret.append(ins)
+        
+        else:
+            opcodes = struct.unpack("<" + ("L" * (len(ins_stream) / 4)), ins_stream)
+            for opcode in opcodes:
+                ins = self.decode_arm(opcode)
+                ret.append(ins)
+                
+        return ret
+    
     def disassemble(self, opcode, mode=ARMMode.ARM):
         """
         """        

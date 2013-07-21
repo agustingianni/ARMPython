@@ -12,7 +12,7 @@ def get_bit(value, bit):
 def Align(val, alignment):
     return alignment * (val / alignment)
 
-# If x is a bitstring, SInt(x) is the integer whose two’s complement representation is x
+# If x is a bitstring, SInt(x) is the integer whose two's complement representation is x
 def SInt(x, N):
     result = 0
     for i in xrange(0, N):
