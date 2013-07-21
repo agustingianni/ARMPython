@@ -3,9 +3,13 @@ Created on Jun 7, 2013
 
 @author: anon
 '''
+import sys
+sys.path.append("../../")
+
 import fnmatch
 import os
-import arm
+from disassembler.arm import ARMDisassembler, InstructionNotImplementedException, UnpredictableInstructionException
+from disassembler.constants.arm import ARMMode
 from subprocess import check_output
 from objdump import disassemble
 
@@ -21,8 +25,8 @@ def test2():
 # O:  str pc, [lr, #-2905]
 # T:  
     opcode = 0xf50efb59
-    d = arm.ARMDisasembler()
-    inst = d.disassemble(opcode, mode=arm.MODE_ARM)
+    d = ARMDisassembler()
+    inst = d.disassemble(opcode, mode=ARMMode.ARM)
     inst_theirs = disassemble(opcode, whole=True).lower()
     inst_ours = str(inst).lower()
     
@@ -33,7 +37,7 @@ def test2():
 #sys.exit()
 
 def test():
-    d = arm.ARMDisasembler()
+    d = ARMDisassembler()
     i = 0
     
     ok = 0
@@ -47,7 +51,7 @@ def test():
                 b = int(b, 16)
                                 
                 try:
-                    inst = d.disassemble(b, mode=arm.MODE_ARM)
+                    inst = d.disassemble(b, mode=ARMMode.ARM)
                     if not inst:
                         continue
                     
@@ -92,7 +96,7 @@ def test():
                     else:
                         ok += 1
                         
-                except arm.InstructionNotImplementedException, e:
+                except InstructionNotImplementedException, e:
                     continue
                 
                     print "# ins nro: %d" % i
@@ -102,7 +106,7 @@ def test():
                     print "opcode = 0x%.8x" % b
                     print 
                                         
-                except arm.UnpredictableInstructionException, e:
+                except UnpredictableInstructionException, e:
                     continue
                     print "# ins nro: %d" % i
                     print "# O: ", "Unpredictable"

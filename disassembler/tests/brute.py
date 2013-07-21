@@ -1,7 +1,10 @@
-from arm import ARMDisasembler
+import sys
+sys.path.append("../../")
+
+from disassembler.arm import ARMDisassembler
 from subprocess import check_output
-from arm import UnpredictableInstructionException
-from arm import InstructionNotImplementedException
+from disassembler.arm import UnpredictableInstructionException
+from disassembler.arm import InstructionNotImplementedException
 
 assembler = "arm-linux-androideabi-as"
 disassembler = "arm-linux-androideabi-objdump"
@@ -91,7 +94,7 @@ for i in xrange(0xfffff, 0xffffff):
 f.close()
 assemble("test.s")    
 
-arm_dis = ARMDisasembler()
+arm_dis = ARMDisassembler()
 # res is an array of instructions
 
 res = disassemble()

@@ -5,9 +5,11 @@ Created on Dec 10, 2012
 '''
 
 import sys
-from arm import ARMDisasembler
-from arm import UnpredictableInstructionException
-from arm import InstructionNotImplementedException
+sys.path.append("../../")
+
+from disassembler.arm import ARMDisassembler
+from disassembler.arm import UnpredictableInstructionException
+from disassembler.arm import InstructionNotImplementedException
 from subprocess import check_output
 from collections import defaultdict
 
@@ -51,7 +53,7 @@ def disassemble(file):
 def test():
     freq = defaultdict(int)
     
-    arm_dis = ARMDisasembler()
+    arm_dis = ARMDisassembler()
     for ins in disassemble(sys.argv[1]):
         opcode = ins[1].split()[0]
         freq[opcode] += 1

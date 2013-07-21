@@ -3,13 +3,15 @@ Created on Jun 11, 2013
 
 @author: anon
 '''
-import random
-import arm
 
 import sys
+sys.path.append("../../")
 
-from tests import objdump
-from tests import llvm
+import random
+from disassembler.arm import *
+
+import objdump
+import llvm
 
 def get_masked_random(mask, value, mode):
     r = random.getrandbits(32)
@@ -974,7 +976,7 @@ thumb_opcodes = \
 def test(mask, value, mode, limit=1000):
     seen = set()
     
-    d = arm.ARMDisasembler()
+    d = ARMDisassembler()
     
     ok = 0
     bad = 0
@@ -1079,7 +1081,7 @@ def test(mask, value, mode, limit=1000):
                 print "opcode = 0x%.8x" % opcode 
                 print
 
-        except arm.InstructionNotImplementedException, e:
+        except InstructionNotImplementedException, e:
             not_implemented += 1
             continue
         
@@ -1089,7 +1091,7 @@ def test(mask, value, mode, limit=1000):
             print "opcode = 0x%.8x" % opcode 
             print
                                 
-        except arm.UnpredictableInstructionException, e:
+        except UnpredictableInstructionException, e:
             if llvm_out == "undefined":
                 ok += 1
                 continue
@@ -1103,7 +1105,7 @@ def test(mask, value, mode, limit=1000):
             print "opcode = 0x%.8x" % opcode 
             print
             
-        except arm.InvalidInstructionEncoding, e:
+        except InvalidInstructionEncoding, e:
             invalid_encoding += 1
             
             if llvm_out == "undefined":
@@ -1115,7 +1117,7 @@ def test(mask, value, mode, limit=1000):
             print "opcode = 0x%.8x" % opcode 
             print
             
-        except arm.UndefinedOpcode, e:
+        except UndefinedOpcode, e:
             undefined += 1
             if llvm_out == "undefined":
                 continue
@@ -1137,7 +1139,7 @@ def test(mask, value, mode, limit=1000):
             
     return 0
 
-from constants.arm import ARMMode
+from disassembler.constants.arm import ARMMode
 
 def main():
 #     for i in xrange(0, len(arm_opcodes)):

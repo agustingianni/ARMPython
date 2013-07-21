@@ -56,11 +56,12 @@ Conditional execution
     exceptions being taken, but has no other effect.
     
 """
-from constants.arm import *
-from utils.bits import get_bit, get_bits, CountTrailingZeros, BitCount, SignExtend32
-from utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, DecodeImmShiftThumb
-from utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
-from utils.arm import ThumbImm12
+
+from disassembler.constants.arm import *
+from disassembler.utils.bits import get_bit, get_bits, CountTrailingZeros, BitCount, SignExtend32
+from disassembler.utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, DecodeImmShiftThumb
+from disassembler.utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
+from disassembler.utils.arm import ThumbImm12
 
 class Instruction(object):
     def __init__(self, id_, opcode, name, setflags, condition, operands, encoding, qualifiers=""):
@@ -342,7 +343,7 @@ class Condition(object):
     def __str__(self):
         return self.name
 
-class ARMDisasembler(object):
+class ARMDisassembler(object):
     SYNTAX_DEFAULT = 0
     SYNTAX_SIMPLE = 1
         
@@ -353,7 +354,7 @@ class ARMDisasembler(object):
         self.mode = mode
         self.ITCounter = 0
         self.pc = 0
-        self.syntax = ARMDisasembler.SYNTAX_DEFAULT
+        self.syntax = ARMDisassembler.SYNTAX_DEFAULT
         
         self.arm_isa = arch
         
@@ -9062,13 +9063,3 @@ class ARMDisasembler(object):
         operands = [Immediate(imm)]
         ins = Instruction(ins_id, opcode, "SVC", False, condition, operands, encoding)
         return ins
-
-if __name__ == '__main__':
-    d = ARMDisasembler()
-    # OURS:  ldrb r7, [r6, #120]
-    # OBJD:  ldrb r7, [r6, #30]
-    # LLVM:  ldrb r7, [r6, #30]
-    opcode = 0x00007fb7
-    
-    inst = d.disassemble(opcode, mode=ARMMode.THUMB)
-    print inst

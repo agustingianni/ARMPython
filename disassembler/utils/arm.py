@@ -3,8 +3,8 @@ Created on Jun 12, 2013
 
 @author: anon
 '''
-from utils.bits import get_bit, get_bits, ror
-from constants.arm import *
+from disassembler.utils.bits import get_bit, get_bits, ror
+from disassembler.constants.arm import *
 
 def DecodeRegShift(type_):
     if type_ == 0:
