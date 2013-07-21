@@ -16,7 +16,7 @@ from arm import ARMDisasembler
 from emulator.memory import DummyMemoryMap
 from bits import get_bits, get_bit, SignExtend64, Align, \
     CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
-from memory import ConcreteMemoryMap
+from emulator.memory import ConcreteMemoryMap
 
 class ARMProcessor(object):
     def __init__(self):
@@ -665,6 +665,12 @@ class ARMEmulator(object):
                 
                 self.setFlag(ARMFLag.C, carry_out)
                 self.setFlag(ARMFLag.V, overflow)
+    
+    def emulate_add_immediate(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_add_immediate_arm(ins)
+        else:
+            self.emulate_add_immediate_thumb(ins)
             
     def emulate_add_register_arm(self, ins):
         """
@@ -712,6 +718,12 @@ class ARMEmulator(object):
             shifted = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
             result, carry_out, overflow = AddWithCarry(Rn_val, shifted, 0)
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
+
+    def emulate_add_register(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_add_register_arm(ins)
+        else:
+            self.emulate_add_register_thumb(ins)
 
     def emulate_add_rsr(self, ins):
         """
@@ -803,6 +815,12 @@ class ARMEmulator(object):
             result, carry_out, overflow = AddWithCarry(Rn_val, shifted, 0)
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
             
+    def emulate_add_sp_plus_register(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_add_sp_plus_register_arm(ins)
+        else:
+            self.emulate_add_sp_plus_register_thumb(ins)
+
     def emulate_adr(self, ins):
         """
         Done
@@ -1510,6 +1528,12 @@ class ARMEmulator(object):
         """
         self.emulate_ldmia_arm(self, ins)
     
+    def emulate_ldmia(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_ldmia_arm(ins)
+        else:
+            self.emulate_ldmia_thumb(ins)
+
     def emulate_ldmib(self, ins):
         """
         Done
@@ -1553,7 +1577,13 @@ class ARMEmulator(object):
     def emulate_ldrb_immediate_thumb(self, ins):
         if self.ConditionPassed(ins):
             pass
-    
+
+    def emulate_ldrb_immediate(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_ldrb_immediate_arm(ins)
+        else:
+            self.emulate_ldrb_immediate_thumb(ins)
+
     def emulate_ldrb_literal(self, ins):
         if self.ConditionPassed(ins):
             pass
@@ -1686,6 +1716,12 @@ class ARMEmulator(object):
                 # else R[t] = bits(32) UNKNOWN; // Can only apply before ARMv7
                 self.setRegister(Rt, 0)
             
+    def emulate_ldr_immediate(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_ldr_immediate_arm(ins)
+        else:
+            self.emulate_ldr_immediate_thumb(ins)
+
     def emulate_ldr_literal(self, ins):
         """
         Done
@@ -1824,7 +1860,12 @@ class ARMEmulator(object):
             elif self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00:
                 self.setRegister(Rt, data)
             
-    
+    def emulate_ldr_register(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_ldr_register_arm(ins)
+        else:
+            self.emulate_ldr_register_thumb(ins)
+
     def emulate_ldrt(self, ins):
         if self.ConditionPassed(ins):
             pass
@@ -2011,6 +2052,12 @@ class ARMEmulator(object):
         """
         # Same as ARM version.
         self.emulate_mov_register_arm(ins)
+
+    def emulate_mov_register(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_mov_register_arm(ins)
+        else:
+            self.emulate_mov_register_thumb(ins)
     
     def emulate_mov_rsr(self, ins):
         if self.ConditionPassed(ins):
@@ -2265,6 +2312,12 @@ class ARMEmulator(object):
             
             if get_bit(registers, 13) == 1:
                 raise "if registers<13> == '1' then SP = bits(32) UNKNOWN;"
+
+    def emulate_pop(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_pop_arm(ins)
+        else:
+            self.emulate_pop_thumb(ins)
     
     def emulate_push(self, ins):
         """
@@ -2697,6 +2750,12 @@ class ARMEmulator(object):
     def emulate_srs_thumb(self, ins):
         if self.ConditionPassed(ins):
             pass
+
+    def emulate_srs(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_srs_arm(ins)
+        else:
+            self.emulate_srs_thumb(ins)
     
     def emulate_stc(self, ins):
         if self.ConditionPassed(ins):
@@ -2829,6 +2888,12 @@ class ARMEmulator(object):
     def emulate_strb_immediate_thumb(self, ins):
         if self.ConditionPassed(ins):
             pass
+
+    def emulate_strb_immediate(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_strb_immediate_arm(ins)
+        else:
+            self.emulate_strb_immediate_thumb(ins)
     
     def emulate_strb_register(self, ins):
         if self.ConditionPassed(ins):
@@ -2945,6 +3010,12 @@ class ARMEmulator(object):
             if wback :
                 self.setRegister(Rn, offset_addr)
     
+    def emulate_str_immediate(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_str_immediate_arm(ins)
+        else:
+            self.emulate_str_immediate_thumb(ins)
+
     def emulate_str_reg(self, ins):
         """
         Done
@@ -3056,6 +3127,12 @@ class ARMEmulator(object):
             result, carry, overflow = AddWithCarry(Rn_val, NOT(imm32.n), 1)            
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
+    def emulate_sub_immediate(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_sub_immediate_arm(ins)
+        else:
+            self.emulate_sub_immediate_thumb(ins)
+
     def emulate_sub_register(self, ins):
         """
         Done
@@ -3161,6 +3238,12 @@ class ARMEmulator(object):
                 # else
                 #     BranchWritePC(result);
     
+    def emulate_subs_pc_lr(self, ins):
+        if self.arm_mode == ARMMode.ARM:
+            self.emulate_subs_pc_lr_arm(ins)
+        else:
+            self.emulate_subs_pc_lr_thumb(ins)
+
     def emulate_svc(self, ins):
         """
         Done
@@ -3688,7 +3771,7 @@ class ARMEmulator(object):
         elif ins.id == ARMInstruction.wfi:
             self.emulate_wfi(ins)
         elif ins.id == ARMInstruction.yield_:
-            self.emulate_yield_(ins)
+            self.emulate_yield(ins)
         else:
             raise InstructionNotImplementedException()
 
