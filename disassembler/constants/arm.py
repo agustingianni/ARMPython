@@ -240,3 +240,4 @@ class ARMInstruction:
     wfe = 0x0090
     wfi = 0x0091
     yield_ = 0x0092
+    unknown = 0x0093
