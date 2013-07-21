@@ -11,9 +11,12 @@ from arm import InstructionNotImplementedException, \
     UnpredictableInstructionException, InvalidModeException, Instruction, \
     Register, RegisterShift, ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 
+from arm import ARMDisasembler
+
 from emulator.memory import DummyMemoryMap
 from bits import get_bits, get_bit, SignExtend64, Align, \
     CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
+from memory import ConcreteMemoryMap
 
 class ARMProcessor(object):
     def __init__(self):
@@ -278,6 +281,7 @@ class ARMEmulator(object):
         self.arm_mode = ARMMode.ARM
         self.__init_flags_map__()
         self.__init_register_map__()
+        self.disassembler = ARMDisasembler()
         
         self.it_session = ITSession()
    
@@ -396,7 +400,7 @@ class ARMEmulator(object):
         and PC + 8 in the case of ARM.
         """
         # I fail at duck typing.
-        if type(register) in [type(int), type(long)]:
+        if type(register) in [int, long]:
             register = Register(register)
 
         self.log.debug("Reading register %s" % register)
@@ -419,7 +423,7 @@ class ARMEmulator(object):
         Set the value of a register.
         """
         # I fail at duck typing.
-        if type(register) in [type(int), type(long)]:
+        if type(register) in [int, long]:
             register = Register(register)
             
         self.log.debug("Setting register %s = %d " % (register, value))
@@ -1069,7 +1073,35 @@ class ARMEmulator(object):
             self.BranchWritePC(targetAddress)
             
     def getPC(self):
+        """
+        This will return the value of PC + 8 while on ARM and PC + 4 while on THUMB.
+        This is designed by SPECIFICATION of the ARM arch.
+        """
         return self.getRegister(ARMRegister.PC)
+    
+    def setPC(self, value):
+        """
+        Set the value of PC to value.
+        """
+        self.setRegister(ARMRegister.PC, value)
+    
+    def getActualPC(self):
+        """
+        This will return the actual value of the PC register without any additional value.
+        """
+        if self.getCurrentMode() == ARMMode.ARM:
+            return self.getPC() - 8
+        
+        return self.getPC() - 4
+    
+    def incPC(self):
+        """
+        Set PC to the next instruction, that is PC + 4 for ARM and PC + 2 for THUMB.
+        """
+        if self.getCurrentMode() == ARMMode.ARM:
+            self.setRegister(ARMRegister.PC, self.getActualPC() + 4)
+        else:
+            self.setRegister(ARMRegister.PC, self.getActualPC() + 2)
     
     def emulate_blx_register(self, ins):
         """
@@ -3332,6 +3364,28 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             pass
 
+    def step(self):
+        """
+        Execute the instruction at PC and advance the PC counter.
+        """
+        if self.getCurrentMode() == ARMMode.ARM:
+            opcode = self.memory_map.get_dword(self.getActualPC())
+        
+        else:
+            opcode = self.memory_map.get_word(self.getActualPC())
+        
+        # Get the instruction representation of the opcode.
+        ins = self.disassembler.disassemble(opcode, self.getCurrentMode())
+        
+        print "Instruction @ %.8x: %.8x | %s" % (self.getActualPC(), opcode, ins)
+        
+        # Emulate the instruction. Mode changes can occour.
+        self.emulate(ins, True)
+        
+        # Increment the value of PC. This will take into account changes in mode.
+        self.incPC()
+                    
+
     def emulate(self, ins, dump_state=False):
         """
         Emulate an instruction, optionally dumping the state of
@@ -3641,6 +3695,8 @@ class ARMEmulator(object):
         if dump_state:
             print self.dump_state()
             print
+            
+        # self.ALUWritePC(address)
         
     def dump_state(self):
         """
@@ -3661,22 +3717,21 @@ class ARMEmulator(object):
         
         return "Flags: [%s] - Registers: [%s]" % (", ".join(flags), ", ".join(regs))
 
-from arm import ARMDisasembler
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    
-    ins = "\x00\x00\xa0\xe3\x01\x10\xa0\xe3\x02\x20\xa0\xe3\x03\x30\xa0\xe3\x04\x40\xa0\xe3\x05\x50\xa0\xe3\x06\x60\xa0\xe3\x07\x70\xa0\xe3\x08\x80\xa0\xe3\x09\x90\xa0\xe3\x01\x00\x80\xe2\x01\x10\x81\xe2\x01\x20\x82\xe2\x01\x30\x83\xe2\x01\x40\x84\xe2\x01\x50\x85\xe2\x01\x60\x86\xe2\x01\x70\x87\xe2\x01\x80\x88\xe2\x01\x90\x89\xe2"
-    
-    # e3 a0 00 00 mov r0, #0
-    # ins = "\x00\x00\xa0\xe3"
-    
-    # Default: ARM | ARMv7
-    disassembler = ARMDisasembler()
-    instructions = disassembler.disassemblerBuffer(ins)
-    
-    memory_map = DummyMemoryMap() 
-    emulator = ARMEmulator(memory_map)
 
-    for ins in instructions:
-        emulator.emulate(ins, dump_state=True)
+    # Build a concrete memory map.
+    memory_map = ConcreteMemoryMap()
+
+    # Fill the memory map with instructions at memory address 0xcafe0000
+    ins = "\x00\x00\xa0\xe3\x01\x10\xa0\xe3\x02\x20\xa0\xe3\x03\x30\xa0\xe3\x04\x40\xa0\xe3\x05\x50\xa0\xe3\x06\x60\xa0\xe3\x07\x70\xa0\xe3\x08\x80\xa0\xe3\x09\x90\xa0\xe3\x01\x00\x80\xe2\x01\x10\x81\xe2\x01\x20\x82\xe2\x01\x30\x83\xe2\x01\x40\x84\xe2\x01\x50\x85\xe2\x01\x60\x86\xe2\x01\x70\x87\xe2\x01\x80\x88\xe2\x01\x90\x89\xe2"
+    memory_map.__set_bytes__(0xcafe0000, ins, len(ins))
+    
+    emulator = ARMEmulator(memory_map)
+    emulator.setPC(0xcafe0000)
+    
+    # Step some of them.
+    emulator.step()
+    emulator.step()
+    emulator.step()
+
