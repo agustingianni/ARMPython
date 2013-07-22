@@ -70,10 +70,55 @@ class Expr:
 # Boolean sort and functions    
 class BoolExpr(Expr):
     __sort__="Bool"
+    __has_value__=False
+    
+    def __and__(self, other):
+        if isinstance(other, BoolExpr) and other.__has_value__ == False:
+            return BoolAndExpr(self, other)
+        else:
+            #p & T <=> p, p & F <=> F
+            return self if bool(other) else False
+
+    def __rand__(self, other):
+        if isinstance(other, BoolExpr):
+            return BoolExpr.__and__(other, self)
+        else:
+            return self.__and__(other)
+    
+    def __or__(self, other):
+        if isinstance(other, BoolExpr) and other.__has_value__ == False:
+            return BoolOrExpr(self, other)
+        else:
+            #p | T <=> T, p | F <=> p
+            return True if bool(other) else self
+
+    def __ror__(self, other):
+        if isinstance(other, BoolExpr):
+            return BoolExpr.__or__(other, self)
+        else:
+            return self.__or__(other)
+    
+    def __xor__(self, other):
+        if isinstance(other, BoolExpr) and other.__has_value__ == False:
+            return BoolXorExpr(self, other)
+        else:
+            #p ^ T <=> ~p, p ^ F <=> p
+            return ~self if bool(other) else self 
+
+    def __rxor__(self, other):
+        if isinstance(other, BoolExpr):
+            return BoolExpr.__xor__(other, self)
+        else:
+            return self.__xor__(other)
+    
+    def __invert__(self):
+        if self.__has_value__ == False:
+            return BoolNotExpr(self)
+        else:
+            return not bool(self)
 
 class BoolVarExpr(BoolExpr):
     children=()
-    value=None
     def __init__(self, name=None):
         if name == None:
             self.name = "bool_%x" % id(self)
@@ -83,19 +128,25 @@ class BoolVarExpr(BoolExpr):
     def __str__(self):
         return self.name
 
-class TrueExpr(BoolExpr):
+class _TrueExpr(BoolExpr):
     __function__="true"
     children=()
-    value=True
+    __has_value__=True
     def __str__(self):
         return self.__function__
+    def __nonzero__(self):
+        return True
+TrueExpr=_TrueExpr() #singleton
 
-class FalseExpr(BoolExpr):
+class _FalseExpr(BoolExpr):
     __function__="false"
     children=()
-    value=False
+    __has_value__=True
     def __str__(self):
         return self.__function__
+    def __nonzero__(self):
+        return False
+FalseExpr=_FalseExpr() #singleton
 
 class BoolAndExpr(BoolExpr):
     __function__="and"
@@ -150,6 +201,9 @@ class IteExpr(Expr):
 
 class BvExpr(Expr):
     __base_sort__="BitVec"
+    
+    def __nonzero__(self):
+        raise Exception, "A BitVector Expression cannot be evaluated to boolean"
 
 class BvConstExpr(BvExpr):
     children=()
@@ -329,9 +383,9 @@ def BvSignExtend(expr, new_size):
     return out
 
 def test():
-    t=TrueExpr()
+    t=TrueExpr
     f=BoolVarExpr()
-    print BoolAndExpr(BoolNotExpr(t),f)
+    print (~t) & f
     
     bv1=BvConstExpr(0xcafecafe, 32)
     bv2=BvVarExpr(64, "r0")
