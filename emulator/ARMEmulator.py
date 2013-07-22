@@ -10,7 +10,7 @@ from disassembler.constants.arm import *
 from disassembler.arm import InstructionNotImplementedException, UnpredictableInstructionException
 from disassembler.arm import ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 from disassembler.arm import ARMDisassembler
-from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align
+from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt
 from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
 from disassembler.arch import InvalidModeException, Register
 
@@ -67,25 +67,23 @@ def NOT(val):
     return ~val
 
 def AddWithCarry(x, y, carry_in):
-    from ctypes import c_uint32, c_int32
-
     # unsigned_sum = UInt(x) + UInt(y) + UInt(carry_in);
-    unsigned_sum = c_uint32(x).value + c_uint32(y).value + c_uint32(carry_in).value
+    unsigned_sum = UInt(x, 32) + UInt(y, 32) + UInt(carry_in, 32)
     
-    # = SInt(x) + SInt(y) + UInt(carry_in);
-    signed_sum = c_int32(x).value + c_int32(y).value + c_uint32(carry_in).value
+    # signed_sum = SInt(x) + SInt(y) + UInt(carry_in);
+    signed_sum = SInt(x, 32) + SInt(y, 32) + UInt(carry_in, 32)
 
     # result = unsigned_sum<N-1:0>;
     result = get_bits(unsigned_sum, 31, 0)
     
     # carry_out = if UInt(result) == unsigned_sum then '0' else '1';
-    if c_uint32(result).value == signed_sum:
+    if UInt(result, 32) == signed_sum:
         carry_out = 0
     else:
         carry_out = 1
     
     # overflow = if SInt(result) == signed_sum then '0' else '1'; 
-    if c_int32(result).value == signed_sum:
+    if SInt(result, 32) == signed_sum:
         overflow = 0
     else:
         overflow = 1
@@ -481,7 +479,7 @@ class ARMEmulator(object):
             return True
         elif self.ArchVersion() == ARMv6:
             # TODO: Implement this
-            raise "Implement SCTLR.U"
+            raise RuntimeError("Implement SCTLR.U")
         else:
             return False
     
@@ -722,14 +720,14 @@ class ARMEmulator(object):
                 # operands = [Register(Rd), Register(Rm)]
                 Rd, Rm = ins.operands
                 Rn = Rd
-                shift_t = 0
+                shift_t = SRType_LSL
                 shift_n = 0
                 
             else:
                 # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
                 
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -753,7 +751,7 @@ class ARMEmulator(object):
             shift_t = shift.type_
             
             # shift_n = UInt(R[s]<7:0>);
-            shift_n = get_bits(shift.value, 7, 0)
+            shift_n = get_bits(shift.value.n, 7, 0)
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -828,7 +826,7 @@ class ARMEmulator(object):
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+            shift_n = shift.value.n
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
@@ -858,7 +856,7 @@ class ARMEmulator(object):
                 # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
                 
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
@@ -932,7 +930,7 @@ class ARMEmulator(object):
             elif len(ins.operands) == 4:
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value    
+                shift_n = shift.value.n    
 
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -951,7 +949,7 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+            shift_n = shift.value.n
 
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -1038,7 +1036,7 @@ class ARMEmulator(object):
             elif len(ins.operands) == 4:
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
 
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
@@ -1066,7 +1064,7 @@ class ARMEmulator(object):
             Rm_val = self.getRegister(Rm)
             
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
-            shifted, carry = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            shifted, carry = Shift_C(Rm_val, shift_t, shift_n, self.getCarryFlag())
             
             # result = R[n] AND shifted;
             result = Rn_val & shifted
@@ -1117,7 +1115,7 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            jmp = ins.operands
+            jmp = ins.operands[0]
             self.BranchWritePC(self.getPC() + jmp.addr)
             
     def emulate_bic_immediate(self, ins):
@@ -1155,7 +1153,7 @@ class ARMEmulator(object):
             elif len(ins.operands) == 4:
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -1193,7 +1191,8 @@ class ARMEmulator(object):
                 self.__set_flags__(result, carry, None)
 
     def BKPTInstrDebugEvent(self):
-        raise Exception("BKPTInstrDebugEvent")
+        # TODO: What do?
+        pass
 
     def emulate_bkpt(self, ins):
         """
@@ -1207,7 +1206,7 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             # operands = [Jump(imm)]
-            jmp = ins.operands
+            jmp = ins.operands[0]
             
             if self.CurrentInstrSet() == ARMMode.ARM:
                 lr_val = self.getPC() - 4                
@@ -1274,7 +1273,7 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            Rm = ins.operands
+            Rm = ins.operands[0]
             target = self.getRegister(Rm)
             if self.CurrentInstrSet() == ARMMode.ARM:
                 next_instr_addr = self.getPC() - 4
@@ -1291,11 +1290,12 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            Rm = ins.operands
+            Rm = ins.operands[0]
             self.BXWritePC(self.getRegister(Rm))
             
     def emulate_bxj(self, ins):
-        self.log("BXJ is not supported.")       
+        # TODO: What do?
+        pass
     
     def emulate_cbz(self, ins):
         """
@@ -1364,7 +1364,7 @@ class ARMEmulator(object):
             elif len(ins.operands) == 3:
                 Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
                 
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
@@ -1435,7 +1435,7 @@ class ARMEmulator(object):
             elif len(ins.operands) == 3:
                 Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
             
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
@@ -1471,7 +1471,8 @@ class ARMEmulator(object):
             self.__set_flags__(result, carry, overflow)
         
     def Hint_Debug(self, option):
-        self.log("Hint_Debug")    
+        # TODO: What do?
+        pass    
     
     def emulate_dbg(self, ins):
         """
@@ -1514,7 +1515,7 @@ class ARMEmulator(object):
             elif len(ins.operands) == 4:
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
             
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -1564,10 +1565,10 @@ class ARMEmulator(object):
         self.it_session.InitIT(get_bits(ins.opcode, 7, 0))
                 
     def emulate_ldc_immediate(self, ins):
-        raise Exception("HVC")
+        raise InstructionNotImplementedException("LDC")
         
     def emulate_ldc_literal(self, ins):
-        raise Exception("HVC")
+        raise InstructionNotImplementedException("LDC")
     
     def emulate_ldmda(self, ins):
         """
@@ -1649,7 +1650,7 @@ class ARMEmulator(object):
                 registers = regset.registers
                 
             else:
-                Rn, registers = ins.operands
+                Rn, regset = ins.operands
                 registers = regset.registers
                 
             address = self.getRegister(Rn)
@@ -1927,7 +1928,7 @@ class ARMEmulator(object):
                 Rn = memory.op1
                 Rm = memory.op2
                 shift_t = memory.op3.type_
-                shift_n = memory.op3.value
+                shift_n = memory.op3.value.n
                 wback = memory.wback
                 
             else:
@@ -1935,7 +1936,7 @@ class ARMEmulator(object):
                 Rt, memory, Rm, shift = ins.operands
                 Rn = memory.op1
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
                 wback = False
                 
             # offset = Shift(R[m], shift_t, shift_n, APSR.C);
@@ -2046,14 +2047,14 @@ class ARMEmulator(object):
             else:
                 Rd, Rn, Rm = ins.operands
                 
-        # shift_n = UInt(R[m]<7:0>);
-        shift_n = get_bits(self.getRegister(Rm), 7, 0)
-        
-        # (result, carry) = Shift_C(R[n], SRType_LSL, shift_n, APSR.C);
-        result, carry = Shift_C(self.getRegister(Rn), SRType_LSL, shift_n, self.getCarryFlag());
+            # shift_n = UInt(R[m]<7:0>);
+            shift_n = get_bits(self.getRegister(Rm), 7, 0)
             
-        # R[d] = result;
-        self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
+            # (result, carry) = Shift_C(R[n], SRType_LSL, shift_n, APSR.C);
+            result, carry = Shift_C(self.getRegister(Rn), SRType_LSL, shift_n, self.getCarryFlag());
+                
+            # R[d] = result;
+            self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
 
     
     def emulate_lsr_immediate(self, ins):
@@ -2300,7 +2301,7 @@ class ARMEmulator(object):
                 # operands = [Register(Rd), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rd, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
 
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -2376,13 +2377,13 @@ class ARMEmulator(object):
                 # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
                 
             elif ins.encoding == eEncodingA1:
                 # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
             
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -2433,7 +2434,7 @@ class ARMEmulator(object):
             # Unaligned is only allowed on T3
             UnalignedAllowed = ins.encoding == eEncodingT3
             
-            regset = ins.operands
+            regset = ins.operands[0]
             registers = regset.registers
             
             # address = SP;
@@ -2459,7 +2460,7 @@ class ARMEmulator(object):
                 self.setRegister(Register(ARMRegister.SP), sp_val + 4 * BitCount(registers))
             
             if get_bit(registers, 13) == 1:
-                raise "if registers<13> == '1' then SP = bits(32) UNKNOWN;"
+                raise RuntimeError("if registers<13> == '1' then SP = bits(32) UNKNOWN;")
 
     def emulate_pop(self, ins):
         if self.arm_mode == ARMMode.ARM:
@@ -2472,7 +2473,7 @@ class ARMEmulator(object):
         
         """
         if self.ConditionPassed(ins):
-            regset = ins.operands
+            regset = ins.operands[0]
             registers = regset.registers
             
             UnalignedAllowed = ins.encoding == eEncodingT3 or ins.encoding == eEncodingA2
@@ -2484,7 +2485,7 @@ class ARMEmulator(object):
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i) == 1:
                     if i == ARMRegister.SP and i != LowestSetBit(registers):
-                        raise "MemA[address,4] = bits(32) UNKNOWN;"
+                        raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN;")
                     else:
                         self.memory_map.set_dword(address, self.getRegister(Register(i)))
                         
@@ -2524,16 +2525,16 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingT1:
                 # operands = [Register(Rd), Register(Rm)]
-                Rd, Rm = ins.operand
+                Rd, Rm = ins.operands
                 Rn = Rd
                 
             elif ins.encoding == eEncodingT2:
                 # operands = [Register(Rd), Register(Rn), Register(Rm)]
-                Rd, Rn, Rm = ins.operand
+                Rd, Rn, Rm = ins.operands
 
             elif ins.encoding == eEncodingA1:
                 # operands = [Register(Rd), Register(Rn), Register(Rm)]
-                Rd, Rn, Rm = ins.operand
+                Rd, Rn, Rm = ins.operands
                 
             # shift_n = UInt(R[m]<7:0>);
             shift_n = get_bits(self.getRegister(Rm), 7, 0)
@@ -2571,7 +2572,7 @@ class ARMEmulator(object):
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n  = shift.value
+            shift_n  = shift.value.n
             
             # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -2628,7 +2629,7 @@ class ARMEmulator(object):
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+            shift_n = shift.value.n
             
             # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -2694,13 +2695,13 @@ class ARMEmulator(object):
                 # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
                 
             elif ins.encoding == eEncodingA1:
                 # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
                 
             # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -2885,7 +2886,7 @@ class ARMEmulator(object):
                 operand2 = get_bits(self.getRegister(Rm), 15, 0)
                             
             # product = SInt(R[n]) * SInt(operand2);
-            product = SInt(self.getRegister(Rn), 32 * SInt(operand2, 32))
+            product = SInt(self.getRegister(Rn), 32) * SInt(operand2, 32)
             
             # R[d] = product<47:16>;
             self.setRegister(Rd, get_bits(product, 47, 16))
@@ -2923,7 +2924,7 @@ class ARMEmulator(object):
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
                     if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
-                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+                        raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
                         self.memory_map.set_dword(address, self.getRegister(Register(i)))
@@ -2942,8 +2943,15 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            # operands = [Register(Rn, wback), RegisterSet(registers)]
-            Rn, regset = ins.operands
+            if len(ins.operands) == 1:
+                # operands = [RegisterSet(registers)]
+                Rn = Register(ARMRegister.SP)
+                regset = ins.operands[0]
+                
+            else:
+                # operands = [Register(Rn, wback), RegisterSet(registers)]
+                Rn, regset = ins.operands
+            
             registers = regset.registers
             
             # address = R[n] - 4*BitCount(registers);
@@ -2952,7 +2960,7 @@ class ARMEmulator(object):
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
                     if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
-                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+                        raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
                         self.memory_map.set_dword(address, self.getRegister(Register(i)))
@@ -2981,7 +2989,7 @@ class ARMEmulator(object):
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
                     if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
-                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+                        raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
                         self.memory_map.set_dword(address, self.getRegister(Register(i)))
@@ -3010,7 +3018,7 @@ class ARMEmulator(object):
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
                     if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
-                        raise "MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1"
+                        raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
                         self.memory_map.set_dword(address, self.getRegister(Register(i)))
@@ -3151,7 +3159,7 @@ class ARMEmulator(object):
                 self.memory_map.set_dword(address, self.getRegister(Rt))
             else:
                 # MemU[address,4] = bits(32) UNKNOWN;
-                raise "MemU[address,4] = bits(32) UNKNOWN;"
+                raise RuntimeError("MemU[address,4] = bits(32) UNKNOWN;")
             
             # if wback then R[n] = offset_addr;
             if wback :
@@ -3184,14 +3192,14 @@ class ARMEmulator(object):
                     Rn = memory.op1
                     Rm = memory.op2
                     shift_t = memory.op3.type_
-                    shift_n = memory.op3.value
+                    shift_n = memory.op3.value.n
                     
                 else:
                     # operands = [Register(Rt), Memory(Register(Rn)), Register(Rm, False, add == False), RegisterShift(shift_t, shift_n)]
                     Rt, memory, Rm, shift = ins.operands
                     Rn = memory.op1
                     shift_t = shift.type_
-                    shift_n = shift.value
+                    shift_n = shift.value.n
 
             else:
                 index = True
@@ -3205,7 +3213,7 @@ class ARMEmulator(object):
                 Rm = memory.op2
                 if memory.op3:
                     shift_t = memory.op3.type_
-                    shift_n = memory.op3.value
+                    shift_n = memory.op3.value.n
                 else:
                     shift_t = SRType_LSL
                     shift_n = 0 
@@ -3234,7 +3242,7 @@ class ARMEmulator(object):
             if self.UnalignedSupport() or get_bits(address, 1, 0) == 0b00 or self.CurrentInstrSet() == ARMMode.ARM:
                 self.memory_map.set_dword(address, data)
             else:
-                raise "MemU[address,4] = bits(32) UNKNOWN;"
+                raise RuntimeError("MemU[address,4] = bits(32) UNKNOWN;")
             
             if wback:
                 self.setRegister(Rn, offset_addr)
@@ -3293,7 +3301,7 @@ class ARMEmulator(object):
             else:
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
 
             # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -3331,7 +3339,7 @@ class ARMEmulator(object):
             Rd, Rn, imm32 = ins.operands
             
             # (result, carry, overflow) = AddWithCarry(SP, NOT(imm32), '1');
-            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(imm32.n), '1');
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(imm32.n), 1);
             
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
@@ -3342,7 +3350,7 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             Rd, Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+            shift_n = shift.value.n
             
             # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -3397,7 +3405,7 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             # operands = [Immediate(imm)]
-            imm32 = ins.operands
+            imm32 = ins.operands[0]
             
             # CallSupervisor(imm32<15:0>);
             self.CallSupervisor(get_bits(imm32.n, 15, 0))
@@ -3433,7 +3441,7 @@ class ARMEmulator(object):
             # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             Rn, Rm, shift = ins.operands
             shift_t = shift.type_
-            shift_n = shift.value
+            shift_n = shift.value.n
             
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -3502,7 +3510,7 @@ class ARMEmulator(object):
                 # operands = [Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
                 Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value
+                shift_n = shift.value.n
     
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
