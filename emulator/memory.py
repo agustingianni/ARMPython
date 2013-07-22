@@ -3,6 +3,8 @@ Created on Jun 12, 2013
 
 @author: anon
 '''
+import struct
+
 class MemoryMap(object):
     def __init__(self):
         pass
@@ -20,13 +22,13 @@ class MemoryMap(object):
         raise Exception("Method not implemented.")
     
     def set_byte(self, address, value):
-        self.__set_bytes__(address, value, 1)
+        self.__set_bytes__(address, struct.pack("<B", value & 0xff), 1)
     
     def set_word(self, address, value):
-        self.__set_bytes__(address, value, 2)
+        self.__set_bytes__(address, struct.pack("<H", value & 0xffff), 2)
     
     def set_dword(self, address, value):
-        self.__set_bytes__(address, value, 4)
+        self.__set_bytes__(address, struct.pack("<L", value & 0xffffffff), 4)
 
     def get_byte(self, address):
         return self.__get_bytes__(address, 1)
