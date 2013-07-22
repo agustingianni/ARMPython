@@ -4,9 +4,10 @@ Created on Jun 11, 2013
 @author: anon
 '''
 import sys
+sys.path.append("../../")
+
 from emulator.ARMEmulator import ARMEmulator
 from emulator.memory import DummyMemoryMap
-sys.path.append("../../")
 
 from disassembler.arm import ARMDisassembler
 from disassembler.arch import UndefinedOpcode, InvalidInstructionEncoding
