@@ -1472,7 +1472,7 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            option = ins.operands
+            option = ins.operands[0]
             self.Hint_Debug(option)
     
     def emulate_eor_immediate(self, ins):
@@ -1639,7 +1639,7 @@ class ARMEmulator(object):
             if len(ins.operands) == 1:
                 # In case we've decoded it as POP
                 Rn = ARMRegister.SP
-                regset = ins.operands
+                regset = ins.operands[0]
                 registers = regset.registers
                 
             else:
