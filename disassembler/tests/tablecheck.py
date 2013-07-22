@@ -3,13 +3,16 @@ Created on Jun 11, 2013
 
 @author: anon
 '''
-
 import sys
+from emulator.ARMEmulator import ARMEmulator
+from emulator.memory import DummyMemoryMap
 sys.path.append("../../")
 
-import random
-from disassembler.arm import *
+from disassembler.arm import ARMDisassembler
+from disassembler.arch import UndefinedOpcode, InvalidInstructionEncoding
+from disassembler.arch import UnpredictableInstructionException, InstructionNotImplementedException
 
+import random
 import objdump
 import llvm
 
@@ -973,7 +976,44 @@ thumb_opcodes = \
 )
 
 
-def test(mask, value, mode, limit=1000):
+def tets_emulator(mask, value, mode, limit=1000):
+    seen = set()
+    
+    d = ARMDisassembler()
+    
+    for i in xrange(limit):
+        opcode = get_masked_random(mask, value, mode)
+
+        if opcode in seen:
+            continue
+        
+        seen.add(opcode)
+        
+        if (opcode & mask) != value:
+            continue
+        
+        opcode = opcode | 0xe0000000
+        
+        try:
+            memory_map = DummyMemoryMap()
+            emulator = ARMEmulator(memory_map)                        
+            inst = d.disassemble(opcode, mode=mode)
+            emulator.emulate(inst, True)
+            emulator.setCurrentMode(ARMMode.ARM)
+        
+        except NotImplementedError:
+            continue
+        
+        except UnpredictableInstructionException:
+            continue
+        
+        except InstructionNotImplementedException:
+            continue
+        
+        except RuntimeError:
+            continue
+
+def test(mask, value, mode, limit=10000):
     seen = set()
     
     d = ARMDisassembler()
@@ -1160,8 +1200,14 @@ def main():
 #         mask, value = thumb_opcodes[i]
 #         test(mask, value, ARMMode.THUMB, limit=500)
     
-    mask, value = (0x0fffffff, 0x0320f004)
-    test(mask, value, ARMMode.ARM, limit=100)
+#    mask, value = (0x0fe00000, 0x02a00000)
+#     test(mask, value, ARMMode.ARM, limit=100)
+
+    for i in xrange(0, len(arm_opcodes)):
+        print "=" * 80
+        print "INDEX: %d" % i
+        mask, value = arm_opcodes[i]    
+        tets_emulator(mask, value, ARMMode.ARM, limit=1000)
     
 if __name__ == "__main__":
     main()
