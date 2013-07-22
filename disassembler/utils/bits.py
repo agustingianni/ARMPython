@@ -55,10 +55,10 @@ def CountLeadingZeroBits(n):
     while i > 0:
         if get_bit(n, i):
             break
-        
+        i -= 1
         c += 1
         
-    return c        
+    return c
 
 def LowestSetBit(n):
     bit = 32
