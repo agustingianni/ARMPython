@@ -114,8 +114,8 @@ class ProcessorFlag(object):
         return self.flag
 
 class Register(object):
-    def __init__(self, n, wback=False, negative=False):
-        self.n = n
+    def __init__(self, reg, wback=False, negative=False):
+        self.reg = reg
         if wback:
             self.wback = True
         else:
@@ -124,20 +124,20 @@ class Register(object):
         self.negative = negative
 
     def __str__(self):
-        if self.n == 13:
+        if self.reg == 13:
             t = "sp"
-        elif self.n == 14:
+        elif self.reg == 14:
             t = "lr"
-        elif self.n == 15:
+        elif self.reg == 15:
             t = "pc"
-        elif self.n == 10:
+        elif self.reg == 10:
             t = "sl"
-        elif self.n == 11:
+        elif self.reg == 11:
             t = "fp"
-        elif self.n == 12:
+        elif self.reg == 12:
             t = "ip"
         else:
-            t = "r%d" % self.n
+            t = "r%d" % self.reg
 
         if self.wback:
             t += "!"
@@ -149,9 +149,9 @@ class Register(object):
     
     def __eq__(self, other):
         if isinstance(other, Register):
-            return self.n == other.n
+            return self.reg == other.reg
         else:
-            return self.n == other
+            return self.reg == other
     
     def __repr__(self):
         return self.__str__()

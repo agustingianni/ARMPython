@@ -434,22 +434,22 @@ class ARMEmulator(object):
         """
         self.log.debug("Initialized register map")
         
-        self.register_map[ARMRegister.R0.n] = 0
-        self.register_map[ARMRegister.R1.n] = 0
-        self.register_map[ARMRegister.R2.n] = 0
-        self.register_map[ARMRegister.R3.n] = 0
-        self.register_map[ARMRegister.R4.n] = 0
-        self.register_map[ARMRegister.R5.n] = 0
-        self.register_map[ARMRegister.R6.n] = 0
-        self.register_map[ARMRegister.R7.n] = 0
-        self.register_map[ARMRegister.R8.n] = 0
-        self.register_map[ARMRegister.R9.n] = 0
-        self.register_map[ARMRegister.R10.n] = 0
-        self.register_map[ARMRegister.R11.n] = 0
-        self.register_map[ARMRegister.R12.n] = 0
-        self.register_map[ARMRegister.R13.n] = 0
-        self.register_map[ARMRegister.R14.n] = 0
-        self.register_map[ARMRegister.R15.n] = 0
+        self.register_map[ARMRegister.R0.reg] = 0
+        self.register_map[ARMRegister.R1.reg] = 0
+        self.register_map[ARMRegister.R2.reg] = 0
+        self.register_map[ARMRegister.R3.reg] = 0
+        self.register_map[ARMRegister.R4.reg] = 0
+        self.register_map[ARMRegister.R5.reg] = 0
+        self.register_map[ARMRegister.R6.reg] = 0
+        self.register_map[ARMRegister.R7.reg] = 0
+        self.register_map[ARMRegister.R8.reg] = 0
+        self.register_map[ARMRegister.R9.reg] = 0
+        self.register_map[ARMRegister.R10.reg] = 0
+        self.register_map[ARMRegister.R11.reg] = 0
+        self.register_map[ARMRegister.R12.reg] = 0
+        self.register_map[ARMRegister.R13.reg] = 0
+        self.register_map[ARMRegister.R14.reg] = 0
+        self.register_map[ARMRegister.R15.reg] = 0
    
     def __init_flags_map__(self):
         """
@@ -549,7 +549,7 @@ class ARMEmulator(object):
         self.log.debug("Reading register %s" % register)
         
         # Get the value of the register from the register map
-        reg_val = self.register_map[register.n]
+        reg_val = self.register_map[register.reg]
         
         # Fixup PC value
         if register == ARMRegister.PC:
@@ -566,7 +566,7 @@ class ARMEmulator(object):
         Set the value of a register.
         """
         self.log.debug("Setting register %s = %d " % (register, value))
-        self.register_map[register.n] = value
+        self.register_map[register.reg] = value
     
     def getFlag(self, flag):
         """
@@ -744,7 +744,7 @@ class ARMEmulator(object):
             shift_t = shift.type_
             
             # shift_n = UInt(R[s]<7:0>);
-            shift_n = get_bits(shift.value.n, 7, 0)
+            shift_n = get_bits(self.getRegister(shift.value), 7, 0)
             
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -923,7 +923,7 @@ class ARMEmulator(object):
             elif len(ins.operands) == 4:
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
-                shift_n = shift.value.n    
+                shift_n = shift.value.n
 
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -1587,12 +1587,12 @@ class ARMEmulator(object):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
             # if wback && registers<n> == '0' then R[n] = R[n] - 4*BitCount(registers);
-            if Rn.wback and get_bit(registers, Rn.n) == 0:
+            if Rn.wback and get_bit(registers, Rn.reg) == 0:
                 val = Rn_val - 4 * BitCount(registers)
                 self.setRegister(Rn, val)
             
             # if wback && registers<n> == '1' then R[n] = bits(32) UNKNOWN;    
-            if Rn.wback and get_bit(registers, Rn.n) == 1:
+            if Rn.wback and get_bit(registers, Rn.reg) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldmdb(self, ins):
@@ -1619,12 +1619,12 @@ class ARMEmulator(object):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
             # if wback && registers<n> == '0' then R[n] = R[n] - 4*BitCount(registers);
-            if Rn.wback and get_bit(registers, Rn.n) == 0:
+            if Rn.wback and get_bit(registers, Rn.reg) == 0:
                 val = Rn_val - 4 * BitCount(registers)
                 self.setRegister(Rn, val)
             
             # if wback && registers<n> == '1' then R[n] = bits(32) UNKNOWN;    
-            if Rn.wback and get_bit(registers, Rn.n) == 1:
+            if Rn.wback and get_bit(registers, Rn.reg) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldm_exception_return(self, ins):
@@ -1657,11 +1657,11 @@ class ARMEmulator(object):
             if get_bit(registers, 15):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
-            if Rn.wback and get_bit(registers, Rn.n) == 0:
+            if Rn.wback and get_bit(registers, Rn.reg) == 0:
                 val = self.getRegister(Rn) + 4 * BitCount(registers)
                 self.setRegister(Rn, val)
                 
-            elif Rn.wback and get_bit(registers, Rn.n) == 1:
+            elif Rn.wback and get_bit(registers, Rn.reg) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldmia_thumb(self, ins):
@@ -1700,12 +1700,12 @@ class ARMEmulator(object):
                 self.LoadWritePC(self.memory_map.get_dword(address))
                 
             # if wback && registers<n> == '0' then R[n] = R[n] - 4*BitCount(registers);
-            if Rn.wback and get_bit(registers, Rn.n) == 0:
+            if Rn.wback and get_bit(registers, Rn.reg) == 0:
                 val = Rn_val + 4 * BitCount(registers)
                 self.setRegister(Rn, val)
             
             # if wback && registers<n> == '1' then R[n] = bits(32) UNKNOWN;    
-            if Rn.wback and get_bit(registers, Rn.n) == 1:
+            if Rn.wback and get_bit(registers, Rn.reg) == 1:
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldm_user_registers(self, ins):
@@ -2484,7 +2484,7 @@ class ARMEmulator(object):
                         
                     address = address + 4
             
-            if get_bit(registers, ARMRegister.PC.n):
+            if get_bit(registers, ARMRegister.PC.reg):
                 # MemA[address,4] = PCStoreValue();
                 self.memory_map.set_dword(address, self.getPC())
                 
@@ -2916,7 +2916,7 @@ class ARMEmulator(object):
             
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
-                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                    if i == Rn.reg and Rn.wback and i != LowestSetBit(registers):
                         raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
@@ -2952,7 +2952,7 @@ class ARMEmulator(object):
             
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
-                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                    if i == Rn.reg and Rn.wback and i != LowestSetBit(registers):
                         raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
@@ -2981,7 +2981,7 @@ class ARMEmulator(object):
             
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
-                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                    if i == Rn.reg and Rn.wback and i != LowestSetBit(registers):
                         raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
@@ -3010,7 +3010,7 @@ class ARMEmulator(object):
             
             for i in xrange(0, 14 + 1):
                 if get_bit(registers, i):
-                    if i == Rn.n and Rn.wback and i != LowestSetBit(registers):
+                    if i == Rn.reg and Rn.wback and i != LowestSetBit(registers):
                         raise RuntimeError("MemA[address,4] = bits(32) UNKNOWN; // Only possible for encodings T1 and A1")
 
                     else:
@@ -3301,8 +3301,8 @@ class ARMEmulator(object):
             
             # (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), '1');
             Rn_val = self.getRegister(Rn)
-            result, carry, overflow = AddWithCarry(Rn_val, NOT(shifted), 1)            
-            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)                
+            result, carry, overflow = AddWithCarry(Rn_val, NOT(shifted), 1)
+            self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
             
     
     def emulate_sub_rsr(self, ins):
