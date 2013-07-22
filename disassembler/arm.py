@@ -1196,7 +1196,7 @@ class ARMDisassembler(object):
             increment = False
             wordhigher = False
 
-            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.reg, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSDB", False, None, operands, encoding)
         
         elif encoding == eEncodingT2:
@@ -1208,7 +1208,7 @@ class ARMDisassembler(object):
             increment = True
             wordhigher = False
 
-            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.reg, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSIA", False, None, operands, encoding)
 
         else:
@@ -1238,22 +1238,22 @@ class ARMDisassembler(object):
 
         if P == 0 and U == 0:
             # Decrement After.
-            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.reg, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSDA", False, condition, operands, encoding)
         
         elif P == 1 and U == 0:
             # Decrement Before.
-            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.reg, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSDB", False, condition, operands, encoding)
         
         elif P == 0 and U == 1:
             # Increment After. 
-            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.reg, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSIA", False, condition, operands, encoding)
         
         elif P == 1 and U == 1:
             # Increment Before.
-            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.reg, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSIB", False, condition, operands, encoding)
         
         return ins
