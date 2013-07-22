@@ -1057,7 +1057,7 @@ class ARMDisassembler(object):
         (0x0fffffff, 0x0320f002, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfe),
         (0x0fffffff, 0x0320f003, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfi),
         (0x0fffffff, 0x0320f004, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sev),
-        (0x00000000, 0x00000000, ARMvAll, No_VFP, eSize32, self.decode_unknown)
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
     )
     
     def decode_arm(self, opcode):        
