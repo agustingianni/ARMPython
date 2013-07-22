@@ -434,22 +434,22 @@ class ARMEmulator(object):
         """
         self.log.debug("Initialized register map")
         
-        self.register_map[ARMRegister.R0] = 0
-        self.register_map[ARMRegister.R1] = 0
-        self.register_map[ARMRegister.R2] = 0
-        self.register_map[ARMRegister.R3] = 0
-        self.register_map[ARMRegister.R4] = 0
-        self.register_map[ARMRegister.R5] = 0
-        self.register_map[ARMRegister.R6] = 0
-        self.register_map[ARMRegister.R7] = 0
-        self.register_map[ARMRegister.R8] = 0
-        self.register_map[ARMRegister.R9] = 0
-        self.register_map[ARMRegister.R10] = 0
-        self.register_map[ARMRegister.R11] = 0
-        self.register_map[ARMRegister.R12] = 0
-        self.register_map[ARMRegister.R13] = 0
-        self.register_map[ARMRegister.R14] = 0
-        self.register_map[ARMRegister.R15] = 0
+        self.register_map[ARMRegister.R0.n] = 0
+        self.register_map[ARMRegister.R1.n] = 0
+        self.register_map[ARMRegister.R2.n] = 0
+        self.register_map[ARMRegister.R3.n] = 0
+        self.register_map[ARMRegister.R4.n] = 0
+        self.register_map[ARMRegister.R5.n] = 0
+        self.register_map[ARMRegister.R6.n] = 0
+        self.register_map[ARMRegister.R7.n] = 0
+        self.register_map[ARMRegister.R8.n] = 0
+        self.register_map[ARMRegister.R9.n] = 0
+        self.register_map[ARMRegister.R10.n] = 0
+        self.register_map[ARMRegister.R11.n] = 0
+        self.register_map[ARMRegister.R12.n] = 0
+        self.register_map[ARMRegister.R13.n] = 0
+        self.register_map[ARMRegister.R14.n] = 0
+        self.register_map[ARMRegister.R15.n] = 0
    
     def __init_flags_map__(self):
         """
@@ -545,9 +545,6 @@ class ARMEmulator(object):
         register that should be PC + 4 in the case of THUMB
         and PC + 8 in the case of ARM.
         """
-        # I fail at duck typing.
-        if type(register) in [int, long]:
-            register = Register(register)
 
         self.log.debug("Reading register %s" % register)
         
@@ -555,7 +552,7 @@ class ARMEmulator(object):
         reg_val = self.register_map[register.n]
         
         # Fixup PC value
-        if register.n == ARMRegister.PC:
+        if register == ARMRegister.PC:
             if self.getCurrentMode() == ARMMode.ARM:
                 reg_val += 8
                 
@@ -568,10 +565,6 @@ class ARMEmulator(object):
         """
         Set the value of a register.
         """
-        # I fail at duck typing.
-        if type(register) in [int, long]:
-            register = Register(register)
-
         self.log.debug("Setting register %s = %d " % (register, value))
         self.register_map[register.n] = value
     
@@ -673,7 +666,7 @@ class ARMEmulator(object):
         Auxiliary function to save the value of an operation into a register
         and set the flags of the processor accordingly. 
         """
-        if register.n == ARMRegister.PC:
+        if register == ARMRegister.PC:
             self.ALUWritePC(result)
             
         else:
@@ -918,7 +911,7 @@ class ARMEmulator(object):
             # operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
-                Rn = Register(ARMRegister.SP)
+                Rn = ARMRegister.SP
                 shift_t = SRType_LSL
                 shift_n = 0
 
@@ -994,7 +987,7 @@ class ARMEmulator(object):
             else:
                 result = Align(Rn_val, 4) - imm32_val
                 
-            if Rd.n == ARMRegister.PC:
+            if Rd == ARMRegister.PC:
                 self.ALUWritePC(result)
             else:
                 self.setRegister(Rd, result)
@@ -1645,7 +1638,7 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             if len(ins.operands) == 1:
                 # In case we've decoded it as POP
-                Rn = Register(ARMRegister.SP)
+                Rn = ARMRegister.SP
                 regset = ins.operands
                 registers = regset.registers
                 
@@ -1800,7 +1793,7 @@ class ARMEmulator(object):
             if wback:
                 self.setRegister(Rn, offset_addr)
                 
-            if Rt.n == ARMRegister.PC:
+            if Rt == ARMRegister.PC:
                 if get_bits(address, 1, 0) == 0b00:
                     self.LoadWritePC(data)
                 else:
@@ -1851,7 +1844,7 @@ class ARMEmulator(object):
             if wback:
                 self.setRegister(Rn, offset_addr)
                 
-            if Rt.n == ARMRegister.PC:
+            if Rt == ARMRegister.PC:
                 if get_bits(address, 1, 0) == 0b00:
                     self.LoadWritePC(data)
                 else:
@@ -1897,7 +1890,7 @@ class ARMEmulator(object):
             # data = MemU[address,4];
             data = self.memory_map.get_dword(address)
 
-            if Rt.n == ARMRegister.PC:
+            if Rt == ARMRegister.PC:
                 if get_bits(address, 1, 0) == 0b00:
                     self.LoadWritePC(data)
                 else:
@@ -1958,7 +1951,7 @@ class ARMEmulator(object):
             if wback:
                 self.setRegister(Rn, offset_addr)
                 
-            if Rt.n == ARMRegister.PC:
+            if Rt == ARMRegister.PC:
                 if get_bits(address, 1, 0) == 0b00:
                     self.LoadWritePC(data)
                 else:
@@ -2000,7 +1993,7 @@ class ARMEmulator(object):
             # data = MemU[address,4];
             data = self.memory_map.get_dword(address)
             
-            if Rt.n == ARMRegister.PC:
+            if Rt == ARMRegister.PC:
                 if get_bits(address, 1, 0) == 0b00:
                     self.LoadWritePC(data)
                 else:
@@ -2175,7 +2168,7 @@ class ARMEmulator(object):
                 immediate_val = immediate.n
                 carry = None
             
-            if Rd.n == ARMRegister.PC:
+            if Rd == ARMRegister.PC:
                 self.ALUWritePC(immediate_val)
                 
             else:
@@ -2189,7 +2182,7 @@ class ARMEmulator(object):
             # operands = [Register(Rd), Register(Rm)]
             Rd, Rm = ins.operands
             
-            if Rd.n == ARMRegister.PC:
+            if Rd == ARMRegister.PC:
                 self.ALUWritePC(self.getRegister(Rm))
             
             else:
@@ -2457,7 +2450,7 @@ class ARMEmulator(object):
                     
             if get_bit(registers, 13) == 0:
                 sp_val = self.getRegister(ARMRegister.SP)
-                self.setRegister(Register(ARMRegister.SP), sp_val + 4 * BitCount(registers))
+                self.setRegister(ARMRegister.SP, sp_val + 4 * BitCount(registers))
             
             if get_bit(registers, 13) == 1:
                 raise RuntimeError("if registers<13> == '1' then SP = bits(32) UNKNOWN;")
@@ -2491,7 +2484,7 @@ class ARMEmulator(object):
                         
                     address = address + 4
             
-            if get_bit(registers, ARMRegister.PC):
+            if get_bit(registers, ARMRegister.PC.n):
                 # MemA[address,4] = PCStoreValue();
                 self.memory_map.set_dword(address, self.getPC())
                 
@@ -2945,7 +2938,7 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             if len(ins.operands) == 1:
                 # operands = [RegisterSet(registers)]
-                Rn = Register(ARMRegister.SP)
+                Rn = ARMRegister.SP
                 regset = ins.operands[0]
                 
             else:
@@ -3102,7 +3095,7 @@ class ARMEmulator(object):
                 address = self.getRegister(Rn)
                 
             # MemU[address,4] = if t == 15 then PCStoreValue() else R[t];
-            if Rt.n == ARMRegister.PC:
+            if Rt == ARMRegister.PC:
                 self.memory_map.set_dword(address, self.getPC())
             else:
                 self.memory_map.set_dword(address, self.getRegister(Rt))
@@ -3234,7 +3227,7 @@ class ARMEmulator(object):
             else:
                 address = self.getRegister(Rn)
                 
-            if Rt.n == ARMRegister.PC:
+            if Rt == ARMRegister.PC:
                 data = self.getPC()
             else:
                 data = self.getRegister(Rt)
@@ -3655,7 +3648,7 @@ class ARMEmulator(object):
             if v:
                 regs.append("%s=%x" % (r, v))
 
-        r = Register(ARMRegister.PC)
+        r = ARMRegister.PC
         v = self.getActualPC()
         if v:
             regs.append("%s=%x" % (r, v))

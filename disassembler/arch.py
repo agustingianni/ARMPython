@@ -147,6 +147,12 @@ class Register(object):
         
         return t
     
+    def __eq__(self, other):
+        if isinstance(other, Register):
+            return self.n == other.n
+        else:
+            return self.n == other
+    
     def __repr__(self):
         return self.__str__()
 

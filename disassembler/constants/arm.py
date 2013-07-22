@@ -1,3 +1,5 @@
+from disassembler.arch import Register
+
 # ARMEncoding
 eEncodingA1 = 0
 eEncodingA2 = 1
@@ -75,22 +77,22 @@ class ARMRegister:
     """
     ARM core registers
     """
-    R0 = 0
-    R1 = 1
-    R2 = 2
-    R3 = 3
-    R4 = 4
-    R5 = 5
-    R6 = 6
-    R7 = 7
-    R8 = 8
-    R9 = 9
-    R10 = SL = 10
-    R11 = FP = 11
-    R12 = IP = 12
-    R13 = SP = 13
-    R14 = LR = 14
-    R15 = PC = 15
+    R0 = Register(0)
+    R1 = Register(1)
+    R2 = Register(2)
+    R3 = Register(3)
+    R4 = Register(4)
+    R5 = Register(5)
+    R6 = Register(6)
+    R7 = Register(7)
+    R8 = Register(8)
+    R9 = Register(9)
+    R10 = SL = Register(10)
+    R11 = FP = Register(11)
+    R12 = IP = Register(12)
+    R13 = SP = Register(13)
+    R14 = LR = Register(14)
+    R15 = PC = Register(15)
 
 class ARMInstruction:
     adc_immediate = 0x0000

@@ -1196,7 +1196,7 @@ class ARMDisassembler(object):
             increment = False
             wordhigher = False
 
-            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSDB", False, None, operands, encoding)
         
         elif encoding == eEncodingT2:
@@ -1208,7 +1208,7 @@ class ARMDisassembler(object):
             increment = True
             wordhigher = False
 
-            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSIA", False, None, operands, encoding)
 
         else:
@@ -1238,22 +1238,22 @@ class ARMDisassembler(object):
 
         if P == 0 and U == 0:
             # Decrement After.
-            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSDA", False, condition, operands, encoding)
         
         elif P == 1 and U == 0:
             # Decrement Before.
-            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSDB", False, condition, operands, encoding)
         
         elif P == 0 and U == 1:
             # Increment After. 
-            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSIA", False, condition, operands, encoding)
         
         elif P == 1 and U == 1:
             # Increment Before.
-            operands = [Register(ARMRegister.SP, wback), Immediate(mode)]
+            operands = [Register(ARMRegister.SP.n, wback), Immediate(mode)]
             ins = Instruction(ins_id, opcode, "SRSIB", False, condition, operands, encoding)
         
         return ins
@@ -2980,7 +2980,7 @@ class ARMDisassembler(object):
             setflags = False
             
             condition = None
-            operands = [Register(ARMRegister.SP), Register(ARMRegister.SP), Immediate(imm7)]
+            operands = [ARMRegister.SP, ARMRegister.SP, Immediate(imm7)]
             ins = Instruction(ins_id, opcode, "SUB", setflags, condition, operands, encoding)
         
         elif encoding == eEncodingT2:
@@ -2998,7 +2998,7 @@ class ARMDisassembler(object):
                 raise UnpredictableInstructionException()
             
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "SUB", setflags, condition, operands, encoding, ".W")
         
         elif encoding == eEncodingT3:
@@ -3016,7 +3016,7 @@ class ARMDisassembler(object):
             setflags = False
             
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "SUBW", setflags, condition, operands, encoding)
         
         elif encoding == eEncodingA1:
@@ -3029,7 +3029,7 @@ class ARMDisassembler(object):
             if Rd == 0b1111 and S == 1:
                 return self.decode_subs_pc_lr_arm(opcode, encoding)
         
-            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "SUB", setflags, condition, operands, encoding)
 
         else:
@@ -3090,7 +3090,7 @@ class ARMDisassembler(object):
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
         
-        operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
+        operands = [Register(Rd), ARMRegister.SP, Register(Rm), RegisterShift(shift_t, shift_n)]
         ins = Instruction(ins_id, opcode, "SUB", setflags, condition, operands, encoding)
         
         return ins
@@ -4461,7 +4461,7 @@ class ARMDisassembler(object):
             imm32 = ARMExpandImm(opcode)
             register_form = False
          
-            operands = [Register(ARMRegister.PC), Register(Rn), Immediate(imm32)]
+            operands = [ARMRegister.PC, Register(Rn), Immediate(imm32)]
             ins = Instruction(ins_id, opcode, name, True, condition, operands, encoding)
          
         elif encoding == eEncodingA2:
@@ -4470,7 +4470,7 @@ class ARMDisassembler(object):
             Rm = get_bits(opcode, 3, 0)
             register_form = True
 
-            operands = [Register(ARMRegister.PC), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]            
+            operands = [ARMRegister.PC, Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             ins = Instruction(ins_id, opcode, name, True, condition, operands, encoding)
 
         else:
@@ -4504,7 +4504,7 @@ class ARMDisassembler(object):
         if self.InITBlock() and not self.LastInITBlock():
             raise UnpredictableInstructionException()
         
-        operands = [Register(ARMRegister.PC), Register(ARMRegister.LR), Immediate(imm8)]
+        operands = [ARMRegister.PC, ARMRegister.LR, Immediate(imm8)]
         ins = Instruction(ins_id, opcode, "SUBS", False, None, operands, encoding)
         return ins
     
@@ -4528,7 +4528,7 @@ class ARMDisassembler(object):
             imm32 = imm8 << 2
 
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding)            
         
         elif encoding == eEncodingT2:
@@ -4538,7 +4538,7 @@ class ARMDisassembler(object):
             setflags = False
 
             condition = None
-            operands = [Register(ARMRegister.SP), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [ARMRegister.SP, ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding)            
         
         elif encoding == eEncodingT3:
@@ -4557,7 +4557,7 @@ class ARMDisassembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding, ".W")            
         
         elif encoding == eEncodingT4:
@@ -4575,7 +4575,7 @@ class ARMDisassembler(object):
             setflags = S == 1
 
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADDW", setflags, condition, operands, encoding)            
         
         elif encoding == eEncodingA1:
@@ -4590,7 +4590,7 @@ class ARMDisassembler(object):
             setflags = S == 1
             imm32 = ARMExpandImm(opcode)
 
-            operands = [Register(Rd), Register(ARMRegister.SP), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.SP, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding)            
 
         else:
@@ -4627,7 +4627,7 @@ class ARMDisassembler(object):
             shift_n = 0
 
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm)]
+            operands = [Register(Rd), ARMRegister.SP, Register(Rm)]
             ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding)            
             
         elif encoding == eEncodingT2:
@@ -4650,7 +4650,7 @@ class ARMDisassembler(object):
                 shift_n = 0
 
                 condition = None
-                operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm)]
+                operands = [Register(Rd), ARMRegister.SP, Register(Rm)]
                 ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding)                  
 
             else:
@@ -4684,7 +4684,7 @@ class ARMDisassembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
+            operands = [Register(Rd), ARMRegister.SP, Register(Rm), RegisterShift(shift_t, shift_n)]
             ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding, ".W")                  
 
         else:
@@ -4719,7 +4719,7 @@ class ARMDisassembler(object):
         
         setflags = S == 1
 
-        operands = [Register(Rd), Register(ARMRegister.SP), Register(Rm), RegisterShift(shift_t, shift_n)]
+        operands = [Register(Rd), ARMRegister.SP, Register(Rm), RegisterShift(shift_t, shift_n)]
         ins = Instruction(ins_id, opcode, "ADD", setflags, condition, operands, encoding)            
 
         return ins
@@ -5020,7 +5020,7 @@ class ARMDisassembler(object):
             imm32 = get_bits(opcode, 7, 0) << 2
             
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.PC, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", False, condition, operands, encoding)                        
              
         elif encoding == eEncodingT2:
@@ -5039,7 +5039,7 @@ class ARMDisassembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.PC, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "SUB", False, condition, operands, encoding)                        
             
         elif encoding == eEncodingT3:
@@ -5058,7 +5058,7 @@ class ARMDisassembler(object):
                 raise UnpredictableInstructionException()
 
             condition = None
-            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.PC, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", False, condition, operands, encoding)                        
             
         elif encoding == eEncodingA1:
@@ -5066,7 +5066,7 @@ class ARMDisassembler(object):
             imm32 = ARMExpandImm(opcode)
             add = True
             
-            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.PC, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", False, condition, operands, encoding)                        
     
         elif encoding == eEncodingA2:
@@ -5074,7 +5074,7 @@ class ARMDisassembler(object):
             imm32 = ARMExpandImm(opcode)
             add = False
 
-            operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
+            operands = [Register(Rd), ARMRegister.PC, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "SUB", False, condition, operands, encoding)                        
 
         else:
@@ -6382,7 +6382,7 @@ class ARMDisassembler(object):
             add = True
             wback = False
 
-            operands = [Register(Rt), Memory(Register(ARMRegister.SP), Immediate(imm32))]
+            operands = [Register(Rt), Memory(ARMRegister.SP, Immediate(imm32))]
             ins = Instruction(ins_id, opcode, "STR", False, None, operands, encoding)
         
         elif encoding == eEncodingT3:
@@ -6728,7 +6728,7 @@ class ARMDisassembler(object):
             add = True
             wback = False
 
-            operands = [Register(Rt), Memory(Register(ARMRegister.SP), Immediate(imm32))]
+            operands = [Register(Rt), Memory(ARMRegister.SP, Immediate(imm32))]
             ins = Instruction(ins_id, opcode, "LDR", False, None, operands, encoding)
         
         elif encoding == eEncodingT3:
@@ -6913,7 +6913,7 @@ class ARMDisassembler(object):
             if not add:
                 imm32 *= -1
 
-            operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
+            operands = [Register(Rt), Memory(ARMRegister.PC, Immediate(imm32))]
             ins = Instruction(ins_id, opcode, "LDR", False, condition, operands, encoding)            
 
         else:
@@ -7639,7 +7639,7 @@ class ARMDisassembler(object):
         if not add:
             imm32 *= -1
             
-        operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
+        operands = [Register(Rt), Memory(ARMRegister.PC, Immediate(imm32))]
         ins = Instruction(ins_id, opcode, "LDRB", False, condition, operands, encoding)            
         return ins
     
