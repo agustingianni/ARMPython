@@ -77,7 +77,10 @@ class BoolExpr(Expr):
             return BoolAndExpr(self, other)
         else:
             #p & T <=> p, p & F <=> F
-            return self if bool(other) else False
+            if self.__has_value__:
+                return bool(self) if bool(other) else False
+            else:
+                return self if bool(other) else False
 
     def __rand__(self, other):
         if isinstance(other, BoolExpr):
@@ -90,7 +93,10 @@ class BoolExpr(Expr):
             return BoolOrExpr(self, other)
         else:
             #p | T <=> T, p | F <=> p
-            return True if bool(other) else self
+            if self.__has_value__:
+                return True if bool(other) else bool(self)
+            else:
+                return True if bool(other) else self
 
     def __ror__(self, other):
         if isinstance(other, BoolExpr):
@@ -103,7 +109,10 @@ class BoolExpr(Expr):
             return BoolXorExpr(self, other)
         else:
             #p ^ T <=> ~p, p ^ F <=> p
-            return ~self if bool(other) else self 
+            if self.__has_value__:
+                return ~self if bool(other) else bool(self)
+            else: 
+                return ~self if bool(other) else self 
 
     def __rxor__(self, other):
         if isinstance(other, BoolExpr):
@@ -116,6 +125,24 @@ class BoolExpr(Expr):
             return BoolNotExpr(self)
         else:
             return not bool(self)
+    
+    def __rshift__(self, other):
+        if isinstance(other, BoolExpr) and other.__has_value__ == False:
+            return BoolImplExpr(self, other)
+        else:
+            #p => T <=> T, p => F <=> ~p
+            return True if bool(other) else ~self
+    
+    def __rrshift__(self, other):
+        if isinstance(other, BoolExpr):
+            return BoolExpr.__rshift__(other, self)
+        else:
+            #T => p <=> p, F => p <=> T
+            if self.__has_value__:
+                return bool(self) if bool(other) else True
+            else:
+                return self if bool(other) else True
+
 
 class BoolVarExpr(BoolExpr):
     children=()
@@ -385,8 +412,12 @@ def BvSignExtend(expr, new_size):
 def test():
     t=TrueExpr
     f=BoolVarExpr()
-    print (~t) & f
-    
+    #print ((~t) & f) >> t, type(((~t) & f) >> t)
+    x=True >> FalseExpr
+    print "1)", x, type(x)
+    print "2)", TrueExpr >> FalseExpr, type(TrueExpr >> FalseExpr)
+    print "3)", TrueExpr >> False, type(TrueExpr >> False)
+    return
     bv1=BvConstExpr(0xcafecafe, 32)
     bv2=BvVarExpr(64, "r0")
     print BvXorExpr(BvZeroExtend(bv1, 64), bv2)
