@@ -59,6 +59,8 @@ Expressions
     All type information should be static and part of the class definition.
 '''
 
+import sys
+
 class Expr:
     def __str__(self):
         children_repr=[str(x) for x in self.children]
@@ -142,6 +144,20 @@ class BoolExpr(Expr):
                 return bool(self) if bool(other) else True
             else:
                 return self if bool(other) else True
+    
+    def __eq__(self, other):
+        if self.__has_value__ == True and \
+           isinstance(other, BoolExpr) and other.__has_value__ == True:
+            return bool(self) == bool(other)
+        else:
+            return EqExpr(self, other)
+
+    def __ne__(self, other):
+        if self.__has_value__ == True and \
+           isinstance(other, BoolExpr) and other.__has_value__ == True:
+            return bool(self) != bool(other)
+        else:
+            return DistinctExpr(self, other)
 
 
 class BoolVarExpr(BoolExpr):
@@ -215,25 +231,34 @@ class DistinctExpr(BoolExpr):
         self.children=(p1, p2)
         assert p1.__sort__ == p2.__sort__
 
-class IteExpr(Expr):
-    __function__="ite"
-    def __init__(self, _if, _then, _else):
-        assert isinstance(_if, BoolExpr)
-        assert _then.__sort__ == _else.__sort__
-        
-        self.children=(_if, _then, _else)
-
 
 # BitVector sort and functions
 
 class BvExpr(Expr):
     __base_sort__="BitVec"
+    __has_value__=False
     
     def __nonzero__(self):
         raise Exception, "A BitVector Expression cannot be evaluated to boolean"
 
+    def __eq__(self, other):
+        if self.__has_value__ == True and \
+           isinstance(other, BvExpr) and other.__has_value__ == True:
+            return long(self) == long(other)
+        else:
+            return EqExpr(self, other)
+
+    def __ne__(self, other):
+        if self.__has_value__ == True and \
+           isinstance(other, BvExpr) and other.__has_value__ == True:
+            return long(self) != long(other)
+        else:
+            return DistinctExpr(self, other)
+
+
 class BvConstExpr(BvExpr):
     children=()
+    __has_value__=True
     def __init__(self, value, size):
         self.value=value & ((2 ** size) - 1)
         self.size=size
@@ -241,6 +266,12 @@ class BvConstExpr(BvExpr):
     
     def __str__(self):
         return ("0x%0" + str(((self.size - 1) // 4) + 1) + "x[%d]") % (self.value, self.size)
+    
+    def __int__(self):
+        return self.value
+    
+    def __long__(self):
+        return self.value
 
 class BvVarExpr(BvExpr):
     children=()
@@ -409,6 +440,46 @@ def BvSignExtend(expr, new_size):
     
     return out
 
+
+# ITE is a special case because the result of the function depends of the
+# parameters
+
+class _BvIteExpr(BvExpr):
+    __function__="ite"
+    def __init__(self, _if, _then, _else):
+        assert isinstance(_if, BoolExpr)
+        assert _then.__sort__ == _else.__sort__
+        self.children=(_if, _then, _else)
+
+class _BoolIteExpr(BvExpr):
+    __function__="ite"
+    def __init__(self, _if, _then, _else):
+        assert isinstance(_if, BoolExpr)
+        assert _then.__sort__ == _else.__sort__
+        self.children=(_if, _then, _else)
+
+def IteExpr(_if, _then, _else):
+    if isinstance(_if, BoolExpr) and _if.__has_value__ == False:
+        if not isinstance(_then, Expr):
+            if isinstance(_then, bool):
+                _then=TrueExpr if _then else FalseExpr
+            else:
+                raise Exception, "Invalid 'then' argument on ITE"
+    
+        if not isinstance(_else, Expr):
+            if isinstance(_else, bool):
+                _else=TrueExpr if _else else FalseExpr
+            else:
+                raise Exception, "Invalid 'else' argument on ITE"
+
+        if isinstance(_then, BoolExpr):
+            return _BoolIteExpr(_if, _then, _else)
+        else:
+            return _BvIteExpr(_if, _then, _else)
+    else:
+        return _then if bool(_if) else _else
+
+
 def test():
     t=TrueExpr
     f=BoolVarExpr()
@@ -417,7 +488,7 @@ def test():
     print "1)", x, type(x)
     print "2)", TrueExpr >> FalseExpr, type(TrueExpr >> FalseExpr)
     print "3)", TrueExpr >> False, type(TrueExpr >> False)
-    return
+
     bv1=BvConstExpr(0xcafecafe, 32)
     bv2=BvVarExpr(64, "r0")
     print BvXorExpr(BvZeroExtend(bv1, 64), bv2)
