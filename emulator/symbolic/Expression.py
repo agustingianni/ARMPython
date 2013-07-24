@@ -63,6 +63,10 @@ import sys
 
 class Expr:
     __has_value__=False
+    __commutative__=False
+
+    def __repr__(self):
+        return "<%s>" % self
 
     def __str__(self):
         children_repr=[str(x) for x in self.children]
@@ -91,6 +95,22 @@ class Expr:
                 return (val.value, self, False)
             else:
                 return (val, self, False)
+
+    def __hash__(self):
+        children=[hash(x) for x in self.children]
+        if self.__commutative__:
+            children.sort()
+        children=tuple(children)
+
+        optional=[]
+        if self.__has_value__:
+            optional.append(self.value)
+        if hasattr(self, "name"):
+            optional.append(self.name)
+        if hasattr(self, "__function__"):
+            optional.append(self.__function__)
+
+        return hash((self.__sort__, self.__has_value__, tuple(optional), children))
 
 # Boolean sort and functions    
 class BoolExpr(Expr):
@@ -217,16 +237,19 @@ FalseExpr=_FalseExpr() #singleton
 
 class BoolAndExpr(BoolExpr):
     __function__="and"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
 class BoolOrExpr(BoolExpr):
     __function__="or"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
 class BoolXorExpr(BoolExpr):
     __function__="xor"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
@@ -245,12 +268,14 @@ class BoolImplExpr(BoolExpr):
 
 class EqExpr(BoolExpr):
     __function__="="
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         assert p1.__sort__ == p2.__sort__
 
 class DistinctExpr(BoolExpr):
     __function__="distinct"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         assert p1.__sort__ == p2.__sort__
@@ -712,6 +737,7 @@ class BvNegExpr(BvExpr):
 
 class BvAndExpr(BvExpr):
     __function__="bvand"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -721,6 +747,7 @@ class BvAndExpr(BvExpr):
 
 class BvOrExpr(BvExpr):
     __function__="bvor"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -730,6 +757,7 @@ class BvOrExpr(BvExpr):
 
 class BvXorExpr(BvExpr):
     __function__="bvxor"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -739,6 +767,7 @@ class BvXorExpr(BvExpr):
 
 class BvAddExpr(BvExpr):
     __function__="bvadd"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -757,6 +786,7 @@ class BvSubExpr(BvExpr):
 
 class BvMulExpr(BvExpr):
     __function__="bvmul"
+    __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -906,21 +936,23 @@ def IteExpr(_if, _then, _else, op_size=32):
 
 
 def test():
-    t=TrueExpr
-    f=BoolVarExpr()
-    #print ((~t) & f) >> t, type(((~t) & f) >> t)
-    x=True >> FalseExpr
-    print "1)", x, type(x)
-    print "2)", TrueExpr >> FalseExpr, type(TrueExpr >> FalseExpr)
-    print "3)", TrueExpr >> False, type(TrueExpr >> False)
-
     bv1=BvConstExpr(0xcafecafe, 32)
-    bv2=BvVarExpr(64, "r0")
-    print BvZeroExtend(bv1, 64) ^ 0xffffffffffffffff
+    bv2=BvVarExpr(32)
+    anded=(((bv1 & bv2) | 0x12345678) + 0xbababebe)
+    anded2=(0xbababebe + (0x12345678 | (bv2 & bv1)))
     
-    print IteExpr(t, bv1, bv1)
-    
-    print EqExpr(BvZeroExtend(bv1, 64), bv2)
+    print hash(bv1)
+    print hash(bv2)
+    print hash(anded)
+    print hash(anded2)
+    d={}
+    d[bv1]="bv1"
+    d[bv2]="bv2"
+    d[anded]="anded"
+    print repr(d)
+    d[anded2]="anded2"
+    print repr(d)
+
 
 if __name__=="__main__":
     test()
