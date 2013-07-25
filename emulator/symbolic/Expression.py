@@ -64,6 +64,7 @@ import sys
 class Expr:
     __has_value__=False
     __commutative__=False
+    __hashcode__=None
 
     def __repr__(self):
         return "<%s>" % self
@@ -97,6 +98,9 @@ class Expr:
                 return (val, self, False)
 
     def __hash__(self):
+        if self.__hashcode__ != None:
+            return self.__hashcode__
+
         children=[hash(x) for x in self.children]
         if self.__commutative__:
             children.sort()
@@ -110,7 +114,8 @@ class Expr:
         if hasattr(self, "__function__"):
             optional.append(self.__function__)
 
-        return hash((self.__sort__, self.__has_value__, tuple(optional), children))
+        self.__hashcode__ = hash((self.__sort__, self.__has_value__, tuple(optional), children))
+        return self.__hashcode__
 
 # Boolean sort and functions    
 class BoolExpr(Expr):
