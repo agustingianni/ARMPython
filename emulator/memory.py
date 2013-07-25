@@ -88,7 +88,7 @@ class ConcreteMemoryMap(MemoryMap):
         self.memory = {}
         
     def __setitem__(self, address, value):
-        self.memory[address] = value
+        self.memory[address] = value & 0xff
                 
     def __getitem__(self, address):
         return self.memory[address]
