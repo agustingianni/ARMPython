@@ -671,15 +671,32 @@ class BvExpr(Expr):
                 return BvUgeExpr(self, other)
     
 
-    #TODO: Replace Extract over a Concat with the original expression
-    #TODO: Replace Concat of Extractions with the original expression
     #end and start are inclusive
     def extract(self, end, start):
+        extract_size = end - start + 1
+        assert extract_size <= self.size
+
+        if extract_size == self.size:
+            return self
+
         if self.__has_value__:
-            return (self.value >> start) & (2 ** (end - start + 1) - 1)
+            return (self.value >> start) & ((2 ** extract_size) - 1)
         
+        #traverse the children tree looking for a subtree of concat expressions that covers the extract_size
+        #taking into consideration the start offset
+        if isinstance(self, BvConcatExpr):
+            c1_size = self.children[0].size
+            if extract_size + start <= c1_size:
+                #included on the first child
+                return self.children[0].extract(end, start)
+            elif start >= c1_size:
+                #included on the second child
+                return self.children[1].extract(end - c1_size, start - c1_size)
+
+        #common case        
         return BvExtractExpr(self, end, start)
     
+    #TODO: Replace Concat of Extractions with the original expression
     def concat(self, other):
         assert isinstance(other, BvExpr) #otherwise the result is unpredictable
         if self.__has_value__ and other.__has_value__:
@@ -990,6 +1007,19 @@ def test():
     print bv2.extract(15,0)
     print "%x" % bv1.concat(BvConstExpr(0xde, 8))
     print bv1.concat(bv2)
+    print bv2.extract(31,0)
+    
+    c1=BvVarExpr(8, "c1")
+    c2=BvVarExpr(8, "c2")
+    c3=BvVarExpr(8, "c3")
+    c4=BvVarExpr(8, "c4")
+    w1=BvVarExpr(16, "w1")
+    d1=BvVarExpr(32, "d1")
+    
+    d2=c1.concat(c2.concat(c3.concat(c4)))
+    print d2
+    print d2.extract(31,16)
+    print d2.extract(15,0)
 
 
 if __name__=="__main__":
