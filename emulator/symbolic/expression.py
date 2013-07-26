@@ -19,8 +19,6 @@ TODO:
 
   Distributive rules
   De Morgan's?
-  Exportation?
-  
   
   Force an association to left or right in all associative ops like done on concat()
     This is good for canonicalization.   
@@ -31,7 +29,6 @@ import math
 class Expr:
     __has_value__=False
     __commutative__=False
-    __associative__=False
     __hashcode__=None
 
     def __repr__(self):
@@ -241,21 +238,18 @@ FalseExpr=_FalseExpr() #singleton
 class BoolAndExpr(BoolExpr):
     __function__="and"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
 class BoolOrExpr(BoolExpr):
     __function__="or"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
 class BoolXorExpr(BoolExpr):
     __function__="xor"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
@@ -277,8 +271,6 @@ class EqExpr(BoolExpr):
     __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
-        if isinstance(p1, BoolExpr):
-            __associative__=True
         assert p1.__sort__ == p2.__sort__
 
 class DistinctExpr(BoolExpr):
@@ -286,8 +278,6 @@ class DistinctExpr(BoolExpr):
     __commutative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
-        if isinstance(p1, BoolExpr):
-            __associative__=True
         assert p1.__sort__ == p2.__sort__
 
 
@@ -978,7 +968,6 @@ class BvNegExpr(BvExpr):
 class BvAndExpr(BvExpr):
     __function__="bvand"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -989,7 +978,6 @@ class BvAndExpr(BvExpr):
 class BvOrExpr(BvExpr):
     __function__="bvor"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -1000,7 +988,6 @@ class BvOrExpr(BvExpr):
 class BvXorExpr(BvExpr):
     __function__="bvxor"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -1011,7 +998,6 @@ class BvXorExpr(BvExpr):
 class BvAddExpr(BvExpr):
     __function__="bvadd"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
@@ -1031,7 +1017,6 @@ class BvSubExpr(BvExpr):
 class BvMulExpr(BvExpr):
     __function__="bvmul"
     __commutative__=True
-    __associative__=True
     def __init__(self, p1, p2):
         self.children=(p1, p2)
         self.size=p1.size
