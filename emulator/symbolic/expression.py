@@ -13,15 +13,8 @@ Expressions
 TODO:
   Common subexpression cancellation
   Associative and commutative rules optimization. ej:
-    (x + 1) + 1 == x + 2       [float constants to the right]
     (x + x) + x == x * 3       [find a constructive way for this]
-    (x * a) * b == x * (a * b) [a and b constants]
-
-  Distributive rules
-  De Morgan's?
   
-  Force an association to left or right in all associative ops like done on concat()
-    This is good for canonicalization.   
 '''
 
 import math
@@ -201,87 +194,6 @@ class BoolExpr(Expr):
             return DistinctExpr(self, other)
 
 
-class BoolVarExpr(BoolExpr):
-    children=()
-    value=None
-    def __init__(self, name=None):
-        if name == None:
-            self.name = "bool_%x" % id(self)
-        else:
-            self.name=name
-    
-    def __str__(self):
-        return self.name
-
-class _TrueExpr(BoolExpr):
-    __function__="true"
-    children=()
-    __has_value__=True
-    value=True
-    def __str__(self):
-        return self.__function__
-    def __nonzero__(self):
-        return True
-TrueExpr=_TrueExpr() #singleton
-
-class _FalseExpr(BoolExpr):
-    __function__="false"
-    children=()
-    __has_value__=True
-    value=False
-    def __str__(self):
-        return self.__function__
-    def __nonzero__(self):
-        return False
-FalseExpr=_FalseExpr() #singleton
-
-class BoolAndExpr(BoolExpr):
-    __function__="and"
-    __commutative__=True
-    def __init__(self, p1, p2):
-        self.children=(p1, p2)
-
-class BoolOrExpr(BoolExpr):
-    __function__="or"
-    __commutative__=True
-    def __init__(self, p1, p2):
-        self.children=(p1, p2)
-
-class BoolXorExpr(BoolExpr):
-    __function__="xor"
-    __commutative__=True
-    def __init__(self, p1, p2):
-        self.children=(p1, p2)
-
-class BoolNotExpr(BoolExpr):
-    __function__="not"
-    def __init__(self, p1):
-        self.children=(p1, )
-
-class BoolImplExpr(BoolExpr):
-    __function__="=>"
-    def __init__(self, p1, p2):
-        self.children=(p1, p2)
-
-
-# Core functions
-
-class EqExpr(BoolExpr):
-    __function__="="
-    __commutative__=True
-    def __init__(self, p1, p2):
-        self.children=(p1, p2)
-        assert p1.__sort__ == p2.__sort__
-
-class DistinctExpr(BoolExpr):
-    __function__="distinct"
-    __commutative__=True
-    def __init__(self, p1, p2):
-        self.children=(p1, p2)
-        assert p1.__sort__ == p2.__sort__
-
-
-# BitVector sort and functions
 
 class BvExpr(Expr):
     __base_sort__="BitVec"
@@ -865,7 +777,7 @@ class BvExpr(Expr):
                 newchild = c0.children[1].concat(c1, force_expr=True)
                 
                 #concat a with (b, c)
-                return BvConcatExpr(c0.children[0], newchild).extract(end, start)
+                return BvConcatExpr(c0.children[0], newchild, force_assoc=False).extract(end, start)
 
         #common case        
         return BvExtractExpr(self, end, start)
@@ -884,11 +796,108 @@ class BvExpr(Expr):
             if other.end == self.start - 1:
                 return self.children[0].extract(self.end, other.start)
         
-        #Force associativity to the left
-        if isinstance(other, BvConcatExpr):
-            return BvConcatExpr(self.concat(other.children[0], force_expr=True), other.children[1])
-        
         return BvConcatExpr(self, other)
+
+    def zeroExtend(self, new_size):
+        assert self.size <= new_size
+        if self.size == new_size:
+            return self
+        
+        return BvConstExpr(0, new_size - self.size).concat(self)
+    
+    def signExtend(self, new_size):
+        assert self.size <= new_size
+        if self.size == new_size:
+            return self
+        
+        extension_size = new_size - self.size
+        
+        sign_bit=self.extract(self.size-1, self.size-1)
+        extension=IteExpr(sign_bit == 1, BvConstExpr(2 ** extension_size - 1, extension_size), BvConstExpr(0, extension_size))
+        if not isinstance(extension, BvExpr):
+            extension=BvConstExpr(extension, extension_size)
+        return extension.concat(self)
+
+# Raw Expressions
+
+class BoolVarExpr(BoolExpr):
+    children=()
+    value=None
+    def __init__(self, name=None):
+        if name == None:
+            self.name = "bool_%x" % id(self)
+        else:
+            self.name=name
+    
+    def __str__(self):
+        return self.name
+
+class _TrueExpr(BoolExpr):
+    __function__="true"
+    children=()
+    __has_value__=True
+    value=True
+    def __str__(self):
+        return self.__function__
+    def __nonzero__(self):
+        return True
+TrueExpr=_TrueExpr() #singleton
+
+class _FalseExpr(BoolExpr):
+    __function__="false"
+    children=()
+    __has_value__=True
+    value=False
+    def __str__(self):
+        return self.__function__
+    def __nonzero__(self):
+        return False
+FalseExpr=_FalseExpr() #singleton
+
+class BoolAndExpr(BoolExpr):
+    __function__="and"
+    __commutative__=True
+    def __init__(self, p1, p2):
+        self.children=(p1, p2)
+
+class BoolOrExpr(BoolExpr):
+    __function__="or"
+    __commutative__=True
+    def __init__(self, p1, p2):
+        self.children=(p1, p2)
+
+class BoolXorExpr(BoolExpr):
+    __function__="xor"
+    __commutative__=True
+    def __init__(self, p1, p2):
+        self.children=(p1, p2)
+
+class BoolNotExpr(BoolExpr):
+    __function__="not"
+    def __init__(self, p1):
+        self.children=(p1, )
+
+class BoolImplExpr(BoolExpr):
+    __function__="=>"
+    def __init__(self, p1, p2):
+        self.children=(p1, p2)
+
+
+# Core functions
+
+class EqExpr(BoolExpr):
+    __function__="="
+    __commutative__=True
+    def __init__(self, p1, p2):
+        assert p1.__sort__ == p2.__sort__
+        self.children=(p1, p2)
+
+class DistinctExpr(BoolExpr):
+    __function__="distinct"
+    __commutative__=True
+    def __init__(self, p1, p2):
+        assert p1.__sort__ == p2.__sort__
+        self.children=(p1, p2)
 
 class BvConstExpr(BvExpr):
     children=()
@@ -927,7 +936,12 @@ class BvVarExpr(BvExpr):
 
 class BvConcatExpr(BvExpr):
     __function__="concat"
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, force_assoc = True):
+        #Force associativity to the left
+        if force_assoc and isinstance(p2, BvConcatExpr):
+            p1 = p1.concat(p2.children[0], force_expr=True)
+            p2 = p2.children[1]
+
         self.children=(p1, p2)
         self.size=p1.size + p2.size
         self.size_mask = ((2 ** self.size) - 1)
@@ -936,6 +950,8 @@ class BvConcatExpr(BvExpr):
 class BvExtractExpr(BvExpr):
     __function__="extract"
     def __init__(self, p1, i, j):
+        assert p1.size > i >= j >= 0
+
         self.children=(p1, )
         
         #start and end both include the boundaries
@@ -944,7 +960,6 @@ class BvExtractExpr(BvExpr):
         self.size=i - j + 1
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__="BitVec %d" % self.size
-        assert p1.size > i >= j >= 0
 
     def __str__(self):
         return "%s(%s, %d, %d)" % (self.__function__, str(self.children[0]), self.end, self.start)
@@ -968,145 +983,198 @@ class BvNegExpr(BvExpr):
 class BvAndExpr(BvExpr):
     __function__="bvand"
     __commutative__=True
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, force_assoc=True):
+        assert p1.size == p2.size
+
+        #float constants to the right
+        if isinstance(p1, BvConstExpr):
+            tmp = p2
+            p2 = p1
+            p1 = tmp
+
+        #Force associativity to the right
+        #(a * b) * c   <=>   a * (b * c)
+        #   p1     p2
+        if force_assoc and isinstance(p1, BvAndExpr):
+            p2 = p2.__and__(p1.children[1]) #b * c
+            p2 = BvConstExpr(p2, p1.size) if not isinstance(p2, BvExpr) else p2
+            p1 = p1.children[0] #a
+
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvOrExpr(BvExpr):
     __function__="bvor"
     __commutative__=True
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, force_assoc=True):
+        assert p1.size == p2.size
+
+        #float constants to the right
+        if isinstance(p1, BvConstExpr):
+            tmp = p2
+            p2 = p1
+            p1 = tmp
+
+        #Force associativity to the right
+        #(a * b) * c   <=>   a * (b * c)
+        #   p1     p2
+        if force_assoc and isinstance(p1, BvOrExpr):
+            p2 = p2.__or__(p1.children[1]) #b * c
+            p2 = BvConstExpr(p2, p1.size) if not isinstance(p2, BvExpr) else p2
+            p1 = p1.children[0] #a
+
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvXorExpr(BvExpr):
     __function__="bvxor"
     __commutative__=True
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, force_assoc=True):
+        assert p1.size == p2.size
+
+        #float constants to the right
+        if isinstance(p1, BvConstExpr):
+            tmp = p2
+            p2 = p1
+            p1 = tmp
+
+        #Force associativity to the right
+        #(a * b) * c   <=>   a * (b * c)
+        #   p1     p2
+        if force_assoc and isinstance(p1, BvXorExpr):
+            p2 = p2.__xor__(p1.children[1]) #b * c
+            p2 = BvConstExpr(p2, p1.size) if not isinstance(p2, BvExpr) else p2
+            p1 = p1.children[0] #a
+
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvAddExpr(BvExpr):
     __function__="bvadd"
     __commutative__=True
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, force_assoc = True):
+        assert p1.size == p2.size
+
+        #float constants to the right
+        if isinstance(p1, BvConstExpr):
+            tmp = p2
+            p2 = p1
+            p1 = tmp
+
+        #Force associativity to the right
+        #(a + b) + c   <=>   a + (b + c)
+        #   p1     p2
+        if force_assoc and isinstance(p1, BvAddExpr):
+            p2 = p2.__add__(p1.children[1]) #b + c
+            p2 = BvConstExpr(p2, p1.size) if not isinstance(p2, BvExpr) else p2
+            p1 = p1.children[0] #a
+
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvSubExpr(BvExpr):
     __function__="bvsub"
     def __init__(self, p1, p2):
+        assert p1.size == p2.size
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvMulExpr(BvExpr):
     __function__="bvmul"
     __commutative__=True
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, force_assoc=True):
+        assert p1.size == p2.size
+
+        #float constants to the right
+        if isinstance(p1, BvConstExpr):
+            tmp = p2
+            p2 = p1
+            p1 = tmp
+
+        #Force associativity to the right
+        #(a * b) * c   <=>   a * (b * c)
+        #   p1     p2
+        if force_assoc and isinstance(p1, BvMulExpr):
+            p2 = p2.__mul__(p1.children[1]) #b * c
+            p2 = BvConstExpr(p2, p1.size) if not isinstance(p2, BvExpr) else p2
+            p1 = p1.children[0] #a
+
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvUDivExpr(BvExpr):
     __function__="bvudiv"
     def __init__(self, p1, p2):
+        assert p1.size == p2.size
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvURemExpr(BvExpr):
     __function__="bvurem"
     def __init__(self, p1, p2):
+        assert p1.size == p2.size
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
     
 class BvShlExpr(BvExpr):
     __function__="bvshl"
     def __init__(self, p1, p2):
+        assert p1.size == p2.size
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 class BvShrExpr(BvExpr):
     __function__="bvshr"
     def __init__(self, p1, p2):
+        assert p1.size == p2.size
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-        assert p1.size == p2.size
 
 # Comparison (return Bool from 2 BitVec)
 
 class BvUltExpr(BoolExpr):
     __function__="bvult"
     def __init__(self, p1, p2):
-        self.children=(p1, p2)
         assert p1.size == p2.size
+        self.children=(p1, p2)
 
 class BvUleExpr(BoolExpr):
     __function__="bvule"
     def __init__(self, p1, p2):
-        self.children=(p1, p2)
         assert p1.size == p2.size
+        self.children=(p1, p2)
 
 class BvUgtExpr(BoolExpr):
     __function__="bvugt"
     def __init__(self, p1, p2):
-        self.children=(p1, p2)
         assert p1.size == p2.size
+        self.children=(p1, p2)
 
 class BvUgeExpr(BoolExpr):
     __function__="bvuge"
     def __init__(self, p1, p2):
-        self.children=(p1, p2)
         assert p1.size == p2.size
-
-# Handy constructions
-def BvZeroExtend(expr, new_size):
-    assert isinstance(expr, BvExpr)
-    assert expr.size <= new_size
-    if expr.size == new_size:
-        return expr
-    
-    return BvConcatExpr(BvConstExpr(0, new_size - expr.size), expr)
-
-def BvSignExtend(expr, new_size):
-    assert isinstance(expr, BvExpr)
-    assert expr.size <= new_size
-    if expr.size == new_size:
-        return expr
-    
-    out=expr
-    sign_bit=BvExtractExpr(expr, expr.size-1, expr.size-1)
-    for _ in range(new_size - expr.size):
-        out=BvConcatExpr(sign_bit, out)
-    
-    return out
+        self.children=(p1, p2)
 
 
 # ITE is a special case because the result of the function depends of the
@@ -1167,7 +1235,7 @@ def IteExpr(_if, _then, _else, op_size=32):
 
 def test():
     bv1=BvConstExpr(0xcafecafe, 32)
-    bv2=BvVarExpr(32)
+    bv2=BvVarExpr(32, "bv2")
     anded=(((bv1 & bv2) | 0x12345678) + 0xbababebe)
     anded2=(0xbababebe + (0x12345678 | (bv2 & bv1)))
     
@@ -1204,6 +1272,10 @@ def test():
     
     d2=c1.concat(c2.concat(c3.concat(c4)))
     print d2
+    d2=c1.concat(c2).concat(c3).concat(c4)
+    print d2
+    d2=c1.concat(c2).concat(c3.concat(c4))
+    print d2
     print d2 >> 16
     print d2 << 24
     
@@ -1224,6 +1296,19 @@ def test():
     print bv2 + (-bv2)
     print d2 % 0x10000
 
+    print "%x" % bv1.signExtend(64)
+    print bv2.signExtend(64)
+
+    print "%x" % bv1.zeroExtend(64)
+    print bv2.zeroExtend(64)
+    
+    print "================================"
+    print bv1 + ((bv2 + bv1) + bv2)
+    print (bv1 + bv2) + bv1
+
+    print "================================"
+    print bv2 * 3 * 5
+    print 3 * bv2 * 5 * bv2 * 7
 
 if __name__=="__main__":
     test()
