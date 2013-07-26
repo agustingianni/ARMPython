@@ -16,12 +16,13 @@ TODO:
     (x + 1) + 1 == x + 2
     (x + x) + x == x * 3
     (x * a) * b == x * (a * b) [a and b constants]
-  Replace Extract over a Concat with the original expression
   Replace Concat of Extractions with the original expression
   Shifts where the amount is a constant should be changed to extracts and concats
     This gives space to further optimizations. example:
     b[32] = a[32] << 16 ==> concat(extract(a, 15, 0), 0[16])
-    it could later do: extract(b, 0, 15) ==> 0  
+    it could later do: extract(b, 0, 15) ==> 0
+
+  Force an association in all associative ops like done on concat()   
 '''
 
 class Expr:
@@ -675,9 +676,10 @@ class BvExpr(Expr):
     def extract(self, end, start):
         extract_size = end - start + 1
         assert extract_size <= self.size
+        assert extract_size > 0
 
         if extract_size == self.size:
-            return self
+            return long(self) if self.__has_value__ else self
 
         if self.__has_value__:
             return (self.value >> start) & ((2 ** extract_size) - 1)
@@ -685,22 +687,40 @@ class BvExpr(Expr):
         #traverse the children tree looking for a subtree of concat expressions that covers the extract_size
         #taking into consideration the start offset
         if isinstance(self, BvConcatExpr):
-            c1_size = self.children[0].size
-            if extract_size + start <= c1_size:
-                #included on the first child
-                return self.children[0].extract(end, start)
-            elif start >= c1_size:
+            c0=self.children[0]
+            c1=self.children[1]
+            if extract_size + start <= c1.size:
                 #included on the second child
-                return self.children[1].extract(end - c1_size, start - c1_size)
+                return c1.extract(end, start)
+            elif start >= c1.size:
+                #included on the first child
+                return self.children[0].extract(end - c1.size, start - c1.size)
+            
+            #concat have the associative property:
+            #concat(concat(a, b), c) == concat(a, concat(b, c))
+            #IMPORTANT: the concat op must force association to the left as in this example.
+            #           check the code on concat()
+            if start < c1.size and isinstance(c0, BvConcatExpr):
+                #concat "b" with "c"
+                newchild = c0.children[1].concat(c1, force_expr=True)
+                
+                #concat a with (b, c)
+                return BvConcatExpr(c0.children[0], newchild).extract(end, start)
 
         #common case        
         return BvExtractExpr(self, end, start)
     
     #TODO: Replace Concat of Extractions with the original expression
-    def concat(self, other):
+    def concat(self, other, force_expr=False):
         assert isinstance(other, BvExpr) #otherwise the result is unpredictable
+
         if self.__has_value__ and other.__has_value__:
-            return self.value << other.size | other.value
+            val = self.value << other.size | other.value
+            return BvConstExpr(val, self.size + other.size) if force_expr else val
+        
+        #Force associativity to the left
+        if isinstance(other, BvConcatExpr):
+            return BvConcatExpr(self.concat(other.children[0], force_expr=True), other.children[1])
         
         return BvConcatExpr(self, other)
 
@@ -1018,8 +1038,20 @@ def test():
     
     d2=c1.concat(c2.concat(c3.concat(c4)))
     print d2
-    print d2.extract(31,16)
-    print d2.extract(15,0)
+    
+    print "================================"
+    
+    for offset in (0, 8, 16, 24):
+        for size in (8, 16, 24):
+            if size + offset > 32:
+                continue
+            print "***********************"
+            print "end=%d, start=%d" % (size+offset-1, offset) 
+            out=d2.extract(size+offset-1,offset)
+            if isinstance(out, BvExtractExpr):
+                print d2
+                print out
+                     
 
 
 if __name__=="__main__":
