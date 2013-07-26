@@ -57,9 +57,16 @@ Expressions
     Once created, the expression should be considered immutable.
     __init__ functions should be avoided as much as possible.
     All type information should be static and part of the class definition.
-'''
 
-import sys
+TODO:
+  Common subexpression cancellation
+  Associative rules optimization. ej:
+    (x + 1) + 1 == x + 2
+    (x + x) + x == x * 3
+    (x * a) * b == x * (a * b)
+  Replace Extract over a Concat with the original expression
+  Replace Concat of Extractions with the original expression 
+'''
 
 class Expr:
     __has_value__=False
@@ -762,6 +769,9 @@ class BvExtractExpr(BvExpr):
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__="BitVec %d" % self.size
         assert p1.size > i >= j >= 0
+
+    def __str__(self):
+        return "%s(%s, %d, %d)" % (self.__function__, str(self.children[0]), self.end, self.start)
 
 class BvNotExpr(BvExpr):
     __function__="bvnot"
