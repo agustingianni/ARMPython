@@ -1,52 +1,4 @@
 '''
-Created on Jul 21, 2013
-
-@author: pablo
-
-Boolean and Bitwise
-    AND
-    OR
-    NOT
-    XOR
-
-Shifts
-    SHL
-    SHR
-
-Arithmetic
-    ADD
-    SUB
-    MUL
-    UDIV
-    UREM
-    NEG
-
-Ordering
-    ULT
-    ULE
-    UGT
-    UGE
-
-Equality
-    EQ
-    NEQ
-
-Miscellaneous
-    CONCAT
-    EXTRACT
-    ITE
-    ZEROEXTEND
-    SIGNEXTEND
-
-Constants
-    FALSE
-    TRUE
-    BVCONST
-
-Variables
-    BOOL
-    BV
-
 Expressions
     BoolExpr
         have pythonic methods for all typical boolean operations
@@ -63,9 +15,13 @@ TODO:
   Associative rules optimization. ej:
     (x + 1) + 1 == x + 2
     (x + x) + x == x * 3
-    (x * a) * b == x * (a * b)
+    (x * a) * b == x * (a * b) [a and b constants]
   Replace Extract over a Concat with the original expression
-  Replace Concat of Extractions with the original expression 
+  Replace Concat of Extractions with the original expression
+  Shifts where the amount is a constant should be changed to extracts and concats
+    This gives space to further optimizations. example:
+    b[32] = a[32] << 16 ==> concat(extract(a, 15, 0), 0[16])
+    it could later do: extract(b, 0, 15) ==> 0  
 '''
 
 class Expr:
@@ -713,6 +669,23 @@ class BvExpr(Expr):
                     other=BvConstExpr(other, self.size)
                     
                 return BvUgeExpr(self, other)
+    
+
+    #TODO: Replace Extract over a Concat with the original expression
+    #TODO: Replace Concat of Extractions with the original expression
+    #end and start are inclusive
+    def extract(self, end, start):
+        if self.__has_value__:
+            return (self.value >> start) & (2 ** (end - start + 1) - 1)
+        
+        return BvExtractExpr(self, end, start)
+    
+    def concat(self, other):
+        assert isinstance(other, BvExpr) #otherwise the result is unpredictable
+        if self.__has_value__ and other.__has_value__:
+            return self.value << other.size | other.value
+        
+        return BvConcatExpr(self, other)
 
 class BvConstExpr(BvExpr):
     children=()
@@ -1012,6 +985,11 @@ def test():
     print bv2 + bv2
     print bv2 & bv2
     print bv2 ^ bv2
+    
+    print "%x" % bv1.extract(15,0)
+    print bv2.extract(15,0)
+    print "%x" % bv1.concat(BvConstExpr(0xde, 8))
+    print bv1.concat(bv2)
 
 
 if __name__=="__main__":

@@ -7,7 +7,7 @@ Created on Jul 25, 2013
 '''
 
 from emulator.memory import ConcreteMemoryMap
-from emulator.symbolic.expression import BvExpr, BvExtractExpr, BvConcatExpr, BvConstExpr
+from emulator.symbolic.expression import BvExpr, BvConstExpr
 from collections import deque
 
 class DeferredMemRead(BvExpr):
@@ -64,7 +64,7 @@ class AbstractMemoryMap(ConcreteMemoryMap):
                 value >>= 8
         else:
             for x in range(size):
-                out.append(BvExtractExpr(value, ((x + 1) * 8) - 1, x * 8))
+                out.append(value.extract(((x + 1) * 8) - 1, x * 8))
         return out
     
     def __join_bytes_le__(self, values):
@@ -93,5 +93,5 @@ class AbstractMemoryMap(ConcreteMemoryMap):
                 second = newvalues[x][0]
             else:
                 second = BvConstExpr(newvalues[x][0], newvalues[x][1] * 8)
-            val = BvConcatExpr(second, val)
+            val = second.concat(val)
         return val
