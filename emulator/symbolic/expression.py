@@ -33,6 +33,8 @@ TODO:
     This is good for canonicalization.   
 '''
 
+import math
+
 class Expr:
     __has_value__=False
     __commutative__=False
@@ -534,14 +536,22 @@ class BvExpr(Expr):
             if both_values:
                 return (value * secondary) & self.size_mask
             else:
+                #a * 0 = 0
                 if value == 0:
                     return 0
 
+                #a * 1 = a
                 if value == 1:
                     return secondary if isinstance(secondary, BvExpr) else secondary & self.size_mask
 
+                #a * -1 = -a
                 if value == self.size_mask:
                     return -secondary if isinstance(secondary, BvExpr) else (-secondary) & self.size_mask
+                
+                #a * (2 ** x) = a << x
+                l = math.log(value, 2)
+                if l > 0 and l == long(l):
+                    return secondary << long(l)
                 
                 if not other_is_expr:
                     other=BvConstExpr(other, self.size)
