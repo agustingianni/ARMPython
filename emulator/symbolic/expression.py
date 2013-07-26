@@ -13,11 +13,15 @@ Expressions
 TODO:
   Common subexpression cancellation
   Associative and commutative rules optimization. ej:
-    (x + 1) + 1 == x + 2
-    (x + x) + x == x * 3
+    (x + 1) + 1 == x + 2       [float constants to the right]
+    (x + x) + x == x * 3       [find a constructive way for this]
     (x * a) * b == x * (a * b) [a and b constants]
 
   Distributive rules
+  De Morgan's?
+  Material Implication (p->q == !p | q)
+  Exportation?
+  
   
   Replace Concat of Extractions with the original expression
   Shifts where the amount is a constant should be changed to extracts and concats
@@ -25,7 +29,8 @@ TODO:
     b[32] = a[32] << 16 ==> concat(extract(a, 15, 0), 0[16])
     it could later do: extract(b, 0, 15) ==> 0
 
-  Force an association in all associative ops like done on concat()   
+  Force an association to left or right in all associative ops like done on concat()
+    This is good for canonicalization.   
 '''
 
 class Expr:
@@ -135,6 +140,9 @@ class BoolExpr(Expr):
         if self.__has_value__:
             return not self.value
         else:
+            #double negation
+            if isinstance(self, BoolNotExpr):
+                return self.children[0]
             return BoolNotExpr(self)
     
     def __rshift__(self, other):
@@ -363,12 +371,18 @@ class BvExpr(Expr):
         if self.__has_value__:
             return (~self.value) & self.size_mask
         else:
+            #double negation
+            if isinstance(self, BvNotExpr):
+                return self.children[0]
             return BvNotExpr(self)
     
     def __neg__(self):
         if self.__has_value__:
             return (-self.value) & self.size_mask
         else:
+            #double negative
+            if isinstance(self, BvNegExpr):
+                return self.children[0]
             return BvNegExpr(self)
     
     def __rshift__(self, other):
