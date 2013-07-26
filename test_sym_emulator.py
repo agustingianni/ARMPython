@@ -1,4 +1,5 @@
 from emulator.ARMEmulator import ARMEmulator
+from emulator.memory import MemoryMap
 from emulator.symbolic.memory import AbstractMemoryMap, DeferredMemRead
 from emulator.symbolic.expression import *
 import logging
@@ -30,6 +31,12 @@ def main():
 
     print "%r" % memory_map.get_dword(0xdeadbeef)
     print "%r" % memory_map.get_dword(BvVarExpr(32, "abstract_addr"))
+
+    memory_map.set_dword(0xcafecafe, BvVarExpr(32, "longvar"))
+    print "%r" % memory_map.get_dword(0xcafecafe)
+    memory_map.setMode(MemoryMap.BigEndianMode)
+    memory_map.set_dword(0xcafecafe, BvVarExpr(32, "longvar"))
+    print "%r" % memory_map.get_dword(0xcafecafe)
 
 if __name__ == '__main__':
     main()

@@ -22,8 +22,6 @@ TODO:
   Exportation?
   
   
-  Replace Concat of Extractions with the original expression
-
   Force an association to left or right in all associative ops like done on concat()
     This is good for canonicalization.   
 '''
@@ -847,7 +845,7 @@ class BvExpr(Expr):
     #end and start are inclusive
     def extract(self, end, start):
         extract_size = end - start + 1
-        assert extract_size <= self.size
+        assert extract_size + start <= self.size
         assert extract_size > 0
 
         if extract_size == self.size:
@@ -882,13 +880,19 @@ class BvExpr(Expr):
         #common case        
         return BvExtractExpr(self, end, start)
     
-    #TODO: Replace Concat of Extractions with the original expression
     def concat(self, other, force_expr=False):
         assert isinstance(other, BvExpr) #otherwise the result is unpredictable
 
         if self.__has_value__ and other.__has_value__:
             val = self.value << other.size | other.value
             return BvConstExpr(val, self.size + other.size) if force_expr else val
+        
+        if isinstance(self, BvExtractExpr) and isinstance(other, BvExtractExpr) and \
+           self.children[0].__hash__() == other.children[0].__hash__():
+            
+            #concat(extract(x, a, j), extract(x, j-1, b)) = extract(x, a, b)
+            if other.end == self.start - 1:
+                return self.children[0].extract(self.end, other.start)
         
         #Force associativity to the left
         if isinstance(other, BvConcatExpr):
