@@ -461,9 +461,6 @@ class BvExpr(Expr):
             if not other_is_expr:
                 other = BvConstExpr.construct(other, self.size)
             
-            #p EQ p <=> True
-            if self.__hash__() == other.__hash__():
-                return True
             return EqExpr.construct(self, other)
 
     def __ne__(self, other):
@@ -474,9 +471,6 @@ class BvExpr(Expr):
             if not other_is_expr:
                 other = BvConstExpr.construct(other, self.size)
             
-            #p NE p <=> False
-            if self.__hash__() == other.__hash__():
-                return False
             return DistinctExpr.construct(self, other)
 
     def __gt__(self, other):

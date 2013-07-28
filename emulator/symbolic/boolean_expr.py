@@ -99,9 +99,6 @@ class BoolExpr(Expr):
             if not other_is_expr:
                 other = TrueExpr if bool(other) else FalseExpr
                 
-            #a EQ a <=> True
-            if self.__hash__() == other.__hash__():
-                return True
             return EqExpr.construct(self, other)
 
     def __ne__(self, other):
@@ -112,9 +109,6 @@ class BoolExpr(Expr):
             if not other_is_expr:
                 other = TrueExpr if bool(other) else FalseExpr
 
-            #a NE a <=> False
-            if self.__hash__() == other.__hash__():
-                return False
             return DistinctExpr.construct(self, other)
 
     def ite(self, _then, _else):
@@ -194,6 +188,13 @@ class EqExpr(BoolExpr):
     def __init__(self, p1, p2):
         assert p1.__sort__ == p2.__sort__
         self.children=(p1, p2)
+    
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p EQ p <=> True
+        if p1.__hash__() == p2.__hash__():
+            return True if not force_expr else TrueExpr
+        return EqExpr(p1, p2)
 
 class DistinctExpr(BoolExpr):
     __function__="distinct"
@@ -201,6 +202,13 @@ class DistinctExpr(BoolExpr):
     def __init__(self, p1, p2):
         assert p1.__sort__ == p2.__sort__
         self.children=(p1, p2)
+
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p NE p <=> False
+        if p1.__hash__() == p2.__hash__():
+            return False if not force_expr else FalseExpr
+        return DistinctExpr(p1, p2)
 
 class BoolIteExpr(BoolExpr):
     __function__="ite"
