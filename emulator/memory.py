@@ -139,3 +139,14 @@ class DummyMemoryMap(ConcreteMemoryMap):
     def __getitem__(self, address):
         self.value += 1
         return self.value & 0xff
+
+class NullMemoryMap(ConcreteMemoryMap):
+    """
+    Returns always 0
+    """
+    def __init__(self):
+        ConcreteMemoryMap.__init__(self)
+
+    def __getitem__(self, address):
+        self.value += 1
+        return 0
