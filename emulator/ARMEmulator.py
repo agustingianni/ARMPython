@@ -13,6 +13,7 @@ from disassembler.arm import ARMDisassembler
 from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt
 from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
 from disassembler.arch import InvalidModeException, Register
+import copy
 
 class ARMProcessor(object):
     def __init__(self):
@@ -261,6 +262,15 @@ class ITSession(object):
         """
         return self.ITCounter != 0
 
+class ExecutionContext(object):
+    """
+    This represents an execution context, that is all the information
+    that is needed to switch out the processor state and replace 
+    a thread of execution.
+    """
+    def __init__(self, regs, flags):
+        self.regs = copy.deepcopy(regs)
+        self.flags = copy.deepcopy(flags)
 
 class ARMEmulator(object):
     """
@@ -539,13 +549,26 @@ class ARMEmulator(object):
         """
         self.arm_mode = mode
     
+    def getContext(self):
+        """
+        Returns the current execution context. The execution context is
+        comprised of all the registers and flags.
+        """
+        return ExecutionContext(self.register_map, self.flags_map)
+    
+    def setContext(self, context):
+        """
+        Replace the current execution state with 'context'.
+        """
+        self.register_map = context.regs
+        self.flags_map = context.flags
+    
     def getRegister(self, register):
         """
         Return the value of a register. Special case for the PC
         register that should be PC + 4 in the case of THUMB
         and PC + 8 in the case of ARM.
         """
-
         self.log.debug("Reading register %s" % register)
         
         # Get the value of the register from the register map
