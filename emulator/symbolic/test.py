@@ -4,8 +4,8 @@ from emulator.symbolic.boolean_expr import *
 from emulator.symbolic.misc_expr import *
 
 def test():
-    bv1=BvConstExpr(0xcafecafe, 32)
-    bv2=BvVarExpr(32, "bv2")
+    bv1=BvConstExpr.construct(0xcafecafe, 32)
+    bv2=BvVarExpr.construct(32, "bv2")
     anded=(((bv1 & bv2) | 0x12345678) + 0xbababebe)
     anded2=(0xbababebe + (0x12345678 | (bv2 & bv1)))
     
@@ -62,7 +62,7 @@ def test():
                 print d2
                 print out
                      
-    print "================================"
+    print "================**================"
     print bv2 + (-bv2)
     print d2 % 0x10000
 
@@ -82,7 +82,10 @@ def test():
     print 3 * bv2 * 5 * bv2 * 7
 
     print "================================"
+    print ((bv2 + bv2) + bv2) + bv2
     print (bv2 + bv2) + (bv2 + bv2)
+    print bv2 + ((bv2 + bv2) + bv2)
+    print bv2 + (bv2 + (bv2 + bv2))
 
 if __name__=="__main__":
     test()

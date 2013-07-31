@@ -1,5 +1,5 @@
 from emulator.symbolic.base_expr import Expr
-from emulator.symbolic.boolean_expr import EqExpr, DistinctExpr, BoolExpr
+from emulator.symbolic.boolean_expr import EqExpr, DistinctExpr, BoolExpr, TrueExpr, FalseExpr
 import math
 
 class BvExpr(Expr):
@@ -17,7 +17,7 @@ class BvExpr(Expr):
         #(a * b) * c   <=>   a * (b * c)
         #   p1     p2
         if force_assoc and isinstance(p1, cls):
-            p2 = cls.__python_op__(p2, p1.children[1]) #b * c
+            p2 = cls.__python_op__(p1.children[1], p2) #b * c
             p1 = p1.children[0] #a
         
         return p1, p2
@@ -31,15 +31,6 @@ class BvExpr(Expr):
     def __and__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            #p & p = p
-            if self.__hash__() == other.__hash__():
-                return self
-            
-            #p & !p = 0
-            if (isinstance(self, BvNotExpr) and self.children[0].__hash__() == other.__hash__()) or \
-               (isinstance(other, BvNotExpr) and other.children[0].__hash__() == self.__hash__()):
-                return 0
-
             return BvAndExpr.construct(self, other)
         else:
             (value, secondary, both_values) = self.getValue(other)
@@ -65,15 +56,6 @@ class BvExpr(Expr):
     def __or__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            #p | p = p
-            if self.__hash__() == other.__hash__():
-                return self
-            
-            #p | !p = all-1
-            if (isinstance(self, BvNotExpr) and self.children[0].__hash__() == other.__hash__()) or \
-               (isinstance(other, BvNotExpr) and other.children[0].__hash__() == self.__hash__()):
-                return self.size_mask
-            
             return BvOrExpr.construct(self, other)
         else:
             (value, secondary, both_values) = self.getValue(other)
@@ -99,15 +81,6 @@ class BvExpr(Expr):
     def __xor__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            #p ^ p = 0
-            if self.__hash__() == other.__hash__():
-                return 0
-
-            #p ^ !p = all-1
-            if (isinstance(self, BvNotExpr) and self.children[0].__hash__() == other.__hash__()) or \
-               (isinstance(other, BvNotExpr) and other.children[0].__hash__() == self.__hash__()):
-                return self.size_mask
-            
             return BvXorExpr.construct(self, other)
         else:
             (value, secondary, both_values) = self.getValue(other)
@@ -134,27 +107,17 @@ class BvExpr(Expr):
         if self.__has_value__:
             return (~self.value) & self.size_mask
         else:
-            #!!p = p
-            if isinstance(self, BvNotExpr):
-                return self.children[0]
             return BvNotExpr.construct(self)
     
     def __neg__(self):
         if self.__has_value__:
             return (-self.value) & self.size_mask
         else:
-            #-(-a) = a
-            if isinstance(self, BvNegExpr):
-                return self.children[0]
             return BvNegExpr.construct(self)
     
     def __rshift__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            #(a >> n) >> m == a >> n+m
-            if isinstance(self, BvShrExpr):
-                return self.children[0] >> (self.children[1] + other)
-
             return BvShrExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or other.__has_value__):
@@ -163,20 +126,20 @@ class BvExpr(Expr):
                 if not self.__has_value__:
                     other_value=long(other)
                     
-                    #(a >> n) >> m == a >> n+m
-                    if isinstance(self, BvShrExpr):
-                        return self.children[0] >> (self.children[1] + other_value)
-
                     #p >> 0 = p
                     if other_value == 0:
                         return self
                     
                     #p >> size(p) = 0
-                    if other_value == self.size:
+                    if other_value >= self.size:
                         return 0
                     
-                    #p >> n = concat(const-0(n), extract(p, size(p)-1, n))
-                    return BvConstExpr.construct(0, other_value).concat(self.extract(self.size - 1, other_value))
+                    #(a >> n) >> m == a >> n+m
+                    if isinstance(self, BvShrExpr):
+                        return self.children[0] >> ((self.children[1] % _next_power_of_two(self.size)) + other_value)
+
+                    if not other_is_expr:
+                        other = BvConstExpr.construct(other_value, self.size)
                 
                 # 0 >> p = 0
                 elif self.value == 0:
@@ -196,10 +159,6 @@ class BvExpr(Expr):
     def __lshift__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            #(a << n) << m == a << n+m
-            if isinstance(self, BvShlExpr):
-                return self.children[0] << (self.children[1] + other)
-
             return BvShlExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or other.__has_value__):
@@ -208,20 +167,20 @@ class BvExpr(Expr):
                 if not self.__has_value__:
                     other_value=long(other)
 
-                    #(a << n) << m == a << n+m
-                    if isinstance(self, BvShlExpr):
-                        return self.children[0] << (self.children[1] + other_value)
-                    
                     #p << 0 = p
                     if other_value == 0:
                         return self
                     
                     #p << size(p) = 0
-                    if other_value == self.size:
+                    if other_value >= self.size:
                         return 0
+
+                    #(a >> n) >> m == a >> n+m
+                    if isinstance(self, BvShlExpr):
+                        return self.children[0] << ((self.children[1] % _next_power_of_two(self.size)) + other_value)
                     
-                    #p << n = concat(extract(p, size(p)-1-n, 0), const-0(n))
-                    return self.extract(self.size - 1 - other_value, 0).concat(BvConstExpr.construct(0, other_value))
+                    if not other_is_expr:
+                        other = BvConstExpr.construct(other_value, self.size)
                 
                 # 0 << p = 0
                 elif self.value == 0:
@@ -241,14 +200,6 @@ class BvExpr(Expr):
     def __add__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            if self.__hash__() == other.__hash__():
-                #p + p = p * 2 = p << 1
-                return self << 1
-            
-            #p + (-p) == 0
-            if (isinstance(self, BvNegExpr) and self.children[0].__hash__() == other.__hash__()) or \
-               (isinstance(other, BvNegExpr) and other.children[0].__hash__() == self.__hash__()):
-                return 0
             return BvAddExpr.construct(self, other)
         else:
             (value, secondary, both_values) = self.getValue(other)
@@ -270,16 +221,6 @@ class BvExpr(Expr):
     def __sub__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            #p - p = 0
-            if self.__hash__() == other.__hash__():
-                return 0
-            
-            #p - (-p) = p + p = p * 2
-            #(-p) - p = (-p) * 2
-            if (isinstance(self, BvNegExpr) and self.children[0].__hash__() == other.__hash__()) or \
-              (isinstance(other, BvNegExpr) and other.children[0].__hash__() == self.__hash__()):
-                return self * 2
-            
             return BvSubExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or other.__has_value__):
@@ -311,16 +252,6 @@ class BvExpr(Expr):
     def __div__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            
-            #p / p = 1
-            if self.__hash__() == other.__hash__():
-                return 1
-            
-            #p / (-p) = -1
-            if (isinstance(self, BvNegExpr) and self.children[0].__hash__() == other.__hash__()) or \
-              (isinstance(other, BvNegExpr) and other.children[0].__hash__() == self.__hash__()):
-                return -1
-            
             return BvUDivExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or \
@@ -408,10 +339,6 @@ class BvExpr(Expr):
     def __mod__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            #p mod p = 0
-            if self.__hash__() == other.__hash__():
-                return 0
-
             return BvURemExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or \
@@ -476,10 +403,6 @@ class BvExpr(Expr):
     def __gt__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            
-            #p > p <=> False
-            if self.__hash__() == other.__hash__():
-                return False
             return BvUgtExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or \
@@ -502,10 +425,6 @@ class BvExpr(Expr):
     def __ge__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-
-            #p >= p <=> True
-            if self.__hash__() == other.__hash__():
-                return True
             return BvUgeExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or \
@@ -528,10 +447,6 @@ class BvExpr(Expr):
     def __lt__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-
-            #p < p <=> False
-            if self.__hash__() == other.__hash__():
-                return False
             return BvUltExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or \
@@ -554,10 +469,6 @@ class BvExpr(Expr):
     def __le__(self, other):
         other_is_expr=isinstance(other, BvExpr)
         if other_is_expr and not other.__has_value__ and not self.__has_value__:
-            
-            #p <= p <=> True
-            if self.__hash__() == other.__hash__():
-                return True
             return BvUleExpr.construct(self, other)
         else:
             if self.__has_value__ and (not other_is_expr or \
@@ -575,7 +486,7 @@ class BvExpr(Expr):
                 if not other_is_expr:
                     other=BvConstExpr.construct(other, self.size)
                     
-                return BvUgeExpr.construct(self, other)
+                return BvUleExpr.construct(self, other)
     
 
     #end and start are inclusive
@@ -640,19 +551,15 @@ class BvExpr(Expr):
         return BvConstExpr.construct(0, new_size - self.size).concat(self)
     
     def signExtend(self, new_size):
-        from emulator.symbolic.misc_expr import IteExpr
-
         assert self.size <= new_size
         if self.size == new_size:
             return self
-        
-        extension_size = new_size - self.size
-        
-        sign_bit=self.extract(self.size-1, self.size-1)
-        extension=IteExpr(sign_bit == 1, BvConstExpr.construct(2 ** extension_size - 1, extension_size), BvConstExpr.construct(0, extension_size))
-        if not isinstance(extension, BvExpr):
-            extension=BvConstExpr.construct(extension, extension_size)
-        return extension.concat(self)
+
+        #http://graphics.stanford.edu/~seander/bithacks.html        
+        m = 1 << (self.size - 1)
+        x = BvConstExpr.construct(0, new_size - self.size).concat(self)
+        ret = (x ^ m) - m 
+        return ret if isinstance(ret, BvExpr) else ret & ((2 ** new_size) - 1)   
 
 class BvConstExpr(BvExpr):
     children=()
@@ -736,6 +643,13 @@ class BvNotExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+    
+    @staticmethod
+    def construct(p1, force_expr=False):
+        #!!p = p
+        if isinstance(p1, BvNotExpr):
+            return p1.children[0]
+        return BvNotExpr(p1)
 
 class BvNegExpr(BvExpr):
     __function__="bvneg"
@@ -745,6 +659,13 @@ class BvNegExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+
+    @staticmethod
+    def construct(p1, force_expr=False):
+        #-(-p) = p
+        if isinstance(p1, BvNegExpr):
+            return p1.children[0]
+        return BvNegExpr(p1)
 
 class BvAndExpr(BvExpr):
     __function__="bvand"
@@ -761,7 +682,16 @@ class BvAndExpr(BvExpr):
     @classmethod
     def construct(cls, p1, p2, force_assoc=True, force_expr=False):
         p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
-        p2 = BvConstExpr.construct(p2, p1.size) if not isinstance(p2, BvExpr) else p2        
+        p2 = BvConstExpr.construct(p2, p1.size) if not isinstance(p2, BvExpr) else p2
+
+        #p & p = p
+        if p1.__hash__() == p2.__hash__():
+            return p1
+        
+        #p & !p = 0
+        if (isinstance(p1, BvNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BvNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return 0 if not force_expr else BvConstExpr.construct(0, p1.size)
         return cls(p1, p2)
 
 class BvOrExpr(BvExpr):
@@ -780,6 +710,15 @@ class BvOrExpr(BvExpr):
     def construct(cls, p1, p2, force_assoc=True, force_expr=False):
         p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
         p2 = BvConstExpr.construct(p2, p1.size) if not isinstance(p2, BvExpr) else p2        
+        
+        #p | p = p
+        if p1.__hash__() == p2.__hash__():
+            return p1
+        
+        #p | !p = all-1 
+        if (isinstance(p1, BvNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BvNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return p1.size_mask if not force_expr else BvConstExpr.construct(p1.size_mask, p1.size)
         return cls(p1, p2)
 
 class BvXorExpr(BvExpr):
@@ -798,6 +737,15 @@ class BvXorExpr(BvExpr):
     def construct(cls, p1, p2, force_assoc=True, force_expr=False):
         p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
         p2 = BvConstExpr.construct(p2, p1.size) if not isinstance(p2, BvExpr) else p2        
+
+        #p ^ p = 0
+        if p1.__hash__() == p2.__hash__():
+            return 0 if not force_expr else BvConstExpr.construct(0, p1.size)
+        
+        #p ^ !p = all-1 
+        if (isinstance(p1, BvNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BvNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return p1.size_mask if not force_expr else BvConstExpr.construct(p1.size_mask, p1.size)
         return cls(p1, p2)
 
 class BvAddExpr(BvExpr):
@@ -816,6 +764,15 @@ class BvAddExpr(BvExpr):
     def construct(cls, p1, p2, force_assoc=True, force_expr=False):
         p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
         p2 = BvConstExpr.construct(p2, p1.size) if not isinstance(p2, BvExpr) else p2        
+
+        if p1.__hash__() == p2.__hash__():
+            #p + p = p * 2 = p << 1
+            return p1 << 1
+        
+        #p + (-p) == 0
+        if (isinstance(p1, BvNegExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BvNegExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return 0 if not force_expr else BvConstExpr.construct(0, p1.size)
         return cls(p1, p2)
 
 class BvSubExpr(BvExpr):
@@ -827,6 +784,20 @@ class BvSubExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+    
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p - p = 0
+        if p1.__hash__() == p2.__hash__():
+            return 0 if not force_expr else BvConstExpr.construct(0, p1.size)
+        
+        #p - (-p) = p + p = p * 2
+        #(-p) - p = (-p) * 2
+        if (isinstance(p1, BvNegExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BvNegExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            tmp=p1 * 2
+            return tmp if isinstance(tmp, BvExpr) or not force_expr else BvConstExpr.construct(tmp, p1.size)
+        return BvSubExpr(p1, p2)
 
 class BvMulExpr(BvExpr):
     __function__="bvmul"
@@ -855,6 +826,18 @@ class BvUDivExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+    
+    @staticmethod
+    def construct(p1, p2, force_expr):
+        #p / p = 1
+        if p1.__hash__() == p2.__hash__():
+            return 1 if not force_expr else BvConstExpr.construct(1, p1.size)
+        
+        #p / (-p) = -1
+        if (isinstance(p1, BvNegExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BvNegExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return p1.size_mask if not force_expr else BvConstExpr.construct(p1.size_mask, p1.size)
+        return BvUDivExpr(p1, p2)
 
 class BvURemExpr(BvExpr):
     __function__="bvurem"
@@ -866,6 +849,13 @@ class BvURemExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
     
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p mod p = 0
+        if p1.__hash__() == p2.__hash__():
+            return 0 if not force_expr else BvConstExpr.construct(0, p1.size)
+        return BvURemExpr(p1, p2)
+
 class BvShlExpr(BvExpr):
     __function__="bvshl"
     __python_op__=staticmethod(BvExpr.__lshift__)
@@ -885,7 +875,7 @@ class BvShrExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
-
+    
 # Comparison (return Bool from 2 BitVec)
 
 class BvUltExpr(BoolExpr):
@@ -895,12 +885,26 @@ class BvUltExpr(BoolExpr):
         assert p1.size == p2.size
         self.children=(p1, p2)
 
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p < p <=> False
+        if p1.__hash__() == p2.__hash__():
+            return False if not force_expr else FalseExpr
+        return BvUltExpr(p1, p2)
+
 class BvUleExpr(BoolExpr):
     __function__="bvule"
     __python_op__=staticmethod(BvExpr.__le__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.children=(p1, p2)
+
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p <= p <=> True
+        if p1.__hash__() == p2.__hash__():
+            return True if not force_expr else TrueExpr
+        return BvUleExpr(p1, p2)
 
 class BvUgtExpr(BoolExpr):
     __function__="bvugt"
@@ -909,12 +913,26 @@ class BvUgtExpr(BoolExpr):
         assert p1.size == p2.size
         self.children=(p1, p2)
 
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p > p <=> False
+        if p1.__hash__() == p2.__hash__():
+            return False if not force_expr else FalseExpr
+        return BvUgtExpr(p1, p2)
+
 class BvUgeExpr(BoolExpr):
     __function__="bvuge"
     __python_op__=staticmethod(BvExpr.__ge__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.children=(p1, p2)
+
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p >= p <=> True
+        if p1.__hash__() == p2.__hash__():
+            return True if not force_expr else TrueExpr
+        return BvUgeExpr(p1, p2)
 
 class BvIteExpr(BvExpr):
     __function__="ite"
@@ -925,3 +943,14 @@ class BvIteExpr(BvExpr):
         self.size_mask=_then.size_mask
         self.__sort__=_then.__sort__
         self.children=(_if, _then, _else)
+
+def _next_power_of_two(v):
+    #up to for 32bits
+    v-=1
+    v |= v >> 1
+    v |= v >> 2
+    v |= v >> 4
+    v |= v >> 8
+    v |= v >> 16
+    v+=1
+    return v
