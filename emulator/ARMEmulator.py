@@ -534,6 +534,9 @@ class ARMEmulator(object):
             
         elif cond_3_1 == 0b111:
             result = True
+            
+        if get_bit(cond, 0) == 1 and cond != 0b1111:
+            result = not result
         
         return result
     
@@ -560,8 +563,8 @@ class ARMEmulator(object):
         """
         Replace the current execution state with 'context'.
         """
-        self.register_map = context.regs
-        self.flags_map = context.flags
+        self.register_map = copy.deepcopy(context.regs)
+        self.flags_map = copy.deepcopy(context.flags)
     
     def getRegister(self, register):
         """
@@ -3657,6 +3660,11 @@ class ARMEmulator(object):
         if dump_state:
             print self.dump_state()
             print
+            
+        if self.CurrentInstrSet() == ARMMode.ARM:
+            self.ALUWritePC(self.getActualPC() + 4)
+        else:
+            self.ALUWritePC(self.getActualPC() + 2)
             
         # self.ALUWritePC(address)
         
