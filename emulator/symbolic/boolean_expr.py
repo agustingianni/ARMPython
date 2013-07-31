@@ -6,15 +6,6 @@ class BoolExpr(Expr):
     def __and__(self, other):
         if isinstance(other, BoolExpr) and not other.__has_value__ \
             and not self.__has_value__:
-            #p & p <=> p
-            if self.__hash__() == other.__hash__():
-                return self
-            
-            #p & !p <=> False
-            if (isinstance(self, BoolNotExpr) and self.children[0].__hash__() == other.__hash__()) or \
-               (isinstance(other, BoolNotExpr) and other.children[0].__hash__() == self.__hash__()):
-                return False
-                
             return BoolAndExpr.construct(self, other)
         else:
             (value, secondary, _) = self.getValue(other)
@@ -27,15 +18,6 @@ class BoolExpr(Expr):
     def __or__(self, other):
         if isinstance(other, BoolExpr) and not other.__has_value__ \
             and not self.__has_value__:
-            #p | p <=> p
-            if self.__hash__() == other.__hash__():
-                return self
-            
-            #p | !p <=> True
-            if (isinstance(self, BoolNotExpr) and self.children[0].__hash__() == other.__hash__()) or \
-               (isinstance(other, BoolNotExpr) and other.children[0].__hash__() == self.__hash__()):
-                return True
-            
             return BoolOrExpr.construct(self, other)
         else:
             (value, secondary, _) = self.getValue(other)
@@ -48,15 +30,6 @@ class BoolExpr(Expr):
     def __xor__(self, other):
         if isinstance(other, BoolExpr) and not other.__has_value__ \
             and not self.__has_value__:
-            #p ^ p <=> False
-            if self.__hash__() == other.__hash__():
-                return False
-            
-            #p ^ !p <=> True
-            if (isinstance(self, BoolNotExpr) and self.children[0].__hash__() == other.__hash__()) or \
-               (isinstance(other, BoolNotExpr) and other.children[0].__hash__() == self.__hash__()):
-                return True
-
             return BoolXorExpr.construct(self, other)
         else:
             (value, secondary, _) = self.getValue(other)
@@ -70,9 +43,6 @@ class BoolExpr(Expr):
         if self.__has_value__:
             return not self.value
         else:
-            #!!p = p
-            if isinstance(self, BoolNotExpr):
-                return self.children[0]
             return BoolNotExpr.construct(self)
     
     def __rshift__(self, other):
@@ -155,6 +125,18 @@ class BoolAndExpr(BoolExpr):
     __python_op__=staticmethod(BoolExpr.__and__)
     def __init__(self, p1, p2):
         self.children=(p1, p2)
+    
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p & p <=> p
+        if p1.__hash__() == p1.__hash__():
+            return p1
+        
+        #p & !p <=> False
+        if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return False if not force_expr else FalseExpr
+        return BoolAndExpr(p1, p2)
 
 class BoolOrExpr(BoolExpr):
     __function__="or"
@@ -163,6 +145,18 @@ class BoolOrExpr(BoolExpr):
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p | p <=> p
+        if p1.__hash__() == p1.__hash__():
+            return p1
+        
+        #p | !p <=> True
+        if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return True if not force_expr else TrueExpr
+        return BoolOrExpr(p1, p2)
+
 class BoolXorExpr(BoolExpr):
     __function__="xor"
     __commutative__=True
@@ -170,11 +164,31 @@ class BoolXorExpr(BoolExpr):
     def __init__(self, p1, p2):
         self.children=(p1, p2)
 
+    @staticmethod
+    def construct(p1, p2, force_expr=False):
+        #p ^ p <=> False
+        if p1.__hash__() == p1.__hash__():
+            return False if not force_expr else FalseExpr
+        
+        #p ^ !p <=> True
+        if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
+           (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+            return True if not force_expr else TrueExpr
+        return BoolXorExpr(p1, p2)
+
 class BoolNotExpr(BoolExpr):
     __function__="not"
     __python_op__=staticmethod(BoolExpr.__invert__)
     def __init__(self, p1):
         self.children=(p1, )
+
+    @staticmethod
+    def construct(p1, force_expr=False):
+        #!!p = p
+        if isinstance(p1, BoolNotExpr):
+            return p1.children[0]
+        
+        return BoolNotExpr(p1)
 
 class BoolImplExpr(BoolExpr):
     __function__="=>"

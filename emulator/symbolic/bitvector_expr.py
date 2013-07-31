@@ -1,6 +1,5 @@
 from emulator.symbolic.base_expr import Expr
 from emulator.symbolic.boolean_expr import EqExpr, DistinctExpr, BoolExpr
-from utils.pylru import lrudecorator
 import math
 
 class BvExpr(Expr):
@@ -676,7 +675,6 @@ class BvConstExpr(BvExpr):
         return self.value
     
     @staticmethod
-    @lrudecorator(128)
     def construct(value, size):
         return BvConstExpr(value, size)
 
