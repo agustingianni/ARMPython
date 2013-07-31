@@ -3,15 +3,17 @@ Created on Jul 29, 2013
 
 @author: anon
 '''
-import sys
 import zmq
+import sys
 import struct
 from emulator.ARMEmulator import ARMEmulator, ExecutionContext
 from disassembler.tests.tablecheck import arm_opcodes, get_masked_random
 from emulator.memory import NullMemoryMap
 from disassembler.constants.arm import ARMRegister, ARMFLag, ARMMode
 from disassembler.arm import ARMDisassembler
-from disassembler.arch import UnpredictableInstructionException
+from disassembler.arch import UnpredictableInstructionException, Register,\
+    InstructionNotImplementedException
+from disassembler.utils.bits import get_bit
 
 class ObserverClient(object):
     def __init__(self):
@@ -63,11 +65,13 @@ def StringToContext(values):
     register_map[ARMRegister.R14.reg] = int(values[14].split("=")[1])
     register_map[ARMRegister.R15.reg] = int(values[15].split("=")[1])
     
+    flags = int(values[16].split("=")[1])
+        
     flags_map = {}
-    flags_map[ARMFLag.N] = 0
-    flags_map[ARMFLag.C] = 0
-    flags_map[ARMFLag.V] = 0
-    flags_map[ARMFLag.Z] = 0
+    flags_map[ARMFLag.N] = get_bit(flags, 31)
+    flags_map[ARMFLag.Z] = get_bit(flags, 30)
+    flags_map[ARMFLag.C] = get_bit(flags, 29)
+    flags_map[ARMFLag.V] = get_bit(flags, 28)
     
     return ExecutionContext(register_map, flags_map)
 
@@ -76,14 +80,18 @@ def CompareContexts(local, remote):
     Compare execution contexts. 
     TODO: Also compare the flags.
     """
-    ret = True
+    ret = []
     for name in local.regs.keys():
         if local.regs[name] != remote.regs[name]:
-            print "Local register %s value %.8x does not match remote value %.8x" \
-                % (name, local.regs[name], remote.regs[name])
-            ret = False
+            ret.append((name, local.regs[name], remote.regs[name]))
             
     return ret
+
+def DumpContext(context):
+    regs = context.regs
+    flags = context.flags
+    
+    print regs
 
 if __name__ == '__main__':
     client = ObserverClient()
@@ -93,9 +101,9 @@ if __name__ == '__main__':
     emulator = ARMEmulator(null_map)
     disassembler = ARMDisassembler()
     
-    limit = 10
+    limit = 1000
     
-    for i in xrange(0, len(arm_opcodes)):
+    for i in xrange(130, len(arm_opcodes)):
         print "=" * 80
         print "INDEX: %d" % i
         mask, value = arm_opcodes[i]    
@@ -113,12 +121,44 @@ if __name__ == '__main__':
                 continue
             
             opcode = opcode | 0xe0000000
+            #opcode = 0xe28f5193
+            try:
+                ins = disassembler.disassemble(opcode, ARMMode.ARM)
+                
+            except UnpredictableInstructionException, e:
+                #print "Unpredictable instruction"
+                continue
+            
+            except NotImplementedError, e:
+                #print "Instruction not implemented"
+                continue
+            
+            except InstructionNotImplementedException, e:
+                continue
+            
+            
+            if "pc, pc" in str(ins):
+                print "Skipping instruction 0x%.8x (%30s) ... " % (opcode, ins)
+                continue
+            
+            print "Sending instruction 0x%.8x (%30s) ... " % (opcode, ins),
             response = client.message(struct.pack("<L", opcode))
             
             if response == "ERROR":
-                print "Got an error from the server"
-                sys.exit()
-                                
+                #print "Instruction %s caused an error on the Observer" % ins
+                print "OBSERVER_ERROR"
+                continue
+                
+            if response == "ILLEGAL":
+                print "ILLEGAL"
+                #print "Instruction %s is ILLEGAL" % ins
+                #print "\tThis opcode %.8x should not disassemble" % opcode
+                continue
+            
+            if response == "TIMEOUT":
+                print "TIMEOUT"
+                continue            
+            
             # first line is pre execution context, second line is post execution context
             context = filter(None, response.split("\n"))
             pre_context = filter(None, context[0].split(",")) 
@@ -130,25 +170,41 @@ if __name__ == '__main__':
             emulator.setContext(remote_pre_context)
             
             try:
-                ins = disassembler.disassemble(opcode, ARMMode.ARM)
                 emulator.emulate(ins)
-            except UnpredictableInstructionException, e:
-                print "Unpredictable instruction"
+            except UnpredictableInstructionException:
+                print "UNPREDICTABLE"
                 continue
+            except NotImplementedError:
+                print "NOT_IMPLEMENTED"
+                continue
+            except RuntimeError:
+                print "RuntimeError"
+                continue
+            except InstructionNotImplementedException, e:
+                print "NOT_IMPLEMENTED"
+                continue            
             
             local_post_context = emulator.getContext()
 
-            if CompareContexts(local_post_context, remote_post_context):
-                print "Instruction %s matches" % ins
+            ret = CompareContexts(local_post_context, remote_post_context)
+            if not len(ret):
+                print "MATCH"
+                
             else:
-                print "Instruction %s does NOT matche" % ins
+                print "MISSMATCH"
+                print "Instruction %30s does NOT match (0x%.8x)" % (ins, opcode)
+                for d in ret:
+                    print >> sys.stderr, "\tLocal register %10s value %.8x does not match remote value %.8x" \
+                        % (Register(d[0]), d[1], d[2])
+                        
+                    print >> sys.stderr, "\tRemote:"
+                    print >> sys.stderr, "\t\tPRE  ", remote_pre_context.regs
+                    print >> sys.stderr, "\t\tPOST ", remote_post_context.regs
+
+                    print >> sys.stderr, "\tLocal:"
+                    print >> sys.stderr, "\t\tPRE  ", remote_pre_context.regs
+                    print >> sys.stderr, "\t\tPOST ", local_post_context.regs
+
             
-#             print "Pre-execution context:"
-#             print pre_context
-#     
-#             print "Post-execution context:"
-#             print post_context
-#                         
-#             print "Memory accesses:"
-#             for a in context[2:]:
-#                 print a
+            #break
+        break
