@@ -65,7 +65,7 @@ class ARMProcessor(object):
         
 
 def NOT(val):
-    return ~val
+    return ~val & 0xffffffff
 
 def AddWithCarry(x, y, carry_in):
     # unsigned_sum = UInt(x) + UInt(y) + UInt(carry_in);
@@ -186,8 +186,10 @@ def ROR(value, amount):
         return result
     
 def RRX_C(value, carry_in):
-    carry_out = get_bit(value, 0)
-    return (((get_bit(carry_in, 0) << 31) | get_bits(value, 31, 1)), carry_out)
+    carry_out = get_bit(value, 0)    
+    result = (get_bit(carry_in, 0) << 31) | get_bits(value, 31, 1)
+        
+    return (result, carry_out)
 
 def RRX(value, carry_in):
     result, carry_out = RRX_C(value, carry_in)
@@ -212,6 +214,8 @@ def Shift_C(value, type_, amount, carry_in):
     
     elif type_ == SRType_RRX:
         result, carry_out = RRX_C(value, amount)
+        
+    result &= 0xffffffff
         
     return (result, carry_out)
 
@@ -474,7 +478,7 @@ class ARMEmulator(object):
     
     def CallSupervisor(self, imm):
         # TODO: Implement
-        pass   
+        pass
     
     def CurrentCondition(self, opcode):
         pass
@@ -1013,6 +1017,8 @@ class ARMEmulator(object):
             else:
                 result = Align(Rn_val, 4) - imm32_val
                 
+            result &= 0xffffffff
+                
             if Rd == ARMRegister.PC:
                 self.ALUWritePC(result)
             else:
@@ -1314,7 +1320,7 @@ class ARMEmulator(object):
             
     def emulate_bxj(self, ins):
         # TODO: What do?
-        pass
+        raise InstructionNotImplementedException()
     
     def emulate_cbz(self, ins):
         """
@@ -1655,7 +1661,7 @@ class ARMEmulator(object):
     
     def emulate_ldm_exception_return(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldmia_arm(self, ins):
         """
@@ -1736,15 +1742,15 @@ class ARMEmulator(object):
     
     def emulate_ldm_user_registers(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrb_immediate_arm(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrb_immediate_thumb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
 
     def emulate_ldrb_immediate(self, ins):
         if self.arm_mode == ARMMode.ARM:
@@ -1754,31 +1760,31 @@ class ARMEmulator(object):
 
     def emulate_ldrb_literal(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrb_register(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrbt(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrexb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrexd(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrexh(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldrex(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ldr_immediate_arm(self, ins):
         """
@@ -2036,7 +2042,7 @@ class ARMEmulator(object):
 
     def emulate_ldrt(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_lsl_immediate(self, ins):
         """
@@ -2118,11 +2124,11 @@ class ARMEmulator(object):
     
     def emulate_mcrr(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_mcr(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_mla(self, ins):
         """
@@ -2229,7 +2235,7 @@ class ARMEmulator(object):
     
     def emulate_mov_rsr(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_movt(self, ins):
         """
@@ -2245,23 +2251,23 @@ class ARMEmulator(object):
     
     def emulate_mrc(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_mrrc(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_mrs(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_msr(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_mull(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_mul(self, ins):
         """
@@ -2358,7 +2364,7 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_orr_immediate(self, ins):
         """
@@ -2437,7 +2443,7 @@ class ARMEmulator(object):
     
     def emulate_pld(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_pop_arm(self, ins):
         """
@@ -2520,7 +2526,7 @@ class ARMEmulator(object):
                             
     def emulate_rfe(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_ror_immediate(self, ins):
         """
@@ -2568,7 +2574,7 @@ class ARMEmulator(object):
     
     def emulate_rrx(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_rsb_immediate(self, ins):
         """
@@ -2683,7 +2689,7 @@ class ARMEmulator(object):
     
     def emulate_sat_add_and_sub(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_sbc_immediate(self, ins):
         """
@@ -2756,11 +2762,11 @@ class ARMEmulator(object):
     
     def emulate_sev(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_smc(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_smlalb(self, ins):
         if self.ConditionPassed(ins):
@@ -2768,7 +2774,7 @@ class ARMEmulator(object):
     
     def emulate_smlal(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_smla(self, ins):
         """
@@ -2819,7 +2825,7 @@ class ARMEmulator(object):
     
     def emulate_smlaw(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_smull(self, ins):
         """
@@ -2912,11 +2918,11 @@ class ARMEmulator(object):
     
     def emulate_srs_arm(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_srs_thumb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
 
     def emulate_srs(self, ins):
         if self.arm_mode == ARMMode.ARM:
@@ -2926,7 +2932,7 @@ class ARMEmulator(object):
     
     def emulate_stc(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_stmda(self, ins):
         """
@@ -3053,15 +3059,15 @@ class ARMEmulator(object):
     
     def emulate_stm_user_registers(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_strb_immediate_arm(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_strb_immediate_thumb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
 
     def emulate_strb_immediate(self, ins):
         if self.arm_mode == ARMMode.ARM:
@@ -3071,27 +3077,27 @@ class ARMEmulator(object):
     
     def emulate_strb_register(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_strbt(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_strexb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_strexd(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_strexh(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_strex(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_str_immediate_arm(self, ins):
         """
@@ -3113,6 +3119,7 @@ class ARMEmulator(object):
             
             # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
             offset_addr = self.getRegister(Rn) + imm32.n
+            offset_addr &= 0xffffffff
             
             # address = if index then offset_addr else R[n];
             if index:
@@ -3165,6 +3172,7 @@ class ARMEmulator(object):
                 
             # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
             offset_addr = self.getRegister(Rn) + imm32.n
+            offset_addr &= 0xffffffff
             
             # address = if index then offset_addr else R[n];
             if index:
@@ -3246,6 +3254,8 @@ class ARMEmulator(object):
                 offset_addr = self.getRegister(Rn) + offset
             else:
                 offset_addr = self.getRegister(Rn) - offset
+            
+            offset_addr &= 0xffffffff
                 
             # address = if index then offset_addr else R[n];
             if index:
@@ -3269,7 +3279,7 @@ class ARMEmulator(object):
     
     def emulate_strt(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_sub_immediate_arm(self, ins):
         """
@@ -3431,7 +3441,7 @@ class ARMEmulator(object):
     
     def emulate_swp(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_teq_immediate(self, ins):
         """
@@ -3493,7 +3503,7 @@ class ARMEmulator(object):
             
     def emulate_thumb(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_tst_immediate(self, ins):
         """
@@ -3562,7 +3572,7 @@ class ARMEmulator(object):
     
     def emulate_umaal(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_umlal(self, ins):
         """
@@ -3607,19 +3617,19 @@ class ARMEmulator(object):
     
     def emulate_unknown(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_wfe(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_wfi(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
     
     def emulate_yield(self, ins):
         if self.ConditionPassed(ins):
-            pass
+            raise InstructionNotImplementedException()
 
     def step(self):
         """
