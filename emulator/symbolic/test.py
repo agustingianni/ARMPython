@@ -101,6 +101,16 @@ def test():
     for cls in (BoolNotExpr, BoolAndExpr, BoolOrExpr, BoolXorExpr, BoolImplExpr, \
                 BoolVarExpr, EqExpr, DistinctExpr, BoolIteExpr):
         print "%s: hits=%d, misses=%d" % (cls.__name__, cls.construct.hits, cls.construct.misses)
+    
+    print
+    print "BOOLEAN CACHE"
+    for k,v in EqExpr.construct.shared_parameters[0].iteritems():
+        print "%s:%s (used=%d)" % (k,v,EqExpr.construct.uses[hash(v)])
+
+    print
+    print "BITVECTOR CACHE"
+    for k,v in BvConstExpr.construct.shared_parameters[0].iteritems():
+        print "%s:%s (used=%d)" % (k,v,BvConstExpr.construct.uses[hash(v)])
 
 if __name__=="__main__":
     test()

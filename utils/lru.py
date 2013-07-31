@@ -19,8 +19,9 @@ def LruCache(user_function, maxsize=100, keymap=None, shared_parameters=None):
         cache = {}                       # mapping of args to results
         queue = collections.deque()      # order that keys have been used
         refcount = collections.Counter() # times each key is in the queue
+        uses = collections.Counter()     # times each value is used
     else:
-        cache, queue, refcount, maxsize = shared_parameters
+        cache, queue, refcount, maxsize, uses = shared_parameters
 
     maxqueue = maxsize * 10
     sentinel = object()              # marker for looping around the queue
@@ -47,6 +48,7 @@ def LruCache(user_function, maxsize=100, keymap=None, shared_parameters=None):
         # get cache entry or compute if not found
         try:
             result = cache[key]
+            uses[hash(result)] += 1
             wrapper.hits += 1
 
             # record recent use of this key
@@ -63,6 +65,7 @@ def LruCache(user_function, maxsize=100, keymap=None, shared_parameters=None):
                 refcount[key] += 1
                 
             cache[key] = result
+            uses[hash(result)] = 1
             wrapper.misses += 1
 
             # purge least recently used cache entry
@@ -95,6 +98,7 @@ def LruCache(user_function, maxsize=100, keymap=None, shared_parameters=None):
 
     wrapper.hits = wrapper.misses = 0
     wrapper.clear = clear
-    wrapper.shared_parameters = (cache, queue, refcount, maxsize)
+    wrapper.uses = uses
+    wrapper.shared_parameters = (cache, queue, refcount, maxsize, uses)
     
     return wrapper
