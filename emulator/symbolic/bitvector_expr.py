@@ -564,6 +564,7 @@ class BvExpr(Expr):
 class BvConstExpr(BvExpr):
     children=()
     __has_value__=True
+    __depth__=1
     def __init__(self, value, size):
         #size is in bits
 
@@ -588,6 +589,7 @@ class BvConstExpr(BvExpr):
 class BvVarExpr(BvExpr):
     children=()
     value=None
+    __depth__=1
     def __init__(self, size, name=None):
         if name == None:
             self.name = "bv_%x" % id(self)
@@ -604,6 +606,7 @@ class BvConcatExpr(BvExpr):
     __function__="concat"
     __python_op__=staticmethod(BvExpr.concat)
     def __init__(self, p1, p2):
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size + p2.size
         self.size_mask = ((2 ** self.size) - 1)
@@ -623,6 +626,7 @@ class BvExtractExpr(BvExpr):
     def __init__(self, p1, i, j):
         assert p1.size > i >= j >= 0
 
+        self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
         
         #start and end both include the boundaries
@@ -639,6 +643,7 @@ class BvNotExpr(BvExpr):
     __function__="bvnot"
     __python_op__=staticmethod(BvExpr.__invert__)
     def __init__(self, p1):
+        self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -655,6 +660,7 @@ class BvNegExpr(BvExpr):
     __function__="bvneg"
     __python_op__=staticmethod(BvExpr.__neg__)
     def __init__(self, p1):
+        self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -674,6 +680,7 @@ class BvAndExpr(BvExpr):
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -701,6 +708,7 @@ class BvOrExpr(BvExpr):
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -728,6 +736,7 @@ class BvXorExpr(BvExpr):
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -755,6 +764,7 @@ class BvAddExpr(BvExpr):
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -780,6 +790,7 @@ class BvSubExpr(BvExpr):
     __python_op__=staticmethod(BvExpr.__sub__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -806,6 +817,7 @@ class BvMulExpr(BvExpr):
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -822,6 +834,7 @@ class BvUDivExpr(BvExpr):
     __python_op__=staticmethod(BvExpr.__div__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -844,6 +857,7 @@ class BvURemExpr(BvExpr):
     __python_op__=staticmethod(BvExpr.__mod__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -861,6 +875,7 @@ class BvShlExpr(BvExpr):
     __python_op__=staticmethod(BvExpr.__lshift__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -871,6 +886,7 @@ class BvShrExpr(BvExpr):
     __python_op__=staticmethod(BvExpr.__rshift__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size
         self.size_mask=p1.size_mask
@@ -883,6 +899,7 @@ class BvUltExpr(BoolExpr):
     __python_op__=staticmethod(BvExpr.__lt__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
     @staticmethod
@@ -897,6 +914,7 @@ class BvUleExpr(BoolExpr):
     __python_op__=staticmethod(BvExpr.__le__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
     @staticmethod
@@ -911,6 +929,7 @@ class BvUgtExpr(BoolExpr):
     __python_op__=staticmethod(BvExpr.__gt__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
     @staticmethod
@@ -925,6 +944,7 @@ class BvUgeExpr(BoolExpr):
     __python_op__=staticmethod(BvExpr.__ge__)
     def __init__(self, p1, p2):
         assert p1.size == p2.size
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
     @staticmethod
@@ -943,6 +963,7 @@ class BvIteExpr(BvExpr):
         self.size_mask=_then.size_mask
         self.__sort__=_then.__sort__
         self.children=(_if, _then, _else)
+        self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
 
 def _next_power_of_two(v):
     #up to for 32bits

@@ -88,6 +88,7 @@ class BoolExpr(Expr):
 class BoolVarExpr(BoolExpr):
     children=()
     value=None
+    __depth__=1
     def __init__(self, name=None):
         if name == None:
             self.name = "bool_%x" % id(self)
@@ -102,6 +103,7 @@ class _TrueExpr(BoolExpr):
     children=()
     __has_value__=True
     value=True
+    __depth__=1
     def __str__(self):
         return self.__function__
     def __nonzero__(self):
@@ -113,6 +115,7 @@ class _FalseExpr(BoolExpr):
     children=()
     __has_value__=True
     value=False
+    __depth__=1
     def __str__(self):
         return self.__function__
     def __nonzero__(self):
@@ -124,6 +127,7 @@ class BoolAndExpr(BoolExpr):
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__and__)
     def __init__(self, p1, p2):
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
     
     @staticmethod
@@ -143,6 +147,7 @@ class BoolOrExpr(BoolExpr):
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__or__)
     def __init__(self, p1, p2):
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
     @staticmethod
@@ -162,6 +167,7 @@ class BoolXorExpr(BoolExpr):
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__xor__)
     def __init__(self, p1, p2):
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
     @staticmethod
@@ -180,6 +186,7 @@ class BoolNotExpr(BoolExpr):
     __function__="not"
     __python_op__=staticmethod(BoolExpr.__invert__)
     def __init__(self, p1):
+        self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
 
     @staticmethod
@@ -194,6 +201,7 @@ class BoolImplExpr(BoolExpr):
     __function__="=>"
     __python_op__=staticmethod(BoolExpr.__rshift__)
     def __init__(self, p1, p2):
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
 class EqExpr(BoolExpr):
@@ -201,6 +209,7 @@ class EqExpr(BoolExpr):
     __commutative__=True
     def __init__(self, p1, p2):
         assert p1.__sort__ == p2.__sort__
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
     
     @staticmethod
@@ -215,6 +224,7 @@ class DistinctExpr(BoolExpr):
     __commutative__=True
     def __init__(self, p1, p2):
         assert p1.__sort__ == p2.__sort__
+        self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
     @staticmethod
@@ -229,4 +239,5 @@ class BoolIteExpr(BoolExpr):
     def __init__(self, _if, _then, _else):
         assert isinstance(_if, BoolExpr)
         assert _then.__sort__ == _else.__sort__
+        self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
         self.children=(_if, _then, _else)
