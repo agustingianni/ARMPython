@@ -17,7 +17,10 @@ import random
 import objdump
 import llvm
 
-def get_masked_random(mask, value, mode):
+def get_masked_random(mask, value, mode=1):
+    """
+    We are avoiding creating instructions with cond == 0b1111
+    """
     r = random.getrandbits(32)
     
     for i in xrange(0, 32):
@@ -31,7 +34,7 @@ def get_masked_random(mask, value, mode):
     # if not mode:
     #    return r & 0xffff
     
-    return r
+    return r & 0xefffffff
 
 # mask, value = (0xfffffe00, 0x00001800)
 # for i in xrange(0, 100):
