@@ -148,5 +148,4 @@ class NullMemoryMap(ConcreteMemoryMap):
         ConcreteMemoryMap.__init__(self)
 
     def __getitem__(self, address):
-        self.value += 1
         return 0
