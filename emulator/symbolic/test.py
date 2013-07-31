@@ -87,5 +87,20 @@ def test():
     print bv2 + ((bv2 + bv2) + bv2)
     print bv2 + (bv2 + (bv2 + bv2))
 
+    print "================================"
+    print bv2 & 0xcafe
+    
+    print "CACHE STATS"
+    for cls in (BvConstExpr, BvVarExpr, BvConcatExpr, BvExtractExpr, BvNotExpr, BvNegExpr, \
+                BvAndExpr, BvOrExpr, BvXorExpr, BvAddExpr, BvSubExpr, BvMulExpr, \
+                BvUDivExpr, BvURemExpr, BvShlExpr, BvShrExpr, \
+                BvUgtExpr, BvUgeExpr, BvUltExpr, BvUleExpr, \
+                BvIteExpr):
+        print "%s: hits=%d, misses=%d" % (cls.__name__, cls.construct.hits, cls.construct.misses)
+    
+    for cls in (BoolNotExpr, BoolAndExpr, BoolOrExpr, BoolXorExpr, BoolImplExpr, \
+                BoolVarExpr, EqExpr, DistinctExpr, BoolIteExpr):
+        print "%s: hits=%d, misses=%d" % (cls.__name__, cls.construct.hits, cls.construct.misses)
+
 if __name__=="__main__":
     test()

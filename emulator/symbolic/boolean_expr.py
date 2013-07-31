@@ -1,4 +1,5 @@
 from emulator.symbolic.base_expr import Expr
+from utils.lru import LruCache
 
 class BoolExpr(Expr):
     __sort__="Bool"
@@ -97,6 +98,10 @@ class BoolVarExpr(BoolExpr):
     
     def __str__(self):
         return self.name
+
+    @staticmethod
+    def construct(name=None):
+        return BoolVarExpr(name)
 
 class _TrueExpr(BoolExpr):
     __function__="true"
@@ -204,6 +209,10 @@ class BoolImplExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
 
+    @staticmethod
+    def construct(p1, p2):
+        return BoolImplExpr(p1, p2)
+
 class EqExpr(BoolExpr):
     __function__="="
     __commutative__=True
@@ -241,3 +250,17 @@ class BoolIteExpr(BoolExpr):
         assert _then.__sort__ == _else.__sort__
         self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
         self.children=(_if, _then, _else)
+
+    @staticmethod
+    def construct(_if, _then, _else):
+        return BoolIteExpr(_if, _then, _else)
+
+LRUCACHE_SIZE=1000
+
+#Remeber to initialize the LRU cache with the "most cache-able" expression for extra speed
+EqExpr.construct = staticmethod(LruCache(EqExpr.construct, maxsize = LRUCACHE_SIZE)) 
+_BoolExprCache = EqExpr.construct.shared_parameters
+
+for cls in (BoolNotExpr, BoolAndExpr, BoolOrExpr, BoolXorExpr, BoolImplExpr, \
+            BoolVarExpr, DistinctExpr, BoolIteExpr):
+    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=_BoolExprCache)) 

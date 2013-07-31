@@ -1,5 +1,6 @@
 from emulator.symbolic.base_expr import Expr
 from emulator.symbolic.boolean_expr import EqExpr, DistinctExpr, BoolExpr, TrueExpr, FalseExpr
+from utils.lru import LruCache
 import math
 
 class BvExpr(Expr):
@@ -581,10 +582,10 @@ class BvConstExpr(BvExpr):
     
     def __long__(self):
         return self.value
-    
+
     @staticmethod
-    def construct(value, size):
-        return BvConstExpr(value, size)
+    def construct(name, size):
+        return BvConstExpr(name, size)
 
 class BvVarExpr(BvExpr):
     children=()
@@ -601,6 +602,10 @@ class BvVarExpr(BvExpr):
     
     def __str__(self):
         return "%s[%d]" % (self.name, self.size)
+
+    @staticmethod
+    def construct(size, name=None):
+        return BvVarExpr(size, name)
 
 class BvConcatExpr(BvExpr):
     __function__="concat"
@@ -638,6 +643,10 @@ class BvExtractExpr(BvExpr):
 
     def __str__(self):
         return "%s(%s, %d, %d)" % (self.__function__, str(self.children[0]), self.end, self.start)
+
+    @staticmethod
+    def construct(p1, i, j):
+        return BvExtractExpr(p1, i, j)
 
 class BvNotExpr(BvExpr):
     __function__="bvnot"
@@ -881,6 +890,10 @@ class BvShlExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
 
+    @staticmethod
+    def construct(p1, p2):
+        return BvShlExpr(p1, p2)
+
 class BvShrExpr(BvExpr):
     __function__="bvshr"
     __python_op__=staticmethod(BvExpr.__rshift__)
@@ -891,6 +904,10 @@ class BvShrExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+
+    @staticmethod
+    def construct(p1, p2):
+        return BvShrExpr(p1, p2)
     
 # Comparison (return Bool from 2 BitVec)
 
@@ -965,6 +982,10 @@ class BvIteExpr(BvExpr):
         self.children=(_if, _then, _else)
         self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
 
+    @staticmethod
+    def construct(_if, _then, _else):
+        return BvIteExpr(_if, _then, _else)
+
 def _next_power_of_two(v):
     #up to for 32bits
     v-=1
@@ -975,3 +996,16 @@ def _next_power_of_two(v):
     v |= v >> 16
     v+=1
     return v
+
+LRUCACHE_SIZE=1000
+
+#Remeber to initialize the LRU cache with the "most cache-able" expression for extra speed
+BvConstExpr.construct = staticmethod(LruCache(BvConstExpr.construct, maxsize = LRUCACHE_SIZE)) 
+_BvExprCache = BvConstExpr.construct.shared_parameters
+
+for cls in (BvVarExpr, BvConcatExpr, BvExtractExpr, BvNotExpr, BvNegExpr, \
+            BvAndExpr, BvOrExpr, BvXorExpr, BvAddExpr, BvSubExpr, BvMulExpr, \
+            BvUDivExpr, BvURemExpr, BvShlExpr, BvShrExpr, \
+            BvUgtExpr, BvUgeExpr, BvUltExpr, BvUleExpr, \
+            BvIteExpr):
+    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=_BvExprCache)) 

@@ -87,7 +87,3 @@ class Expr:
 
         self.__hashcode__ = hash((self.__sort__, self.__has_value__, tuple(optional), children))
         return self.__hashcode__
-
-    @classmethod
-    def construct(cls, *args, **kwargs):
-        return cls(*args, **kwargs)

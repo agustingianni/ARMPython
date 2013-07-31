@@ -15,15 +15,14 @@ def LruCache(user_function, maxsize=100, keymap=None, shared_parameters=None):
     keymap is a function that builds custom keys from actual args.
     """
 
-    maxqueue = maxsize * 10
-    
     if shared_parameters == None:
         cache = {}                       # mapping of args to results
         queue = collections.deque()      # order that keys have been used
         refcount = collections.Counter() # times each key is in the queue
     else:
-        cache, queue, refcount = shared_parameters
+        cache, queue, refcount, maxsize = shared_parameters
 
+    maxqueue = maxsize * 10
     sentinel = object()              # marker for looping around the queue
     kwd_mark = object()              # separate positional and keyword args
     fun_mark = object()              # separate user_function from arguments
@@ -96,6 +95,6 @@ def LruCache(user_function, maxsize=100, keymap=None, shared_parameters=None):
 
     wrapper.hits = wrapper.misses = 0
     wrapper.clear = clear
-    wrapper.shared_parameters = (cache, queue, refcount)
+    wrapper.shared_parameters = (cache, queue, refcount, maxsize)
     
     return wrapper
