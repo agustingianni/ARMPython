@@ -141,7 +141,7 @@ class BoolAndExpr(BoolExpr):
     @staticmethod
     def construct(p1, p2, force_expr=False):
         #p & p <=> p
-        if p1.__hash__() == p1.__hash__():
+        if p1.__hash__() == p2.__hash__():
             return p1
         
         #p & !p <=> False
@@ -161,7 +161,7 @@ class BoolOrExpr(BoolExpr):
     @staticmethod
     def construct(p1, p2, force_expr=False):
         #p | p <=> p
-        if p1.__hash__() == p1.__hash__():
+        if p1.__hash__() == p2.__hash__():
             return p1
         
         #p | !p <=> True
@@ -181,7 +181,7 @@ class BoolXorExpr(BoolExpr):
     @staticmethod
     def construct(p1, p2, force_expr=False):
         #p ^ p <=> False
-        if p1.__hash__() == p1.__hash__():
+        if p1.__hash__() == p2.__hash__():
             return False if not force_expr else FalseExpr
         
         #p ^ !p <=> True

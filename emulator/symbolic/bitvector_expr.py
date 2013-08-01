@@ -49,6 +49,9 @@ class BvExpr(Expr):
     
     def __len__(self):
         return self.size
+    
+    def __pos__(self):
+        return self
 
     def __and__(self, other):
         if isinstance(other, BvExpr) and not other.__has_value__ and not self.__has_value__:
@@ -562,8 +565,8 @@ class BvConstExpr(BvExpr):
         return self.value
 
     @staticmethod
-    def construct(name, size):
-        return BvConstExpr(name, size)
+    def construct(value, size):
+        return BvConstExpr(value, size)
 
 class BvVarExpr(BvExpr):
     children=()

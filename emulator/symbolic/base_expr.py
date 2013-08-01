@@ -36,6 +36,7 @@ class Expr:
     __has_value__=False
     __commutative__=False
     __hashcode__=None
+    __backend__=None
 
     def __repr__(self):
         return "<%s>" % self
@@ -43,6 +44,9 @@ class Expr:
     def __str__(self):
         children_repr=[str(x) for x in self.children]
         return "%s(%s)" % (self.__function__, ", ".join(children_repr))
+    
+    def sort(self):
+        return self.__sort__
     
     def export_smtlib2(self, subexpr_mindepth=5, subexpr_max=50):
         """
