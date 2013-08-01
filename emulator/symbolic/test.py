@@ -3,6 +3,7 @@ from emulator.symbolic.bitvector_expr import *
 from emulator.symbolic.boolean_expr import *
 from emulator.symbolic.misc_expr import *
 from emulator.symbolic.expression_z3 import *
+import z3
 
 def test():
     bv1=BvConstExpr.construct(0xcafecafe, 32)
@@ -128,6 +129,15 @@ def test():
     (((bv2 + bv2) + bv2) + bv2  == 12).solve()
     print ((bv2 < 0) | (bv2 > 0) | (bv2 == 0))
     ((bv2 < 0) | (bv2 > 0) | (bv2 == 0)).prove()
+    
+    s=ExprSolver()
+    s.add(bv2 == (BvVarExpr(32) * 2))
+    s.add(bv2 > 10)
+    s.add(bv2 < 100)
+    print s.check()
+    print s.model()
+    
+    z3.solve(bv2.z3_expr() > 10)
 
 if __name__=="__main__":
     test()

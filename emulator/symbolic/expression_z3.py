@@ -72,9 +72,14 @@ Expr.z3_expr = lambda self: self.__backend__
 Expr.z3_simplify = lambda self: z3.simplify(self.__backend__)
 Expr.solve = lambda self, **kwargs: z3.solve(self.__backend__, **kwargs)  
 Expr.prove = lambda self, **kwargs: z3.prove(self.__backend__, **kwargs)
-BvExpr.bv2int = lambda self: z3.BV2Int(self.__backend)
+BvExpr.z3_bv2int = lambda self: z3.BV2Int(self.__backend__)
 
 class ExprSolver(z3.Solver):
+    """
+    This is a wrapper around the Z3 Solver class to allow it to interact directly
+    using Expr instances. 
+    """
+
     def __unwrap_args(self, args):
         newargs=[]
         for arg in args:
