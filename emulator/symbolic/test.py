@@ -104,13 +104,24 @@ def test():
     
     print
     print "BOOLEAN CACHE"
-    for k,v in EqExpr.construct.shared_parameters[0].iteritems():
-        print "%s:%s (used=%d)" % (k,v,EqExpr.construct.uses[hash(v)])
+    for k,v in BoolExprCache.cache.iteritems():
+        print "%s ==> %s (used=%d)" % (k,v,BoolExprCache.uses[hash(v)])
 
     print
     print "BITVECTOR CACHE"
-    for k,v in BvConstExpr.construct.shared_parameters[0].iteritems():
-        print "%s:%s (used=%d)" % (k,v,BvConstExpr.construct.uses[hash(v)])
+    for k,v in BvExprCache.cache.iteritems():
+        print "%s ==> %s (used=%d)" % (k,v,BvExprCache.uses[hash(v)])
+    
+    print "================================"
+    b1 = BoolVarExpr()
+    a=(((bv2 + bv2) + bv2) + bv2 == 0) == b1
+    a=d2.extract(12, 0) == 0xcafecafe
+    print a
+    (vs, cache, expr) = a.export_smtlib2(0)
+    print vs
+    print cache
+    print expr
+    
 
 if __name__=="__main__":
     test()

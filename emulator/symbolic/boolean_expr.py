@@ -99,6 +99,9 @@ class BoolVarExpr(BoolExpr):
     def __str__(self):
         return self.name
 
+    def __export__(self):
+        return self.name 
+    
     @staticmethod
     def construct(name=None):
         return BoolVarExpr(name)
@@ -259,8 +262,8 @@ LRUCACHE_SIZE=1000
 
 #Remeber to initialize the LRU cache with the "most cache-able" expression for extra speed
 EqExpr.construct = staticmethod(LruCache(EqExpr.construct, maxsize = LRUCACHE_SIZE)) 
-_BoolExprCache = EqExpr.construct.shared_parameters
+BoolExprCache = EqExpr.construct
 
 for cls in (BoolNotExpr, BoolAndExpr, BoolOrExpr, BoolXorExpr, BoolImplExpr, \
             BoolVarExpr, DistinctExpr, BoolIteExpr):
-    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=_BoolExprCache)) 
+    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=BoolExprCache.shared_parameters)) 

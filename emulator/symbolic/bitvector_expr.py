@@ -572,11 +572,17 @@ class BvConstExpr(BvExpr):
         self.size_mask = ((2 ** size) - 1)
         self.value=value & self.size_mask
         self.size=size
-        self.__sort__="BitVec %d" % size
+        self.__sort__="(_ BitVec %d)" % size
     
     def __str__(self):
         return ("0x%0" + str(((self.size - 1) // 4) + 1) + "x[%d]") % (self.value, self.size)
     
+    def __export__(self):
+        if self.size % 4 == 0:
+            return ("#x%0" + str(((self.size - 1) // 4) + 1) + "x") % self.value
+        else:
+            return ("#b{0:0" + str(self.size) + "b}").format(self.value)
+
     def __int__(self):
         return self.value
     
@@ -598,10 +604,13 @@ class BvVarExpr(BvExpr):
             self.name=name
         self.size=size
         self.size_mask = ((2 ** size) - 1)
-        self.__sort__="BitVec %d" % size
+        self.__sort__="(_ BitVec %d)" % size
     
     def __str__(self):
         return "%s[%d]" % (self.name, self.size)
+
+    def __export__(self):
+        return self.name
 
     @staticmethod
     def construct(size, name=None):
@@ -615,7 +624,7 @@ class BvConcatExpr(BvExpr):
         self.children=(p1, p2)
         self.size=p1.size + p2.size
         self.size_mask = ((2 ** self.size) - 1)
-        self.__sort__="BitVec %d" % self.size
+        self.__sort__="(_ BitVec %d)" % self.size
 
     @staticmethod
     def construct(p1, p2, force_assoc=True, force_expr=False):
@@ -639,10 +648,18 @@ class BvExtractExpr(BvExpr):
         self.end = i
         self.size=i - j + 1
         self.size_mask = ((2 ** self.size) - 1)
-        self.__sort__="BitVec %d" % self.size
+        self.__sort__="(_ BitVec %d)" % self.size
 
     def __str__(self):
         return "%s(%s, %d, %d)" % (self.__function__, str(self.children[0]), self.end, self.start)
+    
+    def __export__(self):
+        #transfer state to children
+        self.children[0].export_variables = self.export_variables
+        self.children[0].subexpr_cache = self.subexpr_cache
+        self.children[0].used_subexpr = self.used_subexpr
+        
+        return "((_ extract %d %d) %s)" % (self.end, self.start, self.children[0].export())
 
     @staticmethod
     def construct(p1, i, j):
@@ -1001,11 +1018,11 @@ LRUCACHE_SIZE=1000
 
 #Remeber to initialize the LRU cache with the "most cache-able" expression for extra speed
 BvConstExpr.construct = staticmethod(LruCache(BvConstExpr.construct, maxsize = LRUCACHE_SIZE)) 
-_BvExprCache = BvConstExpr.construct.shared_parameters
+BvExprCache = BvConstExpr.construct
 
 for cls in (BvVarExpr, BvConcatExpr, BvExtractExpr, BvNotExpr, BvNegExpr, \
             BvAndExpr, BvOrExpr, BvXorExpr, BvAddExpr, BvSubExpr, BvMulExpr, \
             BvUDivExpr, BvURemExpr, BvShlExpr, BvShrExpr, \
             BvUgtExpr, BvUgeExpr, BvUltExpr, BvUleExpr, \
             BvIteExpr):
-    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=_BvExprCache)) 
+    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=BvExprCache.shared_parameters)) 

@@ -99,6 +99,7 @@ def LruCache(user_function, maxsize=100, keymap=None, shared_parameters=None):
     wrapper.hits = wrapper.misses = 0
     wrapper.clear = clear
     wrapper.uses = uses
+    wrapper.cache = cache
     wrapper.shared_parameters = (cache, queue, refcount, maxsize, uses)
     
     return wrapper
