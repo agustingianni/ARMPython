@@ -122,6 +122,14 @@ def test():
     print cache
     print expr
     
+    print "================================"
+    a=bv2 + bv2
+    print a
+    a+=bv2
+    print a
+    a+=bv2
+    print a
+    
 
 if __name__=="__main__":
     test()
