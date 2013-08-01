@@ -2,6 +2,7 @@ from emulator.symbolic.base_expr import *
 from emulator.symbolic.bitvector_expr import *
 from emulator.symbolic.boolean_expr import *
 from emulator.symbolic.misc_expr import *
+from emulator.symbolic.expression_z3 import *
 
 def test():
     bv1=BvConstExpr.construct(0xcafecafe, 32)
@@ -123,13 +124,10 @@ def test():
     print expr
     
     print "================================"
-    a=bv2 + bv2
-    print a
-    a+=bv2
-    print a
-    a+=bv2
-    print a
     
+    (((bv2 + bv2) + bv2) + bv2  == 12).solve()
+    print ((bv2 < 0) | (bv2 > 0) | (bv2 == 0))
+    ((bv2 < 0) | (bv2 > 0) | (bv2 == 0)).prove()
 
 if __name__=="__main__":
     test()
