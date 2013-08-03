@@ -2,8 +2,9 @@ from emulator.symbolic.base_expr import *
 from emulator.symbolic.bitvector_expr import *
 from emulator.symbolic.boolean_expr import *
 from emulator.symbolic.misc_expr import *
+from emulator.symbolic.memory import *
 from emulator.symbolic.expression_z3 import *
-import z3
+import z3; wrap_module(z3)
 
 def test():
     bv1=BvConstExpr.construct(0xcafecafe, 32)
@@ -31,16 +32,16 @@ def test():
     
     print "%x" % bv1.extract(15,0)
     print bv2.extract(15,0)
-    print "%x" % bv1.concat(BvConstExpr(0xde, 8))
+    print "%x" % bv1.concat(BvConstExpr.construct(0xde, 8))
     print bv1.concat(bv2)
     print bv2.extract(31,0)
     
-    c1=BvVarExpr(8, "c1")
-    c2=BvVarExpr(8, "c2")
-    c3=BvVarExpr(8, "c3")
-    c4=BvVarExpr(8, "c4")
-    w1=BvVarExpr(16, "w1")
-    d1=BvVarExpr(32, "d1")
+    c1=BvVarExpr.construct(8, "c1")
+    c2=BvVarExpr.construct(8, "c2")
+    c3=BvVarExpr.construct(8, "c3")
+    c4=BvVarExpr.construct(8, "c4")
+    w1=BvVarExpr.construct(16, "w1")
+    d1=BvVarExpr.construct(32, "d1")
     
     d2=c1.concat(c2.concat(c3.concat(c4)))
     print d2
@@ -119,25 +120,42 @@ def test():
     a=(((bv2 + bv2) + bv2) + bv2 == 0) == b1
     a=d2.extract(12, 0) == 0xcafecafe
     print a
-    (vs, cache, expr) = a.export_smtlib2(0)
-    print vs
-    print cache
+    (decl, asser, expr) = a.export_smtlib2(0)
+    print decl
+    print asser
     print expr
     
     print "================================"
+    mem = AbstractMemoryMap()
+    mem.set_dword(0xcafecafe, 0xdeadbeef)
+    mem.set_dword(bv2, 0xbabadada)
     
-    (((bv2 + bv2) + bv2) + bv2  == 12).solve()
-    print ((bv2 < 0) | (bv2 > 0) | (bv2 == 0))
-    ((bv2 < 0) | (bv2 > 0) | (bv2 == 0)).prove()
+    print "%x" % mem.get_dword(0xcafecafe)
+    a = mem.get_dword(bv2 + 1) == 0xcababada
+    print a
     
-    s=ExprSolver()
-    s.add(bv2 == (BvVarExpr(32) * 2))
-    s.add(bv2 > 10)
-    s.add(bv2 < 100)
+    #quantitier free, arrays, unintepreted funtions and bitvectors    
+    s=z3.SolverFor("QF_AUFBV")
+    s.add(a) #add constrain
     print s.check()
-    print s.model()
+    m = s.model()
     
-    z3.solve(bv2.z3_expr() > 10)
+    #check the transparent flow between BvExprs and Z3 stuff
+    z3_expr = m.eval(mem.get_dword(bv2 + 1))
+    print "%x" % z3_expr.as_long()
+    
+    #and the other way around
+    print z3.simplify(mem.get_dword(bv2 * 0xdafe)).toExpr()
+
+    #smtlib2 version:
+    #ExportParameters().clear()
+    #ExportParameters().set_mindepth(0)
+    #mem.export()
+    #e=a.export()
+    #print "\n".join(ExportParameters().get_decls())
+    #print "(assert " + ")\n(assert ".join(ExportParameters().get_asserts()) + ")"
+    #print "(assert %s)" % e
+
 
 if __name__=="__main__":
     test()
