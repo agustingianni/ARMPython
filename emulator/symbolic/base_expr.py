@@ -11,11 +11,7 @@ Expressions
     All type information should be static and part of the class definition.
 
 TODO:
-  Common subexpression cancellation
-  Associative and commutative rules optimization. ej:
-    (x + x) + x == x * 3       [find a constructive way for this]
-
-  process extracts on partial and/or/xor masks or shifts
+  add __slots__ to all Expr derivatives. add __weakref__ when needed.
 
 - There's different levels of optimizations that might apply to an expression.
 - It should never be expected to receive the naive operation application from an expression
@@ -31,6 +27,39 @@ Optimization rules:
 - All construct() functions have a force_expr argument that forces the answer to be a Expr derived instance.
   
 '''
+
+def singleton(cls):
+    instances={}
+    def getinstance():
+        if cls not in instances:
+            instances[cls]=cls()
+        return instances[cls]
+    return getinstance
+
+@singleton
+class ExportParameters:
+    def __init__(self):
+        self.clear()
+
+    def clear(self):
+        self.declares={}
+        self.asserts=[]
+        self.cache={}
+        self.cache_dirty=True
+        self.cache_mindepth=5
+        self.cache_maxsize=50
+    
+    def get_decls(self):
+        return self.declares.values()
+    
+    def get_asserts(self):
+        return self.asserts
+    
+    def set_mindepth(self, n):
+        self.cache_mindepth = n
+    
+    def set_maxsize(self, n):
+        self.cache_maxsize = n
 
 class Expr:
     __has_value__=False
@@ -50,36 +79,19 @@ class Expr:
     
     def export_smtlib2(self, subexpr_mindepth=5, subexpr_max=50):
         """
-        The 3-tuple return has dependencies in the order it's return.
+        The 3-tuple return has all declarations first, then the asserts for those decls and
+        last, self exported to smtlib2
         """
 
-        self.init_export()
-        self.calculate_subexpr_cache(subexpr_mindepth, subexpr_max)
-        expr = self.export()
-        cache = self.format_subexpr_cache()
-        variables = self.format_variables()
-        
-        return (variables, cache, expr)
+        ExportParameters().clear()
+        ExportParameters().set_mindepth(subexpr_mindepth)
+        ExportParameters().set_maxsize(subexpr_max)
 
-    def format_variables(self):
-        ret=[]
-        for k,v in self.export_variables.iteritems():
-            ret.append("(declare-fun %s () %s)" % (k, v.__sort__))
+        expr = self.export()
         
-        return "\n".join(ret)
+        return (ExportParameters().get_decls(), ExportParameters().get_asserts(), expr)
     
-    def format_subexpr_cache(self):
-        ret=[]
-        for h in self.used_subexpr:
-            (v, idx) = self.subexpr_cache[h]
-            v.export_variables = self.export_variables
-            v.subexpr_cache = self.subexpr_cache
-            v.used_subexpr = self.used_subexpr
-            ret.append("(define-fun subexpr_%d () %s %s)" % (idx, v.__sort__, v.export(False)))
-        
-        return "\n".join(ret)
-    
-    def calculate_subexpr_cache(self, subexpr_mindepth, subexpr_max):
+    def calculate_subexpr_cache(self):
         """
         Separate the <subexpr_max> most common sub-expressions with depth >= mindepth to
         help the solver spot common sub-expressions.
@@ -97,47 +109,48 @@ class Expr:
                 break
 
             v=_bool[h]
-            if isinstance(v, Expr) and v.__depth__ >= subexpr_mindepth:
-                self.subexpr_cache[h] = (v, index)
+            if isinstance(v, Expr) and v.__depth__ >= ExportParameters().cache_mindepth:
+                ExportParameters().cache[h] = (v, index)
                 index+=1
             
-            if index == subexpr_max:
+            if index == ExportParameters().cache_maxsize:
                 break
         
         bool_count=index
         bv_count=0
         for (h, _) in BvExprCache.uses.most_common():
             v=_bitvec[h]
-            if isinstance(v, Expr) and v.__depth__ >= subexpr_mindepth:
-                self.subexpr_cache[h] = (v, index)
+            if isinstance(v, Expr) and v.__depth__ >= ExportParameters().cache_mindepth:
+                ExportParameters().cache[h] = (v, index)
                 index+=1
                 bv_count+=1
             
-            if bv_count == subexpr_max:
+            if bv_count == ExportParameters().cache_maxsize:
                 break
         
         return (bool_count, bv_count)
-    
-    def init_export(self):
-        self.export_variables={}
-        self.subexpr_cache={}
-        self.used_subexpr=set()
 
     def export(self, with_cache=True):
         """
         Export an expr to smtlib2 format.
         """
+        if ExportParameters().cache_dirty:
+            self.calculate_subexpr_cache()
+            ExportParameters().cache_dirty = False        
         
         #save variables
-        if self.__depth__ == 1 and not self.__has_value__:
-            if not self.name in self.export_variables:
-                self.export_variables[self.name] = self
+        if self.__depth__ == 1 and hasattr(self, "name"):
+            if not self.name in ExportParameters().declares:
+                ExportParameters().declares[self.name] = "(declare-const %s %s)" % (self.name, self.__sort__)
             else:
-                assert hash(self) == hash(self.export_variables[self.name])
+                assert self.__sort__ in ExportParameters().declares[self.name]
 
-        if with_cache and self.__hash__() in self.subexpr_cache:
-            self.used_subexpr.add(self.__hash__())
-            return "subexpr_%d" % self.subexpr_cache[self.__hash__()][1]
+        if with_cache and self.__hash__() in ExportParameters().cache:
+            varname = "subexpr_%d" % ExportParameters().cache[self.__hash__()][1]
+            if varname not in ExportParameters().declares:
+                ExportParameters().declares[varname] = "(declare-const %s %s)" % (varname, self.__sort__)
+                ExportParameters().asserts.append("(= %s %s)" % (varname, self.export(False))) 
+            return varname
 
         if hasattr(self, "__export__"):
             return self.__export__()
@@ -145,10 +158,6 @@ class Expr:
         if len(self.children):
             children_exp=[]
             for x in self.children:
-                #transfer state to children
-                x.export_variables = self.export_variables
-                x.subexpr_cache = self.subexpr_cache
-                x.used_subexpr = self.used_subexpr
                 children_exp.append(x.export())
 
             return "(%s %s)" % (self.__function__, " ".join(children_exp))
