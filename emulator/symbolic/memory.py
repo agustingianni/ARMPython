@@ -6,47 +6,63 @@ Created on Jul 25, 2013
 
 '''
 
-from emulator.memory import ConcreteMemoryMap
-from emulator.symbolic.expression import BvExpr, BvConstExpr
-from collections import deque
+from emulator.memory import ConcreteMemoryMap, MemoryMap
+from emulator.symbolic.bitvector_expr import BvExpr, BvConstExpr
+from emulator.symbolic.base_expr import ExportParameters
+from collections import OrderedDict
 
 class DeferredMemRead(BvExpr):
-    __sort__="BitVec 8"
+    __sort__="(_ BitVec 8)"
     size=8
     size_mask=255
-    def __init__(self, address, generation):
-        self.address=address
-        self.generation=generation
+    __depth__=1
+    def __init__(self, address, memmap):
+        self.children=(address, )
+        self.memmap=memmap
+        self.generation=memmap.generation
     
     def __str__(self):
-        if not isinstance(self.address, BvExpr) or self.address.__has_value__:
-            return "memread(0x%x)" % self.address
-        else:
-            return "memread(%s)" % self.address
+        return "memread(%s)" % self.children[0]
+    
+    def __export__(self):
+        return "(select mem_%d %s)" % (self.generation, self.children[0].export())
+    
+    @staticmethod
+    def construct(address, memmap, addr_size):
+        if not isinstance(address, BvExpr):
+            address = BvConstExpr.construct(address, addr_size)
+        return DeferredMemRead(address, memmap)
 
 class AbstractMemoryMap(ConcreteMemoryMap):
-    def __init__(self):
-        ConcreteMemoryMap.__init__(self)
-        self.stored_since_last_read = False
-        self.generation = 0
+    memory = OrderedDict()
+    sentinel = object()
+    commited_memory = []
+    stored_since_last_read = False
+    generation = 0
+    __backend__ = None
+
+    def __init__(self, address_size=32):
+        MemoryMap.__init__(self)
+        self.address_size = address_size
+        self.memory[self.sentinel] = self.sentinel
         
     def __setitem__(self, address, value):
         self.stored_since_last_read = True
-        if not self.memory.has_key(address):
-            self.memory[address] = deque()
-            self.memory[address].append((value, self.generation))
-        else:
-            lastgen = self.memory[address][-1][1]
-            if lastgen == self.generation: #replace latest value
-                self.memory[address][-1]=(value, lastgen)
-            else:
-                self.memory[address].append((value, self.generation))
-                
+        if address in self.memory:
+            #we need to re-create the entry to affect the order
+            del self.memory[address]
+
+        self.memory[address] = value
+    
     def __getitem__(self, address):
         if self.memory.has_key(address):
-            return self.memory[address][-1][0]
+            return self.memory[address]
         else:
-            ret = DeferredMemRead(address, self.generation) 
+            if self.stored_since_last_read:
+                self.commitMemArray()
+
+            ret = DeferredMemRead.construct(address, self, self.address_size)
+
             if self.stored_since_last_read:
                 self.stored_since_last_read = False
                 self.generation += 1
@@ -88,10 +104,74 @@ class AbstractMemoryMap(ConcreteMemoryMap):
         (val, size) = newvalues[0]
         for x in range(1, len(newvalues)):
             if not isinstance(val, BvExpr):
-                val = BvConstExpr(val, size * 8)
+                val = BvConstExpr.construct(val, size * 8)
             if isinstance(newvalues[x][0], BvExpr):
                 second = newvalues[x][0]
             else:
-                second = BvConstExpr(newvalues[x][0], newvalues[x][1] * 8)
+                second = BvConstExpr.construct(newvalues[x][0], newvalues[x][1] * 8)
             val = second.concat(val)
         return val
+
+    def commitMemArray(self):
+        #local accessors for extra-speed
+        mem = self.memory
+        cmem = []
+        senti = self.sentinel
+
+        for address in reversed(mem):
+            #if we reach the sentinel it means we already commited the rest
+            if id(senti) == id(address):
+                #move the sentinel to the end
+                del mem[senti]
+                mem[senti]=senti
+                break
+            
+            #this list has the memory writes reversed! (first is last operation)
+            cmem.append( (address, mem[address]) )
+        
+        self.executeMemCommit(self.generation, cmem)
+    
+    #this function must be overloaded by each solver implementation
+    def executeMemCommit(self, gen, changes):
+        self.commited_memory.append( (gen, changes) ) 
+
+    def export(self):
+        def __helper(addr, val):
+            if isinstance(addr, BvExpr):
+                addr = addr.export()
+            else:
+                #taken from BvConstExpr __export__ function
+                addr = ("#x%0" + str(((self.address_size - 1) // 4) + 1) + "x") % addr
+            
+            if isinstance(val, BvExpr):
+                val = val.export()
+            else:
+                val = "#x%02x" % val
+            return (addr, val)
+
+        if self.stored_since_last_read:
+            self.commitMemArray()
+
+        ExportParameters().declares["mem"] = "(declare-const mem (Array (_ BitVec %d) (_ BitVec 8)))" % self.address_size
+
+        if not len(self.commited_memory):
+            ExportParameters().declares["mem_0"] = "(declare-const mem_0 (Array (_ BitVec %d) (_ BitVec 8)))\n" % self.address_size
+            ExportParameters().asserts.append("(= mem_0 mem)")
+        else:
+            prev="mem"
+            for gen, cmem in self.commited_memory:
+                ExportParameters().declares["mem_%d" % gen] = "(declare-const mem_%d (Array (_ BitVec %d) (_ BitVec 8)))\n" % (gen, self.address_size)
+                
+                ret = ""
+                if not len(cmem):
+                    ret += prev
+                else:
+                    ret += "(store" * len(cmem)
+                    addr,val = __helper(*cmem.pop(0))
+                    ret += " %s %s %s)" % (prev, addr, val)
+                    for addr, val in cmem:
+                        addr,val = __helper(addr, val)
+                        ret += " %s %s)" % (addr, val)
+                    prev = "mem_%d" % gen
+                
+                ExportParameters().asserts.append("(= mem_%d %s)" % (gen, ret))
