@@ -25,6 +25,7 @@ def forceToExprCond(cond, val, size):
     return forceToExpr(val) if cond else val
 
 class BvExpr(Expr):
+    __slots__=("size", "size_mask", "__sort__")
     __base_sort__="BitVec"
     
     @classmethod
@@ -538,6 +539,7 @@ class BvExpr(Expr):
         return toExpr(ret, new_size)   
 
 class BvConstExpr(BvExpr):
+    __slots__=("value")
     children=()
     __has_value__=True
     __depth__=1
@@ -569,6 +571,7 @@ class BvConstExpr(BvExpr):
         return BvConstExpr(value, size)
 
 class BvVarExpr(BvExpr):
+    __slots__=("name")
     children=()
     value=None
     __depth__=1
@@ -592,6 +595,7 @@ class BvVarExpr(BvExpr):
         return BvVarExpr(size, name)
 
 class BvConcatExpr(BvExpr):
+    __slots__=()
     __function__="concat"
     __python_op__=staticmethod(BvExpr.concat)
     def __init__(self, p1, p2):
@@ -610,6 +614,7 @@ class BvConcatExpr(BvExpr):
         return BvConcatExpr(p1, p2)
 
 class BvExtractExpr(BvExpr):
+    __slots__=("start", "end")
     __function__="extract"
     __python_op__=staticmethod(BvExpr.extract)
     def __init__(self, p1, i, j):
@@ -636,6 +641,7 @@ class BvExtractExpr(BvExpr):
         return BvExtractExpr(p1, i, j)
 
 class BvNotExpr(BvExpr):
+    __slots__=()
     __function__="bvnot"
     __python_op__=staticmethod(BvExpr.__invert__)
     def __init__(self, p1):
@@ -653,6 +659,7 @@ class BvNotExpr(BvExpr):
         return BvNotExpr(p1)
 
 class BvNegExpr(BvExpr):
+    __slots__=()
     __function__="bvneg"
     __python_op__=staticmethod(BvExpr.__neg__)
     def __init__(self, p1):
@@ -670,6 +677,7 @@ class BvNegExpr(BvExpr):
         return BvNegExpr(p1)
 
 class BvAndExpr(BvExpr):
+    __slots__=()
     __function__="bvand"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__and__)
@@ -698,6 +706,7 @@ class BvAndExpr(BvExpr):
         return cls(p1, p2)
 
 class BvOrExpr(BvExpr):
+    __slots__=()
     __function__="bvor"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__or__)
@@ -726,6 +735,7 @@ class BvOrExpr(BvExpr):
         return cls(p1, p2)
 
 class BvXorExpr(BvExpr):
+    __slots__=()
     __function__="bvxor"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__xor__)
@@ -754,6 +764,7 @@ class BvXorExpr(BvExpr):
         return cls(p1, p2)
 
 class BvAddExpr(BvExpr):
+    __slots__=()
     __function__="bvadd"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__add__)
@@ -803,6 +814,7 @@ class BvAddExpr(BvExpr):
         return cls(p1, p2)
 
 class BvSubExpr(BvExpr):
+    __slots__=()
     __function__="bvsub"
     __python_op__=staticmethod(BvExpr.__sub__)
     def __init__(self, p1, p2):
@@ -834,6 +846,7 @@ class BvSubExpr(BvExpr):
         return BvSubExpr(p1, p2)
 
 class BvMulExpr(BvExpr):
+    __slots__=()
     __function__="bvmul"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__mul__)
@@ -853,6 +866,7 @@ class BvMulExpr(BvExpr):
         return cls(p1, p2)
 
 class BvUDivExpr(BvExpr):
+    __slots__=()
     __function__="bvudiv"
     __python_op__=staticmethod(BvExpr.__div__)
     def __init__(self, p1, p2):
@@ -876,6 +890,7 @@ class BvUDivExpr(BvExpr):
         return BvUDivExpr(p1, p2)
 
 class BvURemExpr(BvExpr):
+    __slots__=()
     __function__="bvurem"
     __python_op__=staticmethod(BvExpr.__mod__)
     def __init__(self, p1, p2):
@@ -894,6 +909,7 @@ class BvURemExpr(BvExpr):
         return BvURemExpr(p1, p2)
 
 class BvShlExpr(BvExpr):
+    __slots__=()
     __function__="bvshl"
     __python_op__=staticmethod(BvExpr.__lshift__)
     def __init__(self, p1, p2):
@@ -909,6 +925,7 @@ class BvShlExpr(BvExpr):
         return BvShlExpr(p1, p2)
 
 class BvShrExpr(BvExpr):
+    __slots__=()
     __function__="bvshr"
     __python_op__=staticmethod(BvExpr.__rshift__)
     def __init__(self, p1, p2):
@@ -926,6 +943,7 @@ class BvShrExpr(BvExpr):
 # Comparison (return Bool from 2 BitVec)
 
 class BvUltExpr(BoolExpr):
+    __slots__=()
     __function__="bvult"
     __python_op__=staticmethod(BvExpr.__lt__)
     def __init__(self, p1, p2):
@@ -941,6 +959,7 @@ class BvUltExpr(BoolExpr):
         return BvUltExpr(p1, p2)
 
 class BvUleExpr(BoolExpr):
+    __slots__=()
     __function__="bvule"
     __python_op__=staticmethod(BvExpr.__le__)
     def __init__(self, p1, p2):
@@ -956,6 +975,7 @@ class BvUleExpr(BoolExpr):
         return BvUleExpr(p1, p2)
 
 class BvUgtExpr(BoolExpr):
+    __slots__=()
     __function__="bvugt"
     __python_op__=staticmethod(BvExpr.__gt__)
     def __init__(self, p1, p2):
@@ -971,6 +991,7 @@ class BvUgtExpr(BoolExpr):
         return BvUgtExpr(p1, p2)
 
 class BvUgeExpr(BoolExpr):
+    __slots__=()
     __function__="bvuge"
     __python_op__=staticmethod(BvExpr.__ge__)
     def __init__(self, p1, p2):
@@ -986,6 +1007,7 @@ class BvUgeExpr(BoolExpr):
         return BvUgeExpr(p1, p2)
 
 class BvIteExpr(BvExpr):
+    __slots__=()
     __function__="ite"
     def __init__(self, _if, _then, _else):
         assert isinstance(_if, BoolExpr)
@@ -1012,4 +1034,5 @@ for cls in (BvConstExpr, BvVarExpr, BvConcatExpr, BvExtractExpr, BvNotExpr, BvNe
             BvUDivExpr, BvURemExpr, BvShlExpr, BvShrExpr, \
             BvUgtExpr, BvUgeExpr, BvUltExpr, BvUleExpr, \
             BvIteExpr):
-    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=BvExprCache.shared_parameters)) 
+    cls.construct = staticmethod(LruCache(cls.construct, shared_parameters=BvExprCache.shared_parameters))
+ 

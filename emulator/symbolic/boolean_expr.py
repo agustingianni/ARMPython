@@ -2,6 +2,7 @@ from emulator.symbolic.base_expr import Expr
 from utils.lru import LruCache
 
 class BoolExpr(Expr):
+    __slots__=()
     __sort__="Bool"
     
     def __and__(self, other):
@@ -87,6 +88,7 @@ class BoolExpr(Expr):
         return IteExpr(self, _then, _else)
 
 class BoolVarExpr(BoolExpr):
+    __slots__=("name")
     children=()
     value=None
     __depth__=1
@@ -107,6 +109,7 @@ class BoolVarExpr(BoolExpr):
         return BoolVarExpr(name)
 
 class _TrueExpr(BoolExpr):
+    __slots__=()
     __function__="true"
     children=()
     __has_value__=True
@@ -119,6 +122,7 @@ class _TrueExpr(BoolExpr):
 TrueExpr=_TrueExpr() #singleton
 
 class _FalseExpr(BoolExpr):
+    __slots__=()
     __function__="false"
     children=()
     __has_value__=True
@@ -131,6 +135,7 @@ class _FalseExpr(BoolExpr):
 FalseExpr=_FalseExpr() #singleton
 
 class BoolAndExpr(BoolExpr):
+    __slots__=()
     __function__="and"
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__and__)
@@ -151,6 +156,7 @@ class BoolAndExpr(BoolExpr):
         return BoolAndExpr(p1, p2)
 
 class BoolOrExpr(BoolExpr):
+    __slots__=()
     __function__="or"
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__or__)
@@ -171,6 +177,7 @@ class BoolOrExpr(BoolExpr):
         return BoolOrExpr(p1, p2)
 
 class BoolXorExpr(BoolExpr):
+    __slots__=()
     __function__="xor"
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__xor__)
@@ -191,6 +198,7 @@ class BoolXorExpr(BoolExpr):
         return BoolXorExpr(p1, p2)
 
 class BoolNotExpr(BoolExpr):
+    __slots__=()
     __function__="not"
     __python_op__=staticmethod(BoolExpr.__invert__)
     def __init__(self, p1):
@@ -206,6 +214,7 @@ class BoolNotExpr(BoolExpr):
         return BoolNotExpr(p1)
 
 class BoolImplExpr(BoolExpr):
+    __slots__=()
     __function__="=>"
     __python_op__=staticmethod(BoolExpr.__rshift__)
     def __init__(self, p1, p2):
@@ -217,6 +226,7 @@ class BoolImplExpr(BoolExpr):
         return BoolImplExpr(p1, p2)
 
 class EqExpr(BoolExpr):
+    __slots__=()
     __function__="="
     __commutative__=True
     def __init__(self, p1, p2):
@@ -232,6 +242,7 @@ class EqExpr(BoolExpr):
         return EqExpr(p1, p2)
 
 class DistinctExpr(BoolExpr):
+    __slots__=()
     __function__="distinct"
     __commutative__=True
     def __init__(self, p1, p2):
@@ -247,6 +258,7 @@ class DistinctExpr(BoolExpr):
         return DistinctExpr(p1, p2)
 
 class BoolIteExpr(BoolExpr):
+    __slots__=()
     __function__="ite"
     def __init__(self, _if, _then, _else):
         assert isinstance(_if, BoolExpr)

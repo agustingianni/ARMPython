@@ -84,7 +84,7 @@ def wrapper(*a):
     (ctor, z3_ctor) = a
     def wrapper_func(self, *args):
         ctor(self, *args)
-        if None == self.__backend__:
+        if not hasattr(self, "__backend__"):
             if isinstance(z3_ctor, tuple):
                 newargs = z3_ctor[0](self) #args wrapper
                 self.__backend__ = z3_ctor[1](*newargs)
@@ -173,7 +173,8 @@ def bool_toExpr(self):
     else:
         return BoolVarExpr.construct(str(self))
 
-class Z3ArrayExpr(Expr):
+class Z3ArrayExpr(BvExpr):
+    __slots__=("__function__")
     children = () 
     __depth__ = 1
     def __init__(self, backend):
@@ -187,6 +188,7 @@ class Z3ArrayExpr(Expr):
         return "array"
     
 class Z3BvExpr(BvExpr):
+    __slots__=("__function__")
     def __init__(self, backend):
         self.size = backend.size()
         self.size_mask = ((2 ** self.size) - 1)

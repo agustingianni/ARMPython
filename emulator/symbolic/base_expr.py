@@ -10,9 +10,6 @@ Expressions
     __init__ functions should be avoided as much as possible.
     All type information should be static and part of the class definition.
 
-TODO:
-  add __slots__ to all Expr derivatives. add __weakref__ when needed.
-
 - There's different levels of optimizations that might apply to an expression.
 - It should never be expected to receive the naive operation application from an expression
 - It should not be expected to receive an Expression as a result of an operation.
@@ -61,11 +58,10 @@ class ExportParameters:
     def set_maxsize(self, n):
         self.cache_maxsize = n
 
-class Expr:
+class Expr(object):
+    __slots__=("children", "__depth__", "__hashcode__", "__backend__")
     __has_value__=False
     __commutative__=False
-    __hashcode__=None
-    __backend__=None
 
     def __repr__(self):
         return "<%s>" % self
@@ -187,7 +183,7 @@ class Expr:
                 return (val, self, False)
 
     def __hash__(self):
-        if self.__hashcode__ != None:
+        if hasattr(self, "__hashcode__ "):
             return self.__hashcode__
 
         children=[hash(x) for x in self.children]

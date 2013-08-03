@@ -12,6 +12,7 @@ from emulator.symbolic.base_expr import ExportParameters
 from collections import OrderedDict
 
 class DeferredMemRead(BvExpr):
+    __slots__=("memmap", "generation")
     __sort__="(_ BitVec 8)"
     size=8
     size_mask=255
@@ -39,7 +40,6 @@ class AbstractMemoryMap(ConcreteMemoryMap):
     commited_memory = []
     stored_since_last_read = False
     generation = 0
-    __backend__ = None
 
     def __init__(self, address_size=32):
         MemoryMap.__init__(self)
