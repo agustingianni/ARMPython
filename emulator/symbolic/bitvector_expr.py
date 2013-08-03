@@ -28,7 +28,7 @@ class BvExpr(Expr):
     __base_sort__="BitVec"
     
     @classmethod
-    def __associative_construct__(cls, p1, p2, force_assoc=True):
+    def __associative_construct__(cls, p1, p2):
         #float constants to the right
         if isinstance(p1, BvConstExpr):
             tmp = p2
@@ -38,7 +38,7 @@ class BvExpr(Expr):
         #Force associativity to the right
         #(a * b) * c   <=>   a * (b * c)
         #   p1     p2
-        if force_assoc and isinstance(p1, cls):
+        if isinstance(p1, cls):
             p2 = cls.__python_op__(p1.children[1], p2) #b * c
             p1 = p1.children[0] #a
         
@@ -629,11 +629,6 @@ class BvExtractExpr(BvExpr):
         return "%s(%s, %d, %d)" % (self.__function__, str(self.children[0]), self.end, self.start)
     
     def __export__(self):
-        #transfer state to children
-        self.children[0].export_variables = self.export_variables
-        self.children[0].subexpr_cache = self.subexpr_cache
-        self.children[0].used_subexpr = self.used_subexpr
-        
         return "((_ extract %d %d) %s)" % (self.end, self.start, self.children[0].export())
 
     @staticmethod
@@ -688,8 +683,8 @@ class BvAndExpr(BvExpr):
         self.__sort__=p1.__sort__
     
     @classmethod
-    def construct(cls, p1, p2, force_assoc=True, force_expr=False):
-        p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
+    def construct(cls, p1, p2, force_expr=False):
+        p1, p2 = cls.__associative_construct__(p1, p2)
         p2 = forceToExpr(p2, p1.size)
 
         #p & p = p
@@ -716,8 +711,8 @@ class BvOrExpr(BvExpr):
         self.__sort__=p1.__sort__
     
     @classmethod
-    def construct(cls, p1, p2, force_assoc=True, force_expr=False):
-        p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
+    def construct(cls, p1, p2, force_expr=False):
+        p1, p2 = cls.__associative_construct__(p1, p2)
         p2 = forceToExpr(p2, p1.size)        
         
         #p | p = p
@@ -744,8 +739,8 @@ class BvXorExpr(BvExpr):
         self.__sort__=p1.__sort__
     
     @classmethod
-    def construct(cls, p1, p2, force_assoc=True, force_expr=False):
-        p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
+    def construct(cls, p1, p2, force_expr=False):
+        p1, p2 = cls.__associative_construct__(p1, p2)
         p2 = forceToExpr(p2, p1.size)        
 
         #p ^ p = 0
@@ -772,13 +767,20 @@ class BvAddExpr(BvExpr):
         self.__sort__=p1.__sort__
     
     @classmethod
-    def construct(cls, p1, p2, force_assoc=True, force_expr=False):
-        p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
+    def construct(cls, p1, p2, force_expr=False):
+        p1, p2 = cls.__associative_construct__(p1, p2)
         p2 = forceToExpr(p2, p1.size)        
 
         #p + p = p * 2
         if p1.__hash__() == p2.__hash__():
             return forceToExprCond(force_expr, p1 * 2, p1.size)
+        
+        #p + (p + q) = (p * 2) + q  (warantied by the __associative_construct__ function)
+        if isinstance(p2, BvAddExpr):
+            if   p1.__hash__() == p2.children[0].__hash__():
+                return forceToExprCond(force_expr, (p1 * 2) + p2.children[1], p1.size)
+            elif p1.__hash__() == p2.children[1].__hash__():
+                return forceToExprCond(force_expr, (p1 * 2) + p2.children[0], p1.size)
         
         #(p * q) + p = p * (q+1)
         if isinstance(p1, BvMulExpr):
@@ -845,8 +847,8 @@ class BvMulExpr(BvExpr):
         self.__sort__=p1.__sort__
     
     @classmethod
-    def construct(cls, p1, p2, force_assoc=True, force_expr=False):
-        p1, p2 = cls.__associative_construct__(p1, p2, force_assoc)
+    def construct(cls, p1, p2, force_expr=False):
+        p1, p2 = cls.__associative_construct__(p1, p2)
         p2 = forceToExpr(p2, p1.size)        
         return cls(p1, p2)
 
@@ -1001,10 +1003,11 @@ class BvIteExpr(BvExpr):
 LRUCACHE_SIZE=1000
 
 #Remeber to initialize the LRU cache with the "most cache-able" expression for extra speed
-BvConstExpr.construct = staticmethod(LruCache(BvConstExpr.construct, maxsize = LRUCACHE_SIZE)) 
-BvExprCache = BvConstExpr.construct
+from emulator.symbolic.memory import DeferredMemRead
+DeferredMemRead.construct = staticmethod(LruCache(DeferredMemRead.construct, maxsize = LRUCACHE_SIZE)) 
+BvExprCache = DeferredMemRead.construct
 
-for cls in (BvVarExpr, BvConcatExpr, BvExtractExpr, BvNotExpr, BvNegExpr, \
+for cls in (BvConstExpr, BvVarExpr, BvConcatExpr, BvExtractExpr, BvNotExpr, BvNegExpr, \
             BvAndExpr, BvOrExpr, BvXorExpr, BvAddExpr, BvSubExpr, BvMulExpr, \
             BvUDivExpr, BvURemExpr, BvShlExpr, BvShrExpr, \
             BvUgtExpr, BvUgeExpr, BvUltExpr, BvUleExpr, \
