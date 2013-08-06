@@ -1374,6 +1374,9 @@ class ARMEmulator(object):
     def getOverflowFlag(self):
         return self.getFlag(ARMFLag.V)
     
+    def getSaturationFlag(self):
+        return self.getFlag(ARMFLag.Q)
+    
     def getNFlag(self):
         return self.getFlag(ARMFLag.N)
     
