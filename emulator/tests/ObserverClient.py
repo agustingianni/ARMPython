@@ -12,7 +12,7 @@ from emulator.memory import NullMemoryMap
 from disassembler.constants.arm import ARMRegister, ARMFLag, ARMMode
 from disassembler.arm import ARMDisassembler
 from disassembler.arch import UnpredictableInstructionException, Register,\
-    InstructionNotImplementedException
+    InstructionNotImplementedException, ProcessorFlag
 from disassembler.utils.bits import get_bit
 
 class ObserverClient(object):
@@ -72,26 +72,24 @@ def StringToContext(values):
     flags_map[ARMFLag.Z] = get_bit(flags, 30)
     flags_map[ARMFLag.C] = get_bit(flags, 29)
     flags_map[ARMFLag.V] = get_bit(flags, 28)
+    flags_map[ARMFLag.Q] = get_bit(flags, 27)
     
     return ExecutionContext(register_map, flags_map)
 
 def CompareContexts(local, remote):
     """
     Compare execution contexts. 
-    TODO: Also compare the flags.
     """
     ret = []
     for name in local.regs.keys():
         if local.regs[name] != remote.regs[name]:
-            ret.append((name, local.regs[name], remote.regs[name]))
+            ret.append(("register", name, local.regs[name], remote.regs[name]))
+            
+    for name in local.flags.keys():
+        if local.flags[name] != remote.flags[name]:
+            ret.append(("flag", name, local.flags[name], remote.flags[name]))
             
     return ret
-
-def DumpContext(context):
-    regs = context.regs
-    flags = context.flags
-    
-    print regs
 
 if __name__ == '__main__':
     client = ObserverClient()
@@ -101,9 +99,9 @@ if __name__ == '__main__':
     emulator = ARMEmulator(null_map)
     disassembler = ARMDisassembler()
     
-    limit = 1000
+    limit = 100
     
-    for i in xrange(130, len(arm_opcodes)):
+    for i in xrange(0, len(arm_opcodes)):
         print "=" * 80
         print "INDEX: %d" % i
         mask, value = arm_opcodes[i]    
@@ -121,7 +119,7 @@ if __name__ == '__main__':
                 continue
             
             opcode = opcode | 0xe0000000
-            #opcode = 0xe28f5193
+            #opcode = 0xe2bc93fb
             try:
                 ins = disassembler.disassemble(opcode, ARMMode.ARM)
                 
@@ -134,11 +132,6 @@ if __name__ == '__main__':
                 continue
             
             except InstructionNotImplementedException, e:
-                continue
-            
-            
-            if "pc, pc" in str(ins):
-                print "Skipping instruction 0x%.8x (%30s) ... " % (opcode, ins)
                 continue
             
             print "Sending instruction 0x%.8x (%30s) ... " % (opcode, ins),
@@ -192,18 +185,24 @@ if __name__ == '__main__':
                 
             else:
                 print "MISSMATCH"
+                print
                 print "Instruction %30s does NOT match (0x%.8x)" % (ins, opcode)
                 for d in ret:
-                    print >> sys.stderr, "\tLocal register %10s value %.8x does not match remote value %.8x" \
-                        % (Register(d[0]), d[1], d[2])
+                    if d[0] == "flag":
+                        print "\tLocal flag %10s value %.8x does not match remote value %.8x" \
+                            % (ProcessorFlag(d[1]), d[2], d[3])
+                    else:
+                        print "\tLocal register %10s value %.8x does not match remote value %.8x" \
+                            % (Register(d[1]), d[2], d[3])
                         
-                    print >> sys.stderr, "\tRemote:"
-                    print >> sys.stderr, "\t\tPRE  ", remote_pre_context.regs
-                    print >> sys.stderr, "\t\tPOST ", remote_post_context.regs
+                    print "\tRemote:"
+                    print "\t\tPRE  ", remote_pre_context.regs
+                    print "\t\tPOST ", remote_post_context.regs
 
-                    print >> sys.stderr, "\tLocal:"
-                    print >> sys.stderr, "\t\tPRE  ", remote_pre_context.regs
-                    print >> sys.stderr, "\t\tPOST ", local_post_context.regs
+                    print "\tLocal:"
+                    print "\t\tPRE  ", remote_pre_context.regs
+                    print "\t\tPOST ", local_post_context.regs
+                print
 
             
             #break
