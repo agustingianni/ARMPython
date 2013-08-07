@@ -543,6 +543,7 @@ class BvConstExpr(BvExpr):
     children=()
     __has_value__=True
     __depth__=1
+    __backend_fun__=lambda: None
     def __init__(self, value, size):
         #size is in bits
 
@@ -550,6 +551,7 @@ class BvConstExpr(BvExpr):
         self.value=value & self.size_mask
         self.size=size
         self.__sort__="(_ BitVec %d)" % size
+        self.__backend__=self.__backend_fun__
     
     def __str__(self):
         return ("0x%0" + str(((self.size - 1) // 4) + 1) + "x[%d]") % (self.value, self.size)
@@ -575,6 +577,7 @@ class BvVarExpr(BvExpr):
     children=()
     value=None
     __depth__=1
+    __backend_fun__=lambda: None
     def __init__(self, size, name=None):
         if name == None:
             self.name = "bv_%x" % id(self)
@@ -583,6 +586,7 @@ class BvVarExpr(BvExpr):
         self.size=size
         self.size_mask = ((2 ** size) - 1)
         self.__sort__="(_ BitVec %d)" % size
+        self.__backend__=self.__backend_fun__
     
     def __str__(self):
         return "%s[%d]" % (self.name, self.size)
@@ -598,12 +602,14 @@ class BvConcatExpr(BvExpr):
     __slots__=()
     __function__="concat"
     __python_op__=staticmethod(BvExpr.concat)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.size=p1.size + p2.size
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__="(_ BitVec %d)" % self.size
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_assoc=True):
@@ -617,6 +623,7 @@ class BvExtractExpr(BvExpr):
     __slots__=("start", "end")
     __function__="extract"
     __python_op__=staticmethod(BvExpr.extract)
+    __backend_fun__=lambda: None
     def __init__(self, p1, i, j):
         assert p1.size > i >= j >= 0
 
@@ -629,6 +636,7 @@ class BvExtractExpr(BvExpr):
         self.size=i - j + 1
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__="(_ BitVec %d)" % self.size
+        self.__backend__=self.__backend_fun__
 
     def __str__(self):
         return "%s(%s, %d, %d)" % (self.__function__, str(self.children[0]), self.end, self.start)
@@ -644,12 +652,14 @@ class BvNotExpr(BvExpr):
     __slots__=()
     __function__="bvnot"
     __python_op__=staticmethod(BvExpr.__invert__)
+    __backend_fun__=lambda: None
     def __init__(self, p1):
         self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @staticmethod
     def construct(p1):
@@ -662,12 +672,14 @@ class BvNegExpr(BvExpr):
     __slots__=()
     __function__="bvneg"
     __python_op__=staticmethod(BvExpr.__neg__)
+    __backend_fun__=lambda: None
     def __init__(self, p1):
         self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1):
@@ -681,6 +693,7 @@ class BvAndExpr(BvExpr):
     __function__="bvand"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__and__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
@@ -689,6 +702,7 @@ class BvAndExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -710,6 +724,7 @@ class BvOrExpr(BvExpr):
     __function__="bvor"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__or__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
@@ -718,6 +733,7 @@ class BvOrExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -739,6 +755,7 @@ class BvXorExpr(BvExpr):
     __function__="bvxor"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__xor__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
@@ -747,6 +764,7 @@ class BvXorExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -768,6 +786,7 @@ class BvAddExpr(BvExpr):
     __function__="bvadd"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__add__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
@@ -776,6 +795,7 @@ class BvAddExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -817,6 +837,7 @@ class BvSubExpr(BvExpr):
     __slots__=()
     __function__="bvsub"
     __python_op__=staticmethod(BvExpr.__sub__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
@@ -824,6 +845,7 @@ class BvSubExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -850,6 +872,7 @@ class BvMulExpr(BvExpr):
     __function__="bvmul"
     __commutative__=True
     __python_op__=staticmethod(BvExpr.__mul__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
 
@@ -858,6 +881,7 @@ class BvMulExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -869,6 +893,7 @@ class BvUDivExpr(BvExpr):
     __slots__=()
     __function__="bvudiv"
     __python_op__=staticmethod(BvExpr.__div__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
@@ -876,6 +901,7 @@ class BvUDivExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr):
@@ -893,6 +919,7 @@ class BvURemExpr(BvExpr):
     __slots__=()
     __function__="bvurem"
     __python_op__=staticmethod(BvExpr.__mod__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
@@ -900,6 +927,7 @@ class BvURemExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -912,6 +940,7 @@ class BvShlExpr(BvExpr):
     __slots__=()
     __function__="bvshl"
     __python_op__=staticmethod(BvExpr.__lshift__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
@@ -919,6 +948,7 @@ class BvShlExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2):
@@ -928,6 +958,7 @@ class BvShrExpr(BvExpr):
     __slots__=()
     __function__="bvshr"
     __python_op__=staticmethod(BvExpr.__rshift__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
@@ -935,6 +966,7 @@ class BvShrExpr(BvExpr):
         self.size=p1.size
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2):
@@ -946,10 +978,12 @@ class BvUltExpr(BoolExpr):
     __slots__=()
     __function__="bvult"
     __python_op__=staticmethod(BvExpr.__lt__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -962,10 +996,12 @@ class BvUleExpr(BoolExpr):
     __slots__=()
     __function__="bvule"
     __python_op__=staticmethod(BvExpr.__le__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -978,10 +1014,12 @@ class BvUgtExpr(BoolExpr):
     __slots__=()
     __function__="bvugt"
     __python_op__=staticmethod(BvExpr.__gt__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -994,10 +1032,12 @@ class BvUgeExpr(BoolExpr):
     __slots__=()
     __function__="bvuge"
     __python_op__=staticmethod(BvExpr.__ge__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.size == p2.size
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -1009,6 +1049,7 @@ class BvUgeExpr(BoolExpr):
 class BvIteExpr(BvExpr):
     __slots__=()
     __function__="ite"
+    __backend_fun__=lambda: None
     def __init__(self, _if, _then, _else):
         assert isinstance(_if, BoolExpr)
         assert _then.__sort__ == _else.__sort__
@@ -1017,6 +1058,7 @@ class BvIteExpr(BvExpr):
         self.__sort__=_then.__sort__
         self.children=(_if, _then, _else)
         self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(_if, _then, _else):

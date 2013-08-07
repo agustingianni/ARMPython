@@ -59,7 +59,7 @@ class ExportParameters:
         self.cache_maxsize = n
 
 class Expr(object):
-    __slots__=("children", "__depth__", "__hashcode__", "__backend__")
+    __slots__=("children", "__depth__", "__hashcode__", "__backend__", "__solver_ctor__")
     __has_value__=False
     __commutative__=False
 

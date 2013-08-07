@@ -4,7 +4,6 @@ from emulator.symbolic.boolean_expr import *
 from emulator.symbolic.misc_expr import *
 from emulator.symbolic.memory import *
 from emulator.symbolic.expression_z3 import *
-import z3; wrap_module(z3)
 
 def test():
     bv1=BvConstExpr.construct(0xcafecafe, 32)

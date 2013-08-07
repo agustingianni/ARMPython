@@ -92,11 +92,13 @@ class BoolVarExpr(BoolExpr):
     children=()
     value=None
     __depth__=1
+    __backend_fun__=lambda: None
     def __init__(self, name=None):
         if name == None:
             self.name = "bool_%x" % id(self)
         else:
             self.name=name
+        self.__backend__=self.__backend_fun__
     
     def __str__(self):
         return self.name
@@ -139,9 +141,11 @@ class BoolAndExpr(BoolExpr):
     __function__="and"
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__and__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -160,9 +164,11 @@ class BoolOrExpr(BoolExpr):
     __function__="or"
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__or__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -181,9 +187,11 @@ class BoolXorExpr(BoolExpr):
     __function__="xor"
     __commutative__=True
     __python_op__=staticmethod(BoolExpr.__xor__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -201,9 +209,11 @@ class BoolNotExpr(BoolExpr):
     __slots__=()
     __function__="not"
     __python_op__=staticmethod(BoolExpr.__invert__)
+    __backend_fun__=lambda: None
     def __init__(self, p1):
         self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, force_expr=False):
@@ -217,9 +227,11 @@ class BoolImplExpr(BoolExpr):
     __slots__=()
     __function__="=>"
     __python_op__=staticmethod(BoolExpr.__rshift__)
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2):
@@ -229,10 +241,12 @@ class EqExpr(BoolExpr):
     __slots__=()
     __function__="="
     __commutative__=True
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.__sort__ == p2.__sort__
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -245,10 +259,12 @@ class DistinctExpr(BoolExpr):
     __slots__=()
     __function__="distinct"
     __commutative__=True
+    __backend_fun__=lambda: None
     def __init__(self, p1, p2):
         assert p1.__sort__ == p2.__sort__
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -260,11 +276,13 @@ class DistinctExpr(BoolExpr):
 class BoolIteExpr(BoolExpr):
     __slots__=()
     __function__="ite"
+    __backend_fun__=lambda: None
     def __init__(self, _if, _then, _else):
         assert isinstance(_if, BoolExpr)
         assert _then.__sort__ == _else.__sort__
         self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
         self.children=(_if, _then, _else)
+        self.__backend__=self.__backend_fun__
 
     @staticmethod
     def construct(_if, _then, _else):
