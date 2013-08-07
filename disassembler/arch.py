@@ -111,7 +111,16 @@ class ProcessorFlag(object):
         self.flag = flag
         
     def __str__(self):
-        return self.flag
+        if self.flag == 0:
+            return "N"
+        elif self.flag == 1:
+            return "Z"
+        elif self.flag == 2:
+            return "C"
+        elif self.flag == 3:
+            return "V"
+        elif self.flag == 4:
+            return "Q"   
 
 class Register(object):
     def __init__(self, reg, wback=False, negative=False):
