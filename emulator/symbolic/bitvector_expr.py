@@ -71,6 +71,11 @@ class BvExpr(Expr):
                 #p & all-1 = p
                 if value == self.size_mask:
                     return secondary
+                
+                #p & ((2 ** l) - 1) = p mod (2 ** l) 
+                l = math.log(value + 1, 2)
+                if l > 0 and l == long(l):
+                    return BvConstExpr.construct(0, self.size - long(l)).concat(self.extract(long(l) - 1, 0))
 
                 return BvAndExpr.construct(self, forceToExpr(other, self.size))
 
@@ -92,6 +97,11 @@ class BvExpr(Expr):
                 #p | all-1 = all-1
                 if value == self.size_mask:
                     return self.size_mask
+
+                #p | ((2 ** l) - 1) = concat(p_high, all-1-l-size) 
+                l = math.log(value + 1, 2)
+                if l > 0 and l == long(l):
+                    return self.extract(self.size - 1, long(l)).concat(BvConstExpr.construct(value, long(l)))
 
                 return BvOrExpr.construct(self, forceToExpr(other, self.size))
 
@@ -356,7 +366,7 @@ class BvExpr(Expr):
                     #p mod (2 ** x) = concat(const-0[x], extract(p, x -1, 0))
                     l = math.log(other_value, 2)
                     if l > 0 and l == long(l):
-                        return BvConstExpr.construct(0, long(l)).concat(self.extract(long(l) - 1, 0))
+                        return BvConstExpr.construct(0, self.size - long(l)).concat(self.extract(long(l) - 1, 0))
                 else:
                     #0 mod p = 0
                     if self.value == 0:

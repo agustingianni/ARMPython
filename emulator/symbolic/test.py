@@ -155,6 +155,10 @@ def test():
     #print "(assert " + ")\n(assert ".join(ExportParameters().get_asserts()) + ")"
     #print "(assert %s)" % e
 
+    print "================================"
+    print bv2 & 0xff
+    print bv2 | 0xff
+
 
 if __name__=="__main__":
     test()
