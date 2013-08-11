@@ -184,11 +184,10 @@ def ROR(value, amount):
     else:
         result, carry_out = ROR_C(value, amount)
         return result
-    
+
 def RRX_C(value, carry_in):
     carry_out = get_bit(value, 0)    
-    result = (get_bit(carry_in, 0) << 31) | get_bits(value, 31, 1)
-        
+    result = (carry_in << 31) | get_bits(value, 31, 1)
     return (result, carry_out)
 
 def RRX(value, carry_in):
@@ -286,7 +285,10 @@ class ARMEmulator(object):
         self.register_map = {}
         self.memory_map = memory_map
         self.log = logging.getLogger("ARMEmulator")
+        
+        # The instruction set state register, ISETSTATE
         self.arm_mode = ARMMode.ARM
+        
         self.__init_flags_map__()
         self.__init_register_map__()
         self.disassembler = ARMDisassembler()
@@ -554,6 +556,9 @@ class ARMEmulator(object):
         """
         Set current processor mode.
         """
+        if mode == ARMMode.ARM and self.getCurrentMode() == ARMMode.THUMBEE:
+            raise InvalidModeException()
+
         self.arm_mode = mode
     
     def getContext(self):

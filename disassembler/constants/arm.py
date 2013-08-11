@@ -69,8 +69,10 @@ class ARMFLag:
     Q = 4
 
 class ARMMode:
-    THUMB = 0
-    ARM = 1
+    THUMB   = 0
+    ARM     = 1
+    JAZELLE = 2
+    THUMBEE = 3
 
 class ARMRegister:
     """
