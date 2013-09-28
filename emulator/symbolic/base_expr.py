@@ -34,7 +34,7 @@ def singleton(cls):
     return getinstance
 
 @singleton
-class ExportParameters:
+class ExportParameters(object):
     def __init__(self):
         self.clear()
 

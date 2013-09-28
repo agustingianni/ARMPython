@@ -103,7 +103,7 @@ def LSL_C(value, amount):
     
     # Make the result 32 bit
     result &= 0xffffffff
-    return (result, carry_out)
+    return result, carry_out
 
 def LSL(value, amount):
     if amount < 0:
@@ -128,7 +128,7 @@ def LSR_C(value, amount):
     
     # Make the result 32 bit
     result &= 0xffffffff
-    return (result, carry_out)
+    return result, carry_out
 
 def LSR(value, amount):
     if amount < 0:
@@ -157,7 +157,7 @@ def ASR_C(value, amount):
             carry_out = 0
             value = 0
             
-    return (value, carry_out)
+    return value, carry_out
 
 def ASR(value, amount):
     if amount < 0:
@@ -176,7 +176,7 @@ def ROR_C(value, amount):
     amt = amount % 32
     result = Rotr32(value, amt)
     carry_out = get_bit(value, 31)
-    return (result, carry_out)
+    return result, carry_out
 
 def ROR(value, amount):
     if amount == 0:
@@ -188,7 +188,7 @@ def ROR(value, amount):
 def RRX_C(value, carry_in):
     carry_out = get_bit(value, 0)    
     result = (carry_in << 31) | get_bits(value, 31, 1)
-    return (result, carry_out)
+    return result, carry_out
 
 def RRX(value, carry_in):
     result, carry_out = RRX_C(value, carry_in)
@@ -197,7 +197,7 @@ def RRX(value, carry_in):
 def Shift_C(value, type_, amount, carry_in):
     if amount == 0:
         carry_out = carry_in
-        return (value, carry_out)
+        return value, carry_out
     
     if type_ == SRType_LSL:
         result, carry_out = LSL_C(value, amount)
@@ -213,10 +213,13 @@ def Shift_C(value, type_, amount, carry_in):
     
     elif type_ == SRType_RRX:
         result, carry_out = RRX_C(value, amount)
+
+    else:
+        raise Exception("Invalid shift type")
         
     result &= 0xffffffff
         
-    return (result, carry_out)
+    return result, carry_out
 
 def Shift(value, type_, amount, carry_in):
     result, carry_out = Shift_C(value, type_, amount, carry_in)
@@ -224,8 +227,8 @@ def Shift(value, type_, amount, carry_in):
 
 class ITSession(object):
     def __init__(self):
-        self.it_counter = 0
-        self.it_state = 0
+        self.ITCounter = 0
+        self.ITState = 0
 
     def CountITSize(self, ITMask):
         """
@@ -540,6 +543,9 @@ class ARMEmulator(object):
             
         elif cond_3_1 == 0b111:
             result = True
+
+        else:
+            raise Exception("Invalid condition")
             
         if get_bit(cond, 0) == 1 and cond != 0b1111:
             result = not result
@@ -714,10 +720,10 @@ class ARMEmulator(object):
                 z_flag = int(result == 0)
                 self.setFlag(ARMFLag.Z, z_flag)
                 
-                if carry != None:
+                if carry is not None:
                     self.setFlag(ARMFLag.C, carry)
                 
-                if overflow != None:
+                if overflow is not None:
                     self.setFlag(ARMFLag.V, overflow)
     
     def emulate_adc_immediate(self, ins):
@@ -885,7 +891,10 @@ class ARMEmulator(object):
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
-                
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
 
@@ -960,6 +969,9 @@ class ARMEmulator(object):
                 shift_t = shift.type_
                 shift_n = shift.value.n
 
+            else:
+                raise Exception("Invalid operand number")
+
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
@@ -1010,6 +1022,8 @@ class ARMEmulator(object):
                 add = False
             elif ins.encoding == eEncodingT3:
                 add = True
+            else:
+                raise Exception("Invalid instruction encoding")
 
             # operands = [Register(Rd), Register(ARMRegister.PC), Immediate(imm32)]
             Rd, Rn, imm32 = ins.operands
@@ -1036,18 +1050,19 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
             Rd, Rn, unused = ins.operands
-            Rn_val = self.getRegister(Rn)
-            
+
             if ins.encoding == eEncodingT1:
                 # (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
-                imm32, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag());
+                imm32, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag())
                 
             elif ins.encoding == eEncodingA1:
                 # (imm32, carry) = ARMExpandImm_C(imm12, APSR.C);
-                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag());
+                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
+            else:
+                raise Exception("Invalid instruction encoding")
 
             # result = R[n] AND imm32;
-            result = self.getRegister(Rn) & imm32;
+            result = self.getRegister(Rn) & imm32
             
             # Does not change the overflow.
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
@@ -1067,6 +1082,8 @@ class ARMEmulator(object):
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
+            else:
+                raise Exception("Invalid operand number")
 
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
@@ -1125,8 +1142,12 @@ class ARMEmulator(object):
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
                 Rn = Rd
+
             elif len(ins.operands) == 3:
                 Rd, Rn, Rm = ins.operands
+
+            else:
+                raise Exception("Invalid operand number")
 
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
@@ -1161,6 +1182,9 @@ class ARMEmulator(object):
                 
             elif ins.encoding == eEncodingA1:
                 imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
+
+            else:
+                raise Exception("Invalid instruction encoding")
             
             result = self.getRegister(Rn) & (NOT(imm32))
 
@@ -1184,7 +1208,10 @@ class ARMEmulator(object):
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
-            
+
+            else:
+                raise Exception("Invalid operand number")
+
             Rn_val = self.getRegister(Rn)
             Rm_val = self.getRegister(Rm)
             
@@ -1258,6 +1285,8 @@ class ARMEmulator(object):
             elif ins.encoding == eEncodingA2:
                 # blx
                 targetInstrSet = ARMMode.THUMB
+            else:
+                raise Exception("Invalid instruction encoding")
                 
             if targetInstrSet == ARMMode.ARM:
                 targetAddress = Align(self.getPC(), 4) + jmp.addr
@@ -1398,6 +1427,8 @@ class ARMEmulator(object):
                 Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
+            else:
+                raise Exception("Invalid operand number")
                 
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
@@ -1469,7 +1500,9 @@ class ARMEmulator(object):
                 Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
-            
+            else:
+                raise Exception("Invalid operand number")
+
             Rm_val = self.getRegister(Rm)
             Rn_val = self.getRegister(Rn)
             
@@ -1524,7 +1557,10 @@ class ARMEmulator(object):
                 imm32, carry = ThumbExpandImm_C(ins.opcode, self.getCarryFlag()) 
                                 
             elif ins.encoding == eEncodingA1:
-                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())     
+                imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
+
+            else:
+                raise Exception("Invalid instruction encoding")
 
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]            
             Rd, Rn, t = ins.operands
@@ -1549,7 +1585,10 @@ class ARMEmulator(object):
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
-            
+
+            else:
+                raise Exception("Invalid operand number")
+
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
 
@@ -1586,10 +1625,10 @@ class ARMEmulator(object):
                 self.__set_flags__(result, carry, None)
                 
     def emulate_eret(self, ins):
-        raise Exception("ERET")
+        raise InstructionNotImplementedException("ERET")
     
     def emulate_hvc(self, ins):
-        raise Exception("HVC")
+        raise InstructionNotImplementedException("HVC")
     
     def emulate_it(self, ins):
         """
@@ -1911,15 +1950,10 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             if len(ins.operands) == 2:
                 Rt, imm32 = ins.operands
-                Rt_val = self.getRegister(Rt)
-                imm32_val = imm32.n
-                
+
             else:
                 Rt, memory = ins.operands
-                Rt_val = self.getRegister(Rt)
                 imm32 = memory.op2
-                imm32_val = imm32.n
-
             
             PC = self.getPC()
             base = Align(PC, 4)
@@ -2064,11 +2098,10 @@ class ARMEmulator(object):
             t, shift_n = DecodeImmShift(0b00, imm32.n)
             
             # (result, carry) = Shift_C(R[m], SRType_LSL, shift_n, APSR.C);
-            result, carry = Shift_C(self.getRegister(Rm), SRType_LSL, shift_n, self.getCarryFlag());
+            result, carry = Shift_C(self.getRegister(Rm), SRType_LSL, shift_n, self.getCarryFlag())
     
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
-            
-    
+
     def emulate_lsl_register(self, ins):
         """
         Done
@@ -2084,11 +2117,10 @@ class ARMEmulator(object):
             shift_n = get_bits(self.getRegister(Rm), 7, 0)
             
             # (result, carry) = Shift_C(R[n], SRType_LSL, shift_n, APSR.C);
-            result, carry = Shift_C(self.getRegister(Rn), SRType_LSL, shift_n, self.getCarryFlag());
+            result, carry = Shift_C(self.getRegister(Rn), SRType_LSL, shift_n, self.getCarryFlag())
                 
             # R[d] = result;
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
-
     
     def emulate_lsr_immediate(self, ins):
         """
@@ -2101,7 +2133,7 @@ class ARMEmulator(object):
             shift_n = imm32.n
             
             # (result, carry) = Shift_C(R[m], SRType_LSR, shift_n, APSR.C);
-            result, carry = Shift_C(self.getRegister(Rm), SRType_LSR, shift_n, self.getCarryFlag());
+            result, carry = Shift_C(self.getRegister(Rm), SRType_LSR, shift_n, self.getCarryFlag())
             
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
     
@@ -2310,6 +2342,10 @@ class ARMEmulator(object):
             elif ins.encoding == eEncodingA1:
                 imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
 
+            else:
+                raise Exception("Invalid instruction encoding")
+
+
             # operands = [Register(Rd), Immediate(imm32)]
             Rd, t = ins.operands
             
@@ -2388,7 +2424,10 @@ class ARMEmulator(object):
                 
             elif ins.encoding == eEncodingA1:
                 immediate_val, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
-                
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             # result = R[n] OR imm32;
             result = self.getRegister(Rn) | immediate_val
             
@@ -2417,7 +2456,10 @@ class ARMEmulator(object):
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
-            
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             # (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
             shifted, carry = Shift_C(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
             
@@ -2509,7 +2551,7 @@ class ARMEmulator(object):
             regset = ins.operands[0]
             registers = regset.registers
             
-            UnalignedAllowed = ins.encoding == eEncodingT3 or ins.encoding == eEncodingA2
+            # UnalignedAllowed = ins.encoding == eEncodingT3 or ins.encoding == eEncodingA2
             
             # address = SP - 4*BitCount(registers);
             address = self.getRegister(ARMRegister.SP) - 4 * BitCount(registers)
@@ -2568,7 +2610,10 @@ class ARMEmulator(object):
             elif ins.encoding == eEncodingA1:
                 # operands = [Register(Rd), Register(Rn), Register(Rm)]
                 Rd, Rn, Rm = ins.operands
-                
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             # shift_n = UInt(R[m]<7:0>);
             shift_n = get_bits(self.getRegister(Rm), 7, 0)
             
@@ -2626,15 +2671,12 @@ class ARMEmulator(object):
 
             # shift_n = UInt(R[s]<7:0>);
             shift_n = get_bits(self.getRegister(shift.value), 7, 0)
-            
-            Rn_val = self.getRegister(Rn)
-            Rm_val = self.getRegister(Rm)
-            
+
             # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
-            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag());
+            shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
             
             # (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, '1');
-            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, 1);
+            result, carry, overflow = AddWithCarry(NOT(self.getRegister(Rn)), shifted, 1)
             
             # R[d] = result;
             self.setRegister(Rd, result)
@@ -2735,7 +2777,10 @@ class ARMEmulator(object):
                 Rd, Rn, Rm, shift = ins.operands
                 shift_t = shift.type_
                 shift_n = shift.value.n
-                
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             # shifted = Shift(R[m], shift_t, shift_n, APSR.C);
             shifted = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
             
@@ -2804,7 +2849,10 @@ class ARMEmulator(object):
                 # n_high = (N == '1'); m_high = (M == '1');
                 n_high = N == 1
                 m_high = M == 1
-            
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             # operands = [Register(Rd), Register(Rn), Register(Rm), Register(Ra)]
             Rd, Rn, Rm, Ra = ins.operands
             
@@ -2815,7 +2863,7 @@ class ARMEmulator(object):
                 operand1 = get_bits(self.getRegister(Rn), 15, 0)
             
             # operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
-            if n_high:
+            if m_high:
                 operand2 = get_bits(self.getRegister(Rm), 31, 16)
             else:
                 operand2 = get_bits(self.getRegister(Rm), 15, 0)
@@ -2875,6 +2923,9 @@ class ARMEmulator(object):
                 # n_high = (N == '1'); m_high = (M == '1');
                 n_high = N == 1
                 m_high = M == 1
+
+            else:
+                raise Exception("Invalid instruction encoding")
                 
             Rd, Rn, Rm = ins.operands
             
@@ -2885,7 +2936,7 @@ class ARMEmulator(object):
                 operand1 = get_bits(self.getRegister(Rn), 15, 0)
                 
             # operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
-            if n_high:
+            if m_high:
                 operand2 = get_bits(self.getRegister(Rm), 31, 16)
             else:
                 operand2 = get_bits(self.getRegister(Rm), 15, 0)
@@ -2908,7 +2959,10 @@ class ARMEmulator(object):
                 M = get_bit(ins.opcode, 4)
                 
             elif ins.encoding == eEncodingA1:
-                M = get_bit(ins.opcode, 6)            
+                M = get_bit(ins.opcode, 6)
+
+            else:
+                raise Exception("Invalid instruction encoding")
             
             m_high = M == 1
             
@@ -3159,7 +3213,7 @@ class ARMEmulator(object):
                 index = P == 1
                 wback = W == 1
 
-                if index == True:
+                if index:
                     Rt, memory = ins.operands
                     Rn = memory.op1
                     imm32 = memory.op2
@@ -3221,7 +3275,7 @@ class ARMEmulator(object):
                 add = U == 1
                 wback = P == 0 or W == 1
 
-                if index == True:
+                if index:
                     # operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, add == False), RegisterShift(shift_t, shift_n), wback=False)]
                     Rt, memory = ins.operands
                     Rn = memory.op1
@@ -3376,7 +3430,7 @@ class ARMEmulator(object):
             Rd, Rn, imm32 = ins.operands
             
             # (result, carry, overflow) = AddWithCarry(SP, NOT(imm32), '1');
-            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(imm32.n), 1);
+            result, carry, overflow = AddWithCarry(self.getRegister(Rn), NOT(imm32.n), 1)
             
             self.__write_reg_and_set_flags__(Rd, result, carry, overflow, ins.setflags)
     
@@ -3461,7 +3515,10 @@ class ARMEmulator(object):
                 
             elif ins.encoding == eEncodingA1:
                 imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag()) 
-            
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             # operands = [Register(Rn), Immediate(imm32)]
             Rn, t = ins.operands
             
@@ -3523,7 +3580,10 @@ class ARMEmulator(object):
                 
             elif ins.encoding == eEncodingA1:
                 imm32, carry = ARMExpandImm_C(ins.opcode, self.getCarryFlag())
-    
+
+            else:
+                raise Exception("Invalid instruction encoding")
+
             # operands = [Register(Rn), Immediate(imm32)]
             Rn, t = ins.operands
             
