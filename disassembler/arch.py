@@ -54,6 +54,20 @@ class InstructionNotImplementedException(Exception):
     def __str__(self):
         return "Instruction not implemented: %s" % self.message
 
+class BreakpointDebugEvent(Exception):
+    def __init__(self, message=""):
+        self.message = message
+
+    def __str__(self):
+        return "Breakpoint event: %s" % self.message
+
+class HintDebug(Exception):
+    def __init__(self, message=""):
+        self.message = message
+
+    def __str__(self):
+        return "Hint Debug: %s" % self.message
+
 class RegisterShift(object):
     def __init__(self, shift_t, shift_n):
         self.type_ = shift_t
