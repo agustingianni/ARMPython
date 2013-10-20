@@ -12,7 +12,7 @@ from disassembler.arm import ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 from disassembler.arm import ARMDisassembler
 from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt
 from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
-from disassembler.arch import InvalidModeException, Register
+from disassembler.arch import InvalidModeException, Register, BreakpointDebugEvent, HintDebug
 import copy
 
 class ARMProcessor(object):
@@ -847,6 +847,9 @@ class ARMEmulator(object):
                 self.setFlag(ARMFLag.V, overflow)
     
     def emulate_add_immediate(self, ins):
+        """
+        Done
+        """
         if self.arm_mode == ARMMode.ARM:
             self.emulate_add_immediate_arm(ins)
         else:
@@ -903,6 +906,9 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
 
     def emulate_add_register(self, ins):
+        """
+        Done
+        """
         if self.arm_mode == ARMMode.ARM:
             self.emulate_add_register_arm(ins)
         else:
@@ -1002,6 +1008,9 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry_out, overflow, ins.setflags)
             
     def emulate_add_sp_plus_register(self, ins):
+        """
+        Done
+        """
         if self.arm_mode == ARMMode.ARM:
             self.emulate_add_sp_plus_register_arm(ins)
         else:
@@ -1248,8 +1257,10 @@ class ARMEmulator(object):
                 self.__set_flags__(result, carry, None)
 
     def BKPTInstrDebugEvent(self):
-        # TODO: What do?
-        pass
+        """
+        Done
+        """
+        raise BreakpointDebugEvent("Breakpoint Event")
 
     def emulate_bkpt(self, ins):
         """
@@ -1353,8 +1364,10 @@ class ARMEmulator(object):
             self.BXWritePC(self.getRegister(Rm))
             
     def emulate_bxj(self, ins):
-        # TODO: What do?
-        raise InstructionNotImplementedException()
+        """
+        TODO: Implement
+        """
+        raise InstructionNotImplementedException("Instruction BXJ not implemented.")
     
     def emulate_cbz(self, ins):
         """
@@ -1372,7 +1385,10 @@ class ARMEmulator(object):
             self.BranchWritePC(self.getPC() + imm32.n)
     
     def emulate_cdp(self, ins):
-        self.log("CDP is not supported.")
+        """
+        TODO: Implement
+        """
+        raise InstructionNotImplementedException("Instruction CDP not implemented.")
             
     def emulate_clz(self, ins):
         """
@@ -1537,8 +1553,10 @@ class ARMEmulator(object):
             self.__set_flags__(result, carry, overflow)
         
     def Hint_Debug(self, option):
-        # TODO: What do?
-        pass    
+        """
+        Done
+        """
+        raise HintDebug("Hint debug")
     
     def emulate_dbg(self, ins):
         """
@@ -1625,9 +1643,15 @@ class ARMEmulator(object):
                 self.__set_flags__(result, carry, None)
                 
     def emulate_eret(self, ins):
+        """
+        TODO: Implement
+        """
         raise InstructionNotImplementedException("ERET")
     
     def emulate_hvc(self, ins):
+        """
+        TODO: Implement
+        """
         raise InstructionNotImplementedException("HVC")
     
     def emulate_it(self, ins):
@@ -1637,9 +1661,15 @@ class ARMEmulator(object):
         self.it_session.InitIT(get_bits(ins.opcode, 7, 0))
                 
     def emulate_ldc_immediate(self, ins):
+        """
+        TODO: Implement
+        """
         raise InstructionNotImplementedException("LDC")
         
     def emulate_ldc_literal(self, ins):
+        """
+        TODO: Implement
+        """
         raise InstructionNotImplementedException("LDC")
     
     def emulate_ldmda(self, ins):
@@ -1707,8 +1737,10 @@ class ARMEmulator(object):
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldm_exception_return(self, ins):
-        if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+        """
+        TODO: Implement
+        """
+        raise InstructionNotImplementedException("LDM Exception Return")
     
     def emulate_ldmia_arm(self, ins):
         """
@@ -1750,6 +1782,9 @@ class ARMEmulator(object):
         self.emulate_ldmia_arm(ins)
     
     def emulate_ldmia(self, ins):
+        """
+        Done
+        """
         if self.arm_mode == ARMMode.ARM:
             self.emulate_ldmia_arm(ins)
         else:
@@ -1788,18 +1823,27 @@ class ARMEmulator(object):
                 raise Exception("Rn cannot be in registers when wback is true.")
     
     def emulate_ldm_user_registers(self, ins):
-        if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+        """
+        TODO: Implement
+        """
+        raise InstructionNotImplementedException("LDM User Registers")
     
     def emulate_ldrb_immediate_arm(self, ins):
-        if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+        """
+        TODO: Implement
+        """
+        raise InstructionNotImplementedException("LDRB Immediate ARM")
     
     def emulate_ldrb_immediate_thumb(self, ins):
-        if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+        """
+        TODO: Implement
+        """
+        raise InstructionNotImplementedException("LDRB Immediate THUMB")
 
     def emulate_ldrb_immediate(self, ins):
+        """
+        Done
+        """
         if self.arm_mode == ARMMode.ARM:
             self.emulate_ldrb_immediate_arm(ins)
         else:
