@@ -447,7 +447,7 @@ class ARMDisassembler(object):
         (0xfffffe00, 0x0000b400, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_push),
         
         # PUSH ARMv6T2 | ARMv7
-        (0xffff0000, 0xe92d0000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_push),
+        (0xffffa000, 0xe92d0000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_push),
         
         # PUSH ARMv6T2 | ARMv7
         (0xffff0fff, 0xf84d0d04, ARMv6T2 | ARMv7, eEncodingT3, No_VFP, eSize32, self.decode_push),
@@ -525,7 +525,7 @@ class ARMDisassembler(object):
         (0xffd0a000, 0xe8800000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_stmia),
         
         # STMDB (STMFD) ARMv6T2 | ARMv7
-        (0xffd00000, 0xe9000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_stmdb),
+        (0xffd0a000, 0xe9000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_stmdb),
         
         # STR (immediate, Thumb) ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xfffff800, 0x00006000, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_str_immediate_thumb),
@@ -656,7 +656,7 @@ class ARMDisassembler(object):
         # YIELD ARMv7 (executes as NOP in ARMv6T2)
         (0xffffffff, 0xf3af8001, ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_yield),
 
-        (0x00000000, 0x00000000, ARMvAll, No_VFP, eSize32, self.decode_unknown)        
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
         )
 
     def __build_arm_table__(self):        
@@ -1086,7 +1086,7 @@ class ARMDisassembler(object):
                 decoder_entry = e
                 break
         
-        ins = None    
+        ins = None
         if decoder_entry:
             # Instruction encoding
             encoding = decoder_entry[3]
