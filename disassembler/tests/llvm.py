@@ -9,7 +9,7 @@ import binascii
 from subprocess import Popen, PIPE, STDOUT
 from itertools import izip
 
-disassembler = "llvm-mc-3.0"
+disassembler = "llvm-mc"
 
 def pairwise(iterable):
     a = iter(iterable)
@@ -38,17 +38,25 @@ def disassemble(opcode, mode=0, whole=False):
         p = Popen([disassembler, '-disassemble', '-arch=thumb'], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
         
     out = p.communicate(input=tmp)[0]
-    out = out.strip()
-    out = out.replace("\t", " ")
-    out = out.replace("r12", "ip")
-    out = out.replace("r11", "fp")
-    out = out.replace("r10", "sl")
-    out = out.split("\n")[0]
-    
-    if "undefined" in out:
-        out = "Undefined"
-    
-    if "invalid" in out:
-        out = "Undefined"
+
+    if not whole:
+        out = out.strip()
+        out = out.replace("\t", " ")
+        out = out.replace("r12", "ip")
+        out = out.replace("r11", "fp")
+        out = out.replace("r10", "sl")
+        out = out.split("\n")[0]
+
+        if "undefined" in out:
+            out = "Undefined"
+
+        if "invalid" in out:
+            out = "Undefined"
     
     return out
+
+import sys
+# argv[1] == 1 -> ARM
+# argv[1] == 2 -> THUMB
+if __name__ == "__main__":
+    print disassemble(int(sys.argv[2], 16), int(sys.argv[1]), whole=True)

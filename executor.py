@@ -5,8 +5,9 @@ import argparse
 
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import P_FLAGS
+from disassembler.constants.arm import ARMRegister, ARMMode
 from emulator.memory import ConcreteMemoryMap, GetLastValidAddress, MemoryMapIterator
-from emulator.ARMEmulator import ARMEmulator
+from emulator.ARMEmulator import ARMEmulator, ARMProcessor
 
 __author__ = 'anon'
 
@@ -215,6 +216,9 @@ class LinuxOS(object):
     def __init__(self, cpu, memory):
         """
         Emulate the behaviour of the Linux OS.
+
+        The are platform specific bits should be implemented by inheriting
+        this class and overriding the proper abstract methods.
         """
         # Set up the basic elements of the virtual machine.
         self.cpu = cpu
@@ -354,6 +358,12 @@ class LinuxOS(object):
         raise NotImplementedError()
 
     def __vectors_user_mapping__(self):
+        raise NotImplementedError()
+
+    def __elf_plat_init__(self, load_addr):
+        raise NotImplementedError()
+
+    def __start_thread__(self, elf_entry, stack):
         raise NotImplementedError()
 
     def sys_mmap(self, addr, length, prot, flags, fd, offset):
@@ -699,9 +709,17 @@ class LinuxOS(object):
         log.info("Stack start: %.8x" % stack)
         log.info("Brk        : %.8x" % elf_brk)
 
-        log.info("Stack Dump:")
-        for addr, value in MemoryMapIterator(task.memory, start_addr=stack, end_addr=stack_top, step_size=4):
-            log.info("\t[%.8x] = %.8x" % (addr, task.memory.get_dword(addr)))
+        # log.info("Stack Dump:")
+        # for addr, value in MemoryMapIterator(task.memory, start_addr=stack, end_addr=stack_top, step_size=4):
+        #     log.info("\t[%.8x] = %.8x" % (addr, task.memory.get_dword(addr)))
+
+        # Setup special registers following per-architecture ABI.
+        self.__elf_plat_init__(reloc_func_desc)
+
+        self.__start_thread__(elf_entry, stack)
+
+        # Let the CPU consume instructions and execute.
+        self.cpu.run(i=10)
 
 
 class ARMLinuxOS(LinuxOS):
@@ -757,6 +775,54 @@ class ARMLinuxOS(LinuxOS):
             raise Exception("Could not map userspace ARM vectors.")
 
         return ret
+
+    def __elf_plat_init__(self, load_addr):
+        self.cpu.setRegister(ARMRegister.R0, 0)
+
+    def __start_thread__(self, elf_entry, stack):
+        """
+        #define start_thread(regs,pc,sp)					\
+        ({									                \
+            unsigned long *stack = (unsigned long *)sp;		\
+            set_fs(USER_DS);						        \
+            memset(regs->uregs, 0, sizeof(regs->uregs));	\
+            if (current->personality & ADDR_LIMIT_32BIT)	\
+                regs->ARM_cpsr = USR_MODE;				    \
+            else								            \
+                regs->ARM_cpsr = USR26_MODE;				\
+            if (elf_hwcap & HWCAP_THUMB && pc & 1)			\
+                regs->ARM_cpsr |= PSR_T_BIT;				\
+            regs->ARM_cpsr |= PSR_ENDSTATE;					\
+            regs->ARM_pc = pc & ~1;		/* pc */			\
+            regs->ARM_sp = sp;		/* sp */			    \
+            regs->ARM_r2 = stack[2];	/* r2 (envp) */		\
+            regs->ARM_r1 = stack[1];	/* r1 (argv) */		\
+            regs->ARM_r0 = stack[0];	/* r0 (argc) */		\
+            nommu_start_thread(regs);					    \
+        })
+        """
+        self.cpu.setCPSR(ARMProcessor.USR_MODE)
+
+        # Set the processor mode.
+        if elf_entry & 1:
+            self.cpu.setCurrentMode(ARMMode.THUMB)
+
+        else:
+            self.cpu.setCurrentMode(ARMMode.ARM)
+
+        # TODO: Set endianess
+
+        # Read the values from memory.
+        envp = self.get_current_task().memory.get_dword(stack + 4 * 2)
+        argv = self.get_current_task().memory.get_dword(stack + 4 * 1)
+        argc = self.get_current_task().memory.get_dword(stack + 4 * 0)
+
+        self.cpu.setRegister(ARMRegister.R2, envp)
+        self.cpu.setRegister(ARMRegister.R1, argv)
+        self.cpu.setRegister(ARMRegister.R0, argc)
+
+        self.cpu.setRegister(ARMRegister.PC, elf_entry & ~1)
+        self.cpu.setRegister(ARMRegister.SP, stack)
 
 
 def main():

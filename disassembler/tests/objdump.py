@@ -44,3 +44,9 @@ def disassemble(opcode, mode=0, whole=False):
         return " ".join(dis)
 
     return ""
+
+import sys
+# argv[1] == 1 -> ARM
+# argv[1] == 2 -> THUMB
+if __name__ == "__main__":
+    print disassemble(int(sys.argv[2], 16), int(sys.argv[1]))

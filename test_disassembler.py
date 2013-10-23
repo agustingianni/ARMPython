@@ -6,7 +6,7 @@ def main():
     # OURS:  ldrb r7, [r6, #120]
     # OBJD:  ldrb r7, [r6, #30]
     # LLVM:  ldrb r7, [r6, #30]
-    opcode = 0x00007fb7
+    opcode = 0x4ff0e92d
     
     inst = d.disassemble(opcode, mode=ARMMode.THUMB)
     print inst
