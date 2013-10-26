@@ -442,7 +442,7 @@ class LinuxOS(object):
             interpreter_name = elf_segment.data()[:-1]
             if not os.path.exists(interpreter_name):
                 interpreter_name = os.path.basename(interpreter_name)
-                interpreter_name = os.path.join(os.getcwd(), interpreter_name)
+                interpreter_name = os.path.join(os.getcwd(), "testfiles", interpreter_name)
 
                 if not os.path.exists(interpreter_name):
                     raise RuntimeError("Could not find interpreter %s" % interpreter_name)

@@ -16,6 +16,7 @@ from disassembler.arch import InvalidModeException, Register, BreakpointDebugEve
 import copy
 from socket import ntohl
 
+
 class ARMProcessor(object):
     USR26_MODE = 0x00000000
     FIQ26_MODE = 0x00000001
@@ -3392,7 +3393,7 @@ class ARMEmulator(object):
                     shift_n = 0
 
                     # papa
-                # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+                    # offset = Shift(R[m], shift_t, shift_n, APSR.C);
             offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
 
             # offset_addr = if add then (R[n] + offset) else (R[n] - offset);
@@ -3793,29 +3794,12 @@ class ARMEmulator(object):
             self.step()
             n += 1
 
-    def __is_thumb32__(self, opcode):
-        """
-        A6.1 Thumb instruction set encoding
-        If the value of bits[15:11] of the halfword being decoded is one of the following,
-        the halfword is the first halfword of a 32-bit instruction:
-
-            0b11101
-            0b11110
-            0b11111
-        """
-        return get_bits(opcode & 0x0000ffff, 15, 11) in [0b11101, 0b11110, 0b11111]
-
     def step(self):
         """
         Execute the instruction at PC.
         """
         # It does not matter what execution mode we are on, just get a dword and decode it.
         opcode = self.memory_map.get_dword(self.getActualPC())
-
-        # If the instruction is THUMB32 then we need to change the order.
-        if self.getCurrentMode() == ARMMode.THUMB:
-            if self.__is_thumb32__(opcode):
-                opcode = ((opcode & 0xffff0000) >> 16) | ((opcode & 0x0000ffff) << 16)
 
         # Get the instruction representation of the opcode.
         ins = self.disassembler.disassemble(opcode, self.getCurrentMode())
@@ -3842,7 +3826,8 @@ class ARMEmulator(object):
 
         # Some instructions modify PC so they do not need the PC to be incremented.
         if self.pc_needs_update():
-            if self.getCurrentMode() == ARMMode.ARM:
+            # If the instruction is ARM or THUMB32 the advance 4 bytes.
+            if self.getCurrentMode() == ARMMode.ARM or ins.thumb32:
                 self.setPC(self.getActualPC() + 4)
 
             else:

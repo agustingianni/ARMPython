@@ -1078,8 +1078,30 @@ class ARMDisassembler(object):
             ins = decode(opcode, encoding)
 
         return ins
-    
+
+    def __is_thumb32__(self, opcode):
+        """
+        A6.1 Thumb instruction set encoding
+        If the value of bits[15:11] of the halfword being decoded is one of the following,
+        the halfword is the first halfword of a 32-bit instruction:
+
+            0b11101
+            0b11110
+            0b11111
+        """
+        return get_bits(opcode & 0x0000ffff, 15, 11) in [0b11101, 0b11110, 0b11111]
+
     def decode_thumb(self, opcode):
+        is_thumb32 = False
+
+        # If the instruction is THUMB32 then we need to change the order.
+        if self.__is_thumb32__(opcode):
+            is_thumb32 = True
+            opcode = ((opcode & 0xffff0000) >> 16) | ((opcode & 0x0000ffff) << 16)
+
+        else:
+            opcode &= 0x0000ffff
+
         decoder_entry = None
         for e in self.thumb_table:
             if (opcode & e[0] == e[1]) and (self.arm_isa & e[2]):
@@ -1095,6 +1117,8 @@ class ARMDisassembler(object):
             decode = decoder_entry[6]
             
             ins = decode(opcode, encoding)
+
+        ins.thumb32 = is_thumb32
 
         return ins
      

@@ -7,6 +7,8 @@ class Instruction(object):
         self.name = name
         self.setflags = setflags
 
+        self.thumb32 = False
+
         if condition:
             self.condition = condition
         else:
