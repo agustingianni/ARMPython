@@ -390,7 +390,7 @@ class LinuxOS(object):
             addr = PAGE_ALIGN(tmp_addr)
 
         if fd:
-            log.info("sys_mmap: addr = %.8x | size = %.8x | prot = %s | flags = %s | fd = %.8x | offset = %.8x" % \
+            log.debug("sys_mmap: addr = %.8x | size = %.8x | prot = %s | flags = %s | fd = %.8x | offset = %.8x" % \
                      (addr, length, PROT_TO_DESC(prot), MAP_TO_DESC(flags), fd.fileno(), offset))
 
             # Read from the file.
@@ -407,7 +407,7 @@ class LinuxOS(object):
             task.memory.set_bytes(addr, bytes_)
 
         else:
-            log.info("sys_mmap: addr = %.8x | size = %.8x | prot = %s | flags = %s | fd = %.8x | offset = %.8x" % \
+            log.debug("sys_mmap: addr = %.8x | size = %.8x | prot = %s | flags = %s | fd = %.8x | offset = %.8x" % \
                      (addr, length, PROT_TO_DESC(prot), MAP_TO_DESC(flags), 0, offset))
 
             # Just set the memory range to 0x00
@@ -554,12 +554,12 @@ class LinuxOS(object):
         start_data += load_bias
         end_data += load_bias
 
-        log.info("ELF elf_bss    : %.8x" % elf_bss)
-        log.info("ELF elf_brk    : %.8x" % elf_brk)
-        log.info("ELF start_code : %.8x" % start_code)
-        log.info("ELF end_code   : %.8x" % end_code)
-        log.info("ELF start_data : %.8x" % start_data)
-        log.info("ELF end_data   : %.8x" % end_data)
+        log.debug("ELF elf_bss    : %.8x" % elf_bss)
+        log.debug("ELF elf_brk    : %.8x" % elf_brk)
+        log.debug("ELF start_code : %.8x" % start_code)
+        log.debug("ELF end_code   : %.8x" % end_code)
+        log.debug("ELF start_data : %.8x" % start_data)
+        log.debug("ELF end_data   : %.8x" % end_data)
 
         self.__set_brk__(elf_bss, elf_brk)
 
@@ -691,9 +691,6 @@ class LinuxOS(object):
         stack = self.__stack_push__(stack, 0x0000b0d7)
         stack = self.__stack_push__(stack, AT_HWCAP)
 
-        # Debug cookie to mark the start of the aux vector.
-        # stack = self.__stack_push__(stack, 0x44444444)
-
         # NULL envp
         stack = self.__stack_push__(stack, 0)
 
@@ -711,21 +708,19 @@ class LinuxOS(object):
         # Set the value of 'int argc'
         stack = self.__stack_push__(stack, len(argvlst))
 
-        log.info("Entry point: %.8x" % elf_entry)
-        log.info("Stack start: %.8x" % stack)
-        log.info("Brk        : %.8x" % elf_brk)
+        log.debug("Entry point: %.8x" % elf_entry)
+        log.debug("Stack start: %.8x" % stack)
+        log.debug("Brk        : %.8x" % elf_brk)
 
-        # log.info("Stack Dump:")
+        # log.debug("Stack Dump:")
         # for addr, value in MemoryMapIterator(task.memory, start_addr=stack, end_addr=stack_top, step_size=4):
-        #     log.info("\t[%.8x] = %.8x" % (addr, task.memory.get_dword(addr)))
-        # 
-        # sys.exit()
+        #     log.debug("\t[%.8x] = %.8x" % (addr, task.memory.get_dword(addr)))
 
         # Setup special registers following per-architecture ABI.
         self.__elf_plat_init__(reloc_func_desc)
 
         self.__start_thread__(elf_entry, stack)
-
+        
         # Let the CPU consume instructions and execute.
         self.cpu.run()
 
@@ -776,7 +771,7 @@ class ARMLinuxOS(LinuxOS):
         start = 0xffff0000
         end = 0xffff0000 + PAGE_SIZE
 
-        log.info("Mapping ARM user space vector mappings [%.8x-%.8x]" % (start, end))
+        log.debug("Mapping ARM user space vector mappings [%.8x-%.8x]" % (start, end))
 
         ret = self.sys_mmap(start, PAGE_SIZE, PROT_READ | PROT_EXEC, MAP_FIXED | MAP_PRIVATE, 0, 0)
         if ret == -1:
@@ -835,8 +830,9 @@ class ARMLinuxOS(LinuxOS):
 
 def main():
     parser = argparse.ArgumentParser(description='Userland binary emulator')
-    parser.add_argument('program', type=str, metavar='PROGRAM', help='Program to analize')
-    parser.add_argument('-d', '--debug', action='store_true', help='print debugging information')
+    parser.add_argument('program', type=str, metavar='PROGRAM', help='Program to emulate.')
+    parser.add_argument('-d', '--debug', action='store_true', help='Print debugging information.')
+    parser.add_argument('-r', '--root', type=str, help='Directory where all the needed libraries are placed.')
 
     args = parser.parse_args()
 
