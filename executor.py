@@ -8,6 +8,7 @@ from elftools.elf.constants import P_FLAGS
 from disassembler.arch import ARMRegister, ARMMode
 from emulator.memory import ConcreteMemoryMap, GetLastValidAddress
 from emulator.ARMEmulator import ARMEmulator, ARMProcessor
+from disassembler.utils.bits import Align
 
 __author__ = 'anon'
 
@@ -741,7 +742,7 @@ class ARMLinuxOS(LinuxOS):
         """
         Align the stack to 8 bytes.
         """
-        return p
+        return Align(p, 8)
 
     def __stack_push__(self, sp, value):
         """
