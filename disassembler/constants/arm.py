@@ -1,16 +1,19 @@
-from disassembler.arch import Register
-
 # ARMEncoding
 eEncodingA1 = 0
 eEncodingA2 = 1
 eEncodingA3 = 2
 eEncodingA4 = 3
 eEncodingA5 = 4
+
+ARMEncodings = [eEncodingA1, eEncodingA2, eEncodingA3, eEncodingA4, eEncodingA5]
+
 eEncodingT1 = 5
 eEncodingT2 = 6
 eEncodingT3 = 7
 eEncodingT4 = 8
 eEncodingT5 = 9
+
+THUMBEncodings = [eEncodingT1, eEncodingT2, eEncodingT3, eEncodingT4, eEncodingT5]
 
 ARMv4    = 1 << 0
 ARMv4T   = 1 << 1
@@ -61,39 +64,6 @@ SRType_ROR = 3
 SRType_RRX = 4
 SRType_Invalid = -1
 
-class ARMFLag:
-    N = 0
-    Z = 1
-    C = 2
-    V = 3
-    Q = 4
-
-class ARMMode:
-    THUMB   = 0
-    ARM     = 1
-    JAZELLE = 2
-    THUMBEE = 3
-
-class ARMRegister:
-    """
-    ARM core registers
-    """
-    R0 = Register(0)
-    R1 = Register(1)
-    R2 = Register(2)
-    R3 = Register(3)
-    R4 = Register(4)
-    R5 = Register(5)
-    R6 = Register(6)
-    R7 = Register(7)
-    R8 = Register(8)
-    R9 = Register(9)
-    R10 = SL = Register(10)
-    R11 = FP = Register(11)
-    R12 = IP = Register(12)
-    R13 = SP = Register(13)
-    R14 = LR = Register(14)
-    R15 = PC = Register(15)
 
 class ARMInstruction:
     adc_immediate = 0x0000
@@ -244,3 +214,9 @@ class ARMInstruction:
     wfi = 0x0091
     yield_ = 0x0092
     unknown = 0x0093
+    ldrh_immediate_thumb = 0x0094
+    ldrh_immediate_arm = 0x0095
+    ldrh_literal_thumb = 0x0096
+    ldrh_literal_arm = 0x0097
+    ldrh_register_thumb = 0x0098
+    ldrh_register_arm = 0x0099

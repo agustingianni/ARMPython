@@ -5,8 +5,8 @@ import argparse
 
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import P_FLAGS
-from disassembler.constants.arm import ARMRegister, ARMMode
-from emulator.memory import ConcreteMemoryMap, GetLastValidAddress, MemoryMapIterator
+from disassembler.arch import ARMRegister, ARMMode
+from emulator.memory import ConcreteMemoryMap, GetLastValidAddress
 from emulator.ARMEmulator import ARMEmulator, ARMProcessor
 
 __author__ = 'anon'
@@ -30,28 +30,28 @@ MAP_FIXED = 0x010
 MAP_EXECUTABLE = 0x4000
 
 # Symbolic values for the entries in the auxiliary table
-AT_NULL = 0    # end of vector
-AT_IGNORE = 1    # entry should be ignored
-AT_EXECFD = 2    # file descriptor of program
-AT_PHDR = 3    # program headers for program
-AT_PHENT = 4    # size of program header entry
-AT_PHNUM = 5    # number of program headers
-AT_PAGESZ = 6    # system page size
-AT_BASE = 7    # base address of interpreter
-AT_FLAGS = 8    # flags
-AT_ENTRY = 9    # entry point of program
-AT_NOTELF = 10    # program is not ELF
-AT_UID = 11    # real uid
-AT_EUID = 12    # effective uid
-AT_GID = 13    # real gid
-AT_EGID = 14    # effective gid
+AT_NULL = 0  # end of vector
+AT_IGNORE = 1  # entry should be ignored
+AT_EXECFD = 2  # file descriptor of program
+AT_PHDR = 3  # program headers for program
+AT_PHENT = 4  # size of program header entry
+AT_PHNUM = 5  # number of program headers
+AT_PAGESZ = 6  # system page size
+AT_BASE = 7  # base address of interpreter
+AT_FLAGS = 8  # flags
+AT_ENTRY = 9  # entry point of program
+AT_NOTELF = 10  # program is not ELF
+AT_UID = 11  # real uid
+AT_EUID = 12  # effective uid
+AT_GID = 13  # real gid
+AT_EGID = 14  # effective gid
 AT_PLATFORM = 15  # string identifying CPU for optimizations
-AT_HWCAP = 16    # arch dependent hints at CPU capabilities
-AT_CLKTCK = 17    # frequency at which times() increments
-AT_SECURE = 23   # secure mode boolean
-AT_BASE_PLATFORM = 24 # string identifying real platform, may differ from AT_PLATFORM.
-AT_RANDOM = 25    # address of 16 random bytes
-AT_EXECFN = 31    # filename of program
+AT_HWCAP = 16  # arch dependent hints at CPU capabilities
+AT_CLKTCK = 17  # frequency at which times() increments
+AT_SECURE = 23  # secure mode boolean
+AT_BASE_PLATFORM = 24  # string identifying real platform, may differ from AT_PLATFORM.
+AT_RANDOM = 25  # address of 16 random bytes
+AT_EXECFN = 31  # filename of program
 
 
 def MAP_TO_DESC(x):
@@ -156,7 +156,7 @@ class File(object):
         return os.fstat(self.fileno())
 
     def ioctl(self, request, argp):
-        #argp ignored..
+        # argp ignored..
         import fcntl
 
         return fcntl.fcntl(self, request)
@@ -424,6 +424,8 @@ class LinuxOS(object):
 
         Implemented following binfmt_elf.c from the linux kernel.
         """
+        interpreter = None
+
         log.info("Executing binary %s" % binary)
         main_binary = binary
 
@@ -594,6 +596,7 @@ class LinuxOS(object):
         # Make room for the 'end marker'
         stack = self.__stack_push__(stack, 0)
 
+        # Save a pointer to each of the stack addresses of the env and arg variables.
         argvlst = []
         envplst = []
 
@@ -609,84 +612,87 @@ class LinuxOS(object):
             task.memory.set_bytes(arg_address, arg_var + '\x00')
             argvlst.append(arg_address)
 
-        # Align the stack.
+        # Align the stack since the strings may not be aligned.
         stack = ((stack - 4) / 4) * 4
 
         # Two null's. I have no idea why.
-        stack = self.__stack_push__(stack, 0)
-        stack = self.__stack_push__(stack, 0)
-
-        # Hardware capabilities found on QEMU for ARM.
-        stack = self.__stack_push__(stack, AT_HWCAP)
-        stack = self.__stack_push__(stack, 0x0000b0d7)
-
-        # System page size.
-        stack = self.__stack_push__(stack, AT_PAGESZ)
-        stack = self.__stack_push__(stack, 0x00001000)
-
-        # Frequency at which times() increments.
-        stack = self.__stack_push__(stack, AT_CLKTCK)
-        stack = self.__stack_push__(stack, 0x00000064)
-
-        # Program headers for program.
-        stack = self.__stack_push__(stack, AT_PHDR)
-        stack = self.__stack_push__(stack, load_addr + elf.header.e_phoff)
-
-        # Size of program header entry.
-        stack = self.__stack_push__(stack, AT_PHENT)
-        stack = self.__stack_push__(stack, elf.header.e_phentsize)
-
-        # Number of program headers.
-        stack = self.__stack_push__(stack, AT_PHNUM)
-        stack = self.__stack_push__(stack, elf.header.e_phnum)
-
-        # Base address of interpreter.
-        stack = self.__stack_push__(stack, AT_BASE)
-        stack = self.__stack_push__(stack, interp_load_addr)
-
-        # Entry point of program.
-        stack = self.__stack_push__(stack, AT_ENTRY)
-        stack = self.__stack_push__(stack, elf.header.e_entry)
-
-        # Flags.
-        stack = self.__stack_push__(stack, AT_FLAGS)
-        stack = self.__stack_push__(stack, 0x00000000)
-
-        # Real uid.
-        stack = self.__stack_push__(stack, AT_UID)
-        stack = self.__stack_push__(stack, 1000)
-
-        # Effective uid.
-        stack = self.__stack_push__(stack, AT_EUID)
-        stack = self.__stack_push__(stack, 1000)
-
-        # Real gid.
-        stack = self.__stack_push__(stack, AT_GID)
-        stack = self.__stack_push__(stack, 1000)
-
-        # Effective gid.
-        stack = self.__stack_push__(stack, AT_EGID)
-        stack = self.__stack_push__(stack, 1000)
-
-        # Secure mode boolean.
-        stack = self.__stack_push__(stack, AT_SECURE)
-        stack = self.__stack_push__(stack, 0x00000000)
-
-        # Address of 16 random bytes.
-        stack = self.__stack_push__(stack, AT_RANDOM)
-        stack = self.__stack_push__(stack, 0x00000000)
-
-        # Filename of program.
-        stack = self.__stack_push__(stack, AT_EXECFN)
-        stack = self.__stack_push__(stack, 0x00000000)
-
-        # String identifying CPU for optimizations.
-        stack = self.__stack_push__(stack, AT_PLATFORM)
-        stack = self.__stack_push__(stack, 0x00000000)
+        # stack = self.__stack_push__(stack, 0)
+        # stack = self.__stack_push__(stack, 0)
 
         # Mark the end of the vector.
-        stack = self.__stack_push__(stack, AT_NULL)
         stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, AT_NULL)
+
+        # String identifying CPU for optimizations.
+        stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, AT_PLATFORM)  # f
+
+        # Filename of program.
+        stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, AT_EXECFN)  # 1f
+
+        # Address of 16 random bytes.
+        stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, AT_RANDOM)  # 19
+
+        # Secure mode boolean.
+        stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, AT_SECURE)  # 17
+
+        # Effective gid.
+        stack = self.__stack_push__(stack, 1000)
+        stack = self.__stack_push__(stack, AT_EGID)  # e
+
+        # Real gid.
+        stack = self.__stack_push__(stack, 1000)
+        stack = self.__stack_push__(stack, AT_GID)  # d
+
+        # Effective uid.
+        stack = self.__stack_push__(stack, 1000)
+        stack = self.__stack_push__(stack, AT_EUID)  # c
+
+        # Real uid.
+        stack = self.__stack_push__(stack, 1000)
+        stack = self.__stack_push__(stack, AT_UID)  # b
+
+        # Entry point of program.
+        stack = self.__stack_push__(stack, elf.header.e_entry)
+        stack = self.__stack_push__(stack, AT_ENTRY)
+
+        # Flags.
+        stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, AT_FLAGS)
+
+        # Base address of interpreter.
+        stack = self.__stack_push__(stack, interp_load_addr)
+        stack = self.__stack_push__(stack, AT_BASE)
+
+        # Number of program headers.
+        stack = self.__stack_push__(stack, elf.header.e_phnum)
+        stack = self.__stack_push__(stack, AT_PHNUM)
+
+        # Size of program header entry.
+        stack = self.__stack_push__(stack, elf.header.e_phentsize)
+        stack = self.__stack_push__(stack, AT_PHENT)
+
+        # Program headers for program.
+        stack = self.__stack_push__(stack, load_addr + elf.header.e_phoff)
+        stack = self.__stack_push__(stack, AT_PHDR)
+        
+        # Frequency at which times() increments.
+        stack = self.__stack_push__(stack, 0x00000064)
+        stack = self.__stack_push__(stack, AT_CLKTCK)
+
+        # System page size.
+        stack = self.__stack_push__(stack, 0x00001000)
+        stack = self.__stack_push__(stack, AT_PAGESZ)
+
+        # Hardware capabilities found on QEMU for ARM.
+        stack = self.__stack_push__(stack, 0x0000b0d7)
+        stack = self.__stack_push__(stack, AT_HWCAP)
+
+        # Debug cookie to mark the start of the aux vector.
+        # stack = self.__stack_push__(stack, 0x44444444)
 
         # NULL envp
         stack = self.__stack_push__(stack, 0)
@@ -712,6 +718,8 @@ class LinuxOS(object):
         # log.info("Stack Dump:")
         # for addr, value in MemoryMapIterator(task.memory, start_addr=stack, end_addr=stack_top, step_size=4):
         #     log.info("\t[%.8x] = %.8x" % (addr, task.memory.get_dword(addr)))
+        # 
+        # sys.exit()
 
         # Setup special registers following per-architecture ABI.
         self.__elf_plat_init__(reloc_func_desc)
@@ -719,7 +727,7 @@ class LinuxOS(object):
         self.__start_thread__(elf_entry, stack)
 
         # Let the CPU consume instructions and execute.
-        self.cpu.run(i=10)
+        self.cpu.run()
 
 
 class ARMLinuxOS(LinuxOS):
@@ -845,8 +853,11 @@ def main():
 
     linux = ARMLinuxOS()
 
-    argv = ["pname", "-arg1", "value1"]
-    envp = ["env1=value1"]
+    argv = ["pname"]
+    envp = []
+    for i in xrange(0, 21):
+        envp.append("env%d=value%d" % (i, i))
+        
     linux.execute(args.program, argv, envp)
 
 

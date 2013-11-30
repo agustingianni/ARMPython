@@ -4,7 +4,6 @@ Created on Jun 12, 2013
 @author: anon
 '''
 
-
 def GetLastValidAddress(memory_map):
     keys = memory_map.memory.keys()
     if not len(keys):

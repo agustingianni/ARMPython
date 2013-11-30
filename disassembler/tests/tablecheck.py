@@ -18,9 +18,6 @@ import objdump
 import llvm
 
 def get_masked_random(mask, value, mode=1):
-    """
-    We are avoiding creating instructions with cond == 0b1111
-    """
     r = random.getrandbits(32)
     
     for i in xrange(0, 32):
@@ -29,12 +26,8 @@ def get_masked_random(mask, value, mode=1):
                 r |= value & (1 << i)
             else:
                 r &= ~(1 << i)
-
-    # if thumb return half-dword
-    # if not mode:
-    #    return r & 0xffff
     
-    return r & 0xefffffff
+    return r
 
 # mask, value = (0xfffffe00, 0x00001800)
 # for i in xrange(0, 100):
@@ -986,7 +979,7 @@ def tets_emulator(mask, value, mode, limit=1000):
     d = ARMDisassembler()
     
     for i in xrange(limit):
-        opcode = get_masked_random(mask, value, mode)
+        opcode = get_masked_random(mask, value, mode) & 0xefffffff
 
         if opcode in seen:
             continue
@@ -1030,17 +1023,27 @@ def test(mask, value, mode, limit=10000):
     invalid_encoding = 0
     undefined = 0
     
+    # Inacurate hack.
+    is_thumb32 = value > 0xffff and mode == ARMMode.THUMB
+        
     for i in xrange(limit):
         opcode = get_masked_random(mask, value, mode)
+        if not is_thumb32:
+            opcode &= 0xefffffff
         
         if opcode in seen:
             continue
+    
+        if (opcode & mask) != value:
+            print "%.8x != %.8x, opcode = %.8x" % (opcode & mask, value, opcode)
+            continue
         
         seen.add(opcode)
-        
-        if (opcode & mask) != value:
-            continue
 
+        # When testing THUMB32 we need to do this. Sucks.
+        if is_thumb32:
+            opcode = ((opcode & 0xffff0000) >> 16) | ((opcode & 0x0000ffff) << 16)
+        
         try:
             if mode == ARMMode.THUMB:
                 llvm_out = llvm.disassemble(opcode, mode=ARMMode.THUMB).lower()
@@ -1171,6 +1174,9 @@ def test(mask, value, mode, limit=10000):
             print "# LLVM: ", llvm_out
             print "opcode = 0x%.8x" % opcode 
             print
+            
+        except RuntimeError, e:
+            continue
         
     print "# Tested %d instructions" % limit
     print "#   OK             : %d" % ok
@@ -1183,7 +1189,7 @@ def test(mask, value, mode, limit=10000):
             
     return 0
 
-from disassembler.constants.arm import ARMMode
+from disassembler.arch import ARMMode
 
 def main():
 #     for i in xrange(0, len(arm_opcodes)):
@@ -1207,11 +1213,27 @@ def main():
 #    mask, value = (0x0fe00000, 0x02a00000)
 #     test(mask, value, ARMMode.ARM, limit=100)
 
+    arm_opcodes = []
+    #arm_opcodes.append((0xfffff800, 0x00008800))        
+    #arm_opcodes.append((0xfff00000, 0xf8b00000))
+    #arm_opcodes.append((0xfff00800, 0xf8300800))
+    arm_opcodes.append((0xfff00fc0, 0xf8300000))
+    
+    # LDRH (register, Thumb) ARMv4T, ARMv5T*, ARMv6*, ARMv7
+    # (0xfffffe00, 0x00005a00, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_ldrh_register_thumb),
+    # LDRH (register, Thumb) ARMv6T2, ARMv7
+    # (0xfff00fc0, 0xf8300000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrh_register_thumb),
     for i in xrange(0, len(arm_opcodes)):
         print "=" * 80
         print "INDEX: %d" % i
         mask, value = arm_opcodes[i]    
-        tets_emulator(mask, value, ARMMode.ARM, limit=1000)
+        test(mask, value, ARMMode.THUMB, limit=1000)
+    
+def test_ins(opcode, mode):
+    d = ARMDisassembler()
+    inst = d.disassemble(opcode, mode=mode)
+    print inst
     
 if __name__ == "__main__":
     main()
+    #test_ins(0x0f33f83f, ARMMode.THUMB)

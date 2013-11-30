@@ -1,3 +1,4 @@
+from disassembler.constants.arm import ARMEncodings
 from disassembler.utils.bits import get_bit
 
 class Instruction(object):
@@ -20,7 +21,13 @@ class Instruction(object):
 
         # ???
         self.effects = []
-        
+
+    def mode(self):
+        if self.encoding in ARMEncodings:
+            return ARMMode.ARM
+
+        return ARMMode.THUMB
+
     def __str__(self):
         if self.setflags:
             sf = "S"
@@ -192,12 +199,12 @@ class Memory(object):
         ret = ""
         if self.op1:
             if self.op2:
-                if self.op3:
+                if self.op3 and len(str(self.op3)):
                     ret = "[%s, %s, %s]" % (self.op1, self.op2, self.op3)
                 else:
                     ret = "[%s, %s]" % (self.op1, self.op2)
             else:
-                if self.op3:
+                if self.op3 and len(str(self.op3)):
                     ret = "[%s, %s]" % (self.op1, self.op3)
                 else:
                     ret = "[%s]" % (self.op1)
@@ -310,3 +317,37 @@ class Condition(object):
 
     def __str__(self):
         return self.name
+
+class ARMFLag:
+    N = 0
+    Z = 1
+    C = 2
+    V = 3
+    Q = 4
+
+class ARMMode:
+    THUMB   = 0
+    ARM     = 1
+    JAZELLE = 2
+    THUMBEE = 3
+
+class ARMRegister:
+    """
+    ARM core registers
+    """
+    R0 = Register(0)
+    R1 = Register(1)
+    R2 = Register(2)
+    R3 = Register(3)
+    R4 = Register(4)
+    R5 = Register(5)
+    R6 = Register(6)
+    R7 = Register(7)
+    R8 = Register(8)
+    R9 = Register(9)
+    R10 = SL = Register(10)
+    R11 = FP = Register(11)
+    R12 = IP = Register(12)
+    R13 = SP = Register(13)
+    R14 = LR = Register(14)
+    R15 = PC = Register(15)

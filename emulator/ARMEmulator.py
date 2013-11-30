@@ -13,9 +13,9 @@ from disassembler.arm import ARMDisassembler
 from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt
 from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
 from disassembler.arch import InvalidModeException, Register, BreakpointDebugEvent, HintDebug
-import copy
-from socket import ntohl
+from disassembler.arch import ARMMode, ARMFLag, ARMRegister
 
+import copy
 
 class ARMProcessor(object):
     USR26_MODE = 0x00000000
@@ -248,14 +248,22 @@ def Shift(value, type_, amount, carry_in):
 
 class ITSession(object):
     def __init__(self):
+        """
+        Keep track of the IT Block progression.
+        """
         self.ITCounter = 0
         self.ITState = 0
 
     def CountITSize(self, ITMask):
         """
         Number of conditional instructions.
+
+        Valid return values are {1, 2, 3, 4}, with 0 signifying an error condition.
         """
         TZ = CountTrailingZeros(ITMask)
+        if TZ > 3:
+            return 0
+
         return 4 - TZ
 
     def InitIT(self, ITState):
@@ -263,7 +271,21 @@ class ITSession(object):
         Init ITState.
         """
         self.ITCounter = self.CountITSize(ITState & 0b1111)
+
+        if self.ITCounter == 0:
+            return False
+
+        FirstCond = get_bits(ITState, 7, 4)
+
+        if FirstCond == 0x0f:
+            return False
+
+        if FirstCond == 0x0e and self.ITCounter != 1:
+            return False
+
         self.ITState = ITState
+
+        return True
 
     def ITAdvance(self):
         """
@@ -273,7 +295,10 @@ class ITSession(object):
 
         if self.ITCounter == 0:
             self.ITState = 0
+
         else:
+            # unsigned short NewITState4_0 = Bits32(ITState, 4, 0) << 1;
+            # SetBits32(ITState, 4, 0, NewITState4_0);
             NewITState4_0 = (self.ITState & 0b11111) << 1
             self.ITState = (self.ITState & 0b11100000) | NewITState4_0
 
@@ -289,6 +314,14 @@ class ITSession(object):
         """
         return self.ITCounter != 0
 
+    def GetCond(self):
+        """
+        Get condition bits for the current thumb instruction.
+        """
+        if self.InITBlock():
+            return get_bits(self.ITState, 7, 4)
+
+        return 0b1110
 
 class ExecutionContext(object):
     """
@@ -323,6 +356,7 @@ class ARMEmulator(object):
         self.__init_register_map__()
         self.disassembler = ARMDisassembler()
 
+        # Initialize the IT block tracker.
         self.it_session = ITSession()
 
         self.instructions = {}
@@ -389,6 +423,12 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.lsl_register] = self.emulate_lsl_register
         self.instructions[ARMInstruction.lsr_immediate] = self.emulate_lsr_immediate
         self.instructions[ARMInstruction.lsr_register] = self.emulate_lsr_register
+        self.instructions[ARMInstruction.ldrh_immediate_thumb] = self.emulate_ldrh_immediate_thumb
+        self.instructions[ARMInstruction.ldrh_immediate_arm] = self.emulate_ldrh_immediate_arm
+        self.instructions[ARMInstruction.ldrh_literal_thumb] = self.emulate_ldrh_literal_thumb
+        self.instructions[ARMInstruction.ldrh_literal_arm] = self.emulate_ldrh_literal_arm
+        self.instructions[ARMInstruction.ldrh_register_thumb] = self.emulate_ldrh_register_thumb
+        self.instructions[ARMInstruction.ldrh_register_arm] = self.emulate_ldrh_register_arm        
         self.instructions[ARMInstruction.mcr] = self.emulate_mcr
         self.instructions[ARMInstruction.mcrr] = self.emulate_mcrr
         self.instructions[ARMInstruction.mla] = self.emulate_mla
@@ -512,9 +552,6 @@ class ARMEmulator(object):
         # TODO: Implement
         pass
 
-    def CurrentCondition(self, opcode):
-        pass
-
     def UnalignedSupport(self):
         """
         This function returns TRUE if the processor currently provides support for unaligned memory accesses, or FALSE
@@ -530,21 +567,38 @@ class ARMEmulator(object):
             return False
 
     def CurrentModeIsUserOrSystem(self):
+        """
+        TODO:
+        """
         pass
+
+    def CurrentCond(self, ins):
+        """
+        This function returns a 4-bit condition specifier as follows:
+
+            - For ARM instructions, it returns bits[31:28] of the instruction
+            - For the T1 and T3 encodings of the Branch instruction (see B on page A8-332),
+              it returns the 4-bit cond field of the encoding.
+            - For all other Thumb and ThumbEE instructions:
+                - if ITSTATE.IT<3:0> != '0000' it returns ITSTATE.IT<7:4>
+                - if ITSTATE.IT<7:0> == '00000000' it returns '1110'
+                - otherwise, execution of the instruction is UNPREDICTABLE.
+        """
+        if ins.mode() == ARMMode.ARM:
+            return get_bits(ins.opcode, 31, 28)
+
+        elif ins.id == ARMInstruction.b and ins.encoding in [eEncodingT1, eEncodingT3]:
+            return ins.condition.cond
+
+        return self.it_session.GetCond()
 
     def ConditionPassed(self, ins):
         """
+        The ConditionPassed() function uses this condition specifier and the APSR condition flags to determine whether
+        the instruction must be executed.
         """
-        # For ARM instructions, it returns bits[31:28] of the instruction.
-        cond = get_bits(ins.opcode, 31, 28)
+        cond = self.CurrentCond(ins)
 
-        # TODO:
-        #
-        # - For the T1 and T3 encodings of the Branch instruction (see B on page A8-332), it returns the 4-bit cond field of the encoding.
-        # - For all other Thumb and ThumbEE instructions:
-        #   if ITSTATE.IT<3:0> != '0000' it returns ITSTATE.IT<7:4>
-        #   if ITSTATE.IT<7:0> == '00000000' it returns '1110'
-        #   otherwise, execution of the instruction is UNPREDICTABLE.
         cond_3_1 = get_bits(cond, 3, 1)
 
         if cond_3_1 == 0b000:
@@ -1970,15 +2024,11 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
-            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm12), wback)]
-            # operands = [Register(Rt), Memory(Register(Rn), None, None            , wback), Immediate(imm12)]
-
             if len(ins.operands) == 2:
                 # Deal with the indexed form of the opcode
                 index = True
                 Rt, mem = ins.operands
-                Rn, imm32 = mem.op1, mem.op3
+                Rn, imm32 = mem.op1, mem.op2
                 wback = mem.wback
 
             else:
@@ -1988,7 +2038,7 @@ class ARMEmulator(object):
                 Rn = mem.op1
                 wback = mem.wback
 
-                # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
             offset_addr = self.getRegister(Rn) + imm32.n
 
             # address = if index then offset_addr else R[n];
@@ -1997,7 +2047,7 @@ class ARMEmulator(object):
             else:
                 address = self.getRegister(Rn)
 
-            # data = MemU[address,4];
+            # data = MemU[address,4];          
             data = self.memory_map.get_dword(address)
 
             # if wback then R[n] = offset_addr;
@@ -2017,6 +2067,252 @@ class ARMEmulator(object):
                 # TODO: ???
                 # else R[t] = bits(32) UNKNOWN; // Can only apply before ARMv7
                 self.setRegister(Rt, 0)
+
+
+    def emulate_ldrh_immediate_thumb(self, ins):
+        """
+        Done
+        """
+        if self.ConditionPassed(ins):
+            if ins.encoding in [eEncodingT1, eEncodingT2]:
+                index = True
+                wback = False
+                                
+                # operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op2
+                                
+            else:
+                if len(ins.operands) == 2:
+                    # LDRH{<c>}{<q>} <Rt>, [<Rn> {, #+/-<imm>}]    Offset: index==TRUE, wback==FALSE
+                    # LDRH{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!      Pre-indexed: index==TRUE, wback==TRUE
+                    # operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+                    # operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32), wback=True)]
+                    Rt, mem = ins.operands
+                    Rn, imm32 = mem.op1, mem.op2
+                    wback = mem.wback
+                    index = True
+                    pass
+
+                else:
+                    # LDRH{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>       Post-indexed: index==FALSE, wback==TRUE
+                    # operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+                    Rt, mem, imm32 = ins.operands
+                    wback = True
+                    index = False
+            
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            
+            else:
+                address = self.getRegister(Rn)
+            
+            # data = MemU[address,2];
+            data = self.memory_map.get_word(address)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+            
+            # if UnalignedSupport() || address<0> == '0' then
+            #     R[t] = ZeroExtend(data, 32);
+            if self.UnalignedSupport() or get_bit(address, 0) == 0:
+                self.setRegister(Rt, data)
+                
+            else:
+                raise RuntimeError("R[t] = bits(32) UNKNOWN;")
+
+    def emulate_ldrh_immediate_arm(self, ins):
+        """
+        Done
+        """
+        if self.ConditionPassed(ins):
+            # LDRH{<c>}{<q>} <Rt>, [<Rn> {, #+/-<imm>}] Offset: index==TRUE, wback==FALSE
+            # LDRH{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!   Pre-indexed: index==TRUE, wback==TRUE
+            # LDRH{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>    Post-indexed: index==FALSE, wback==TRUE
+            #            
+            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm32), wback)]
+            # operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm32), wback)]
+            # operands = [Register(Rt), Memory(Register(Rn), None, None, wback), Immediate(imm32)]
+            if len(ins.operands) == 3:
+                Rt, mem, imm32 = ins.operands
+                Rn = mem.op1
+                wback = True
+                index = False
+            
+            else:
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op3
+                wback = mem.wback
+                index = True
+                
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            
+            else:
+                address = self.getRegister(Rn)
+            
+            # data = MemU[address,2];
+            data = self.memory_map.get_word(address)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+            
+            # if UnalignedSupport() || address<0> == '0' then
+            #     R[t] = ZeroExtend(data, 32);
+            if self.UnalignedSupport() or get_bit(address, 0) == 0:
+                self.setRegister(Rt, data)
+                
+            else:
+                raise RuntimeError("R[t] = bits(32) UNKNOWN;")
+            
+    def emulate_ldrh_literal(self, ins):
+        """
+        Done
+        """
+        if self.ConditionPassed(ins):
+            # operands = [Register(Rt), Immediate(imm32)]
+            Rt, imm32 = ins.operands
+            
+            # base = Align(PC,4);
+            base = Align(self.getPC(), 4)
+            
+            # address = if add then (base + imm32) else (base - imm32);
+            address = base + imm32.n
+            
+            # data = MemU[address,2];
+            data = self.memory_map.get_word(address)
+            
+            # if UnalignedSupport() || address<0> == '0' then
+            #     R[t] = ZeroExtend(data, 32);
+            if self.UnalignedSupport() or get_bit(address, 0) == 0:
+                self.setRegister(Rt, data)
+                
+            else:
+                raise RuntimeError("R[t] = bits(32) UNKNOWN;")
+            
+    def emulate_ldrh_literal_arm(self, ins):
+        """
+        Done
+        """
+        return self.emulate_ldrh_literal(ins)
+
+    def emulate_ldrh_literal_thumb(self, ins):
+        """
+        Done
+        """
+        return self.emulate_ldrh_literal(ins)
+    
+    def emulate_ldrh_register_arm(self, ins):
+        """
+        Done
+        """
+        if self.ConditionPassed(ins):
+                # LDRH{<c>}{<q>} <Rt>, [<Rn>, <Rm>{, LSL #<imm>}]
+                # operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, not add))]
+                
+                # LDRH{<c>}{<q>} <Rt>, [<Rn>, +/-<Rm>]!
+                # operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, not add), wback=wback)]
+            
+                # LDRH{<c>}{<q>} <Rt>, [<Rn>], +/-<Rm>
+                # operands = [Register(Rt), Memory(Register(Rn)), Register(Rm, False, not add)]
+            
+            if len(ins.operands) == 3:
+                Rt, mem, Rm = ins.operands
+                Rn = mem.op1
+                add = not Rm.negative
+                wback = True
+                index = False
+                shift_t, shift_n = SRType_LSL, 0
+
+            else:
+                Rt, mem = ins.operands
+                Rn, Rm = mem.op1, mem.op2
+                add = not Rm.negative
+                wback = mem.wback
+                shift_t, shift_n = SRType_LSL, 0
+
+            # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+            offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+
+            # offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+            if add:
+                offset_addr = self.getRegister(Rn) + offset
+            
+            else:
+                offset_addr = self.getRegister(Rn) - offset
+
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+            
+            # data = MemU[address,2];
+            data = self.memory_map.get_word(address)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+            
+            # if UnalignedSupport() || address<0> == '0' then
+            #     R[t] = ZeroExtend(data, 32);
+            if self.UnalignedSupport() or get_bit(address, 0) == 0:
+                self.setRegister(Rt, data)
+                
+            else:
+                raise RuntimeError("R[t] = bits(32) UNKNOWN;")
+
+    def emulate_ldrh_register_thumb(self, ins):
+        """
+        Done
+        """
+        if self.ConditionPassed(ins):
+            index = True
+            wback = False
+            Rt, mem = ins.operands
+            Rn, Rm = mem.op1, mem.op2
+            
+            if mem.op3:
+                shift_t, shift_n = mem.op3.type_, mem.op3.value.n
+            else:
+                shift_t, shift_n = SRType_LSL, 0
+
+            # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+            offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
+
+            # offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+            offset_addr = self.getRegister(Rn) + offset
+
+            # address = if index then offset_addr else R[n];
+            if index:
+                address = offset_addr
+            else:
+                address = self.getRegister(Rn)
+            
+            # data = MemU[address,2];
+            data = self.memory_map.get_word(address)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+            
+            # if UnalignedSupport() || address<0> == '0' then
+            #     R[t] = ZeroExtend(data, 32);
+            if self.UnalignedSupport() or get_bit(address, 0) == 0:
+                self.setRegister(Rt, data)
+                
+            else:
+                raise RuntimeError("R[t] = bits(32) UNKNOWN;")
 
     def emulate_ldr_immediate(self, ins):
         if self.arm_mode == ARMMode.ARM:
@@ -3799,7 +4095,7 @@ class ARMEmulator(object):
         Execute the instruction at PC.
         """
         # It does not matter what execution mode we are on, just get a dword and decode it.
-        opcode = self.memory_map.get_dword(self.getActualPC())
+        opcode = self.memory_map.get_dword(self.getActualPC() & ~1)
 
         # Get the instruction representation of the opcode.
         ins = self.disassembler.disassemble(opcode, self.getCurrentMode())
@@ -3813,16 +4109,18 @@ class ARMEmulator(object):
         Emulate an instruction, optionally dumping the state of
         the processor prior and post execution of the instruction.
         """
+        self.set_pc_needs_update(True)
+
         if dump_state:
             #print self.dump_state()
             mode_str = "ARM  " if self.getCurrentMode() == ARMMode.ARM else "THUMB"
-            print "Ins @ pc=%.8x | opcode=%.8x | mode=%s | %s" % (self.getActualPC(), ins.opcode, mode_str, ins)
+            self.log.info("Ins @ pc=%.8x | opcode=%.8x | mode=%s | %s" % (self.getActualPC(), ins.opcode, mode_str, ins))
 
         try:
             self.instructions[ins.id](ins)
 
         except KeyError:
-            raise InstructionNotImplementedException()
+            raise InstructionNotImplementedException("Ins @ pc=%.8x | opcode=%.8x | mode=%s" % (self.getActualPC(), ins.opcode, mode_str))
 
         # Some instructions modify PC so they do not need the PC to be incremented.
         if self.pc_needs_update():

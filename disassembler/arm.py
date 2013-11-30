@@ -66,6 +66,15 @@ from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding
 from disassembler.arch import UnpredictableInstructionException, InstructionNotImplementedException
 from disassembler.arch import Memory, RegisterShift, Condition, ProcessorFlag, RegisterSet
 from disassembler.arch import UndefinedOpcode, Jump, Register
+from disassembler.arch import ARMMode, ARMFLag, ARMRegister
+
+def memoize(func):
+    cache = {}
+    def wrap(*args):
+        if args not in cache:
+            cache[args] = func(*args)
+        return cache[args]
+    return wrap
 
 class ARMDisassembler(object):
     SYNTAX_DEFAULT = 0
@@ -83,6 +92,9 @@ class ARMDisassembler(object):
         self.arm_isa = arch
         
         self.__build_tables__()
+        
+        # opcode to instruction cache
+        self.cache = {}
         
     def set_architecture(self, arch):
         self.arm_isa = arch
@@ -306,11 +318,29 @@ class ARMDisassembler(object):
         # LDR (immediate, Thumb) ARMv6T2 | ARMv7
         (0xfff00800, 0xf8500800, ARMv6T2 | ARMv7, eEncodingT4, No_VFP, eSize32, self.decode_ldr_immediate_thumb),
 
+        # LDRH (immediate, Thumb) ARMv4T, ARMv5T*, ARMv6*, ARMv7
+        (0xfffff800, 0x00008800, ARMV4T_ABOVE, eEncodingT1, No_VFP, eSize16, self.decode_ldrh_immediate_thumb),        
+        
+        # LDRH (immediate, Thumb) ARMv6T2, ARMv7
+        (0xfff00000, 0xf8b00000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrh_immediate_thumb),
+        
+        # LDRH (immediate, Thumb) ARMv6T2, ARMv7
+        (0xfff00800, 0xf8300800, ARMv6T2 | ARMv7, eEncodingT3, No_VFP, eSize32, self.decode_ldrh_immediate_thumb),
+        
+        # LDRH (register, Thumb) ARMv4T, ARMv5T*, ARMv6*, ARMv7
+        (0xfffffe00, 0x00005a00, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_ldrh_register_thumb),
+
+        # LDRH (register, Thumb) ARMv6T2, ARMv7
+        (0xfff00fc0, 0xf8300000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrh_register_thumb),
+                       
         # LDR (literal) ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xfffff800, 0x00004800, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_ldr_literal),
         
         # LDR (literal) ARMv6T2 | ARMv7
         (0xff7f0000, 0xf85f0000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldr_literal),
+        
+        # LDRH (literal, Thumb) ARMv6T2, ARMv7
+        (0xff7f0000, 0xf83f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrh_literal_thumb),
         
         # LDR (register, Thumb) ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xfffffe00, 0x00005800, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_ldr_register_thumb),
@@ -665,6 +695,15 @@ class ARMDisassembler(object):
         """
         self.arm_table = \
         (
+        # LDRH (register, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
+        (0x0e500ff0, 0x001000b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_register_arm),         
+         
+        # LDRH (literal, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
+        (0x0f7f00f0, 0x015f00b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_literal_arm),         
+         
+        # LDRH (immediate, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
+        (0x0e5000f0, 0x005000b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_ldrh_immediate_arm),
+
         # ADC (immediate) ARMv4All | ARMv5TAll | ARMv6All | ARMv7
         (0x0fe00000, 0x02a00000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_adc_immediate),
         
@@ -1148,13 +1187,18 @@ class ARMDisassembler(object):
     
     def disassemble(self, opcode, mode=ARMMode.ARM):
         """
-        """        
+        """
+        if (opcode, mode) in self.cache:
+            return self.cache[(opcode, mode)]
+        
         if mode == ARMMode.THUMB:
             ins = self.decode_thumb(opcode)
         
         else:
             ins = self.decode_arm(opcode)
-                    
+        
+        self.cache[(opcode, mode)] = ins
+        
         return ins
     
     def ArchVersion(self):
@@ -6729,7 +6773,7 @@ class ARMDisassembler(object):
         Load Register (immediate) calculates an address from a base register value and an immediate offset, loads a word
         from memory, and writes it to a register. It can use offset, post-indexed, or pre-indexed addressing. 
         """
-        ins_id = ARMInstruction.ldc_immediate
+        ins_id = ARMInstruction.ldr_immediate
         if encoding == eEncodingT1:
             # imm32 = ZeroExtend(imm5:'00', 32);
             imm32 = get_bits(opcode, 10, 6) << 2
@@ -6825,6 +6869,346 @@ class ARMDisassembler(object):
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
                 
+        return ins
+    
+    def decode_ldrh_immediate_thumb(self, opcode, encoding):
+        """
+        A8.8.79
+        LDRH (immediate, Thumb)
+        Load Register Halfword (immediate) calculates an address from a base register
+        value and an immediate offset, loads a halfword from memory, zero-extends it 
+        to form a 32-bit word, and writes it to a register. It can use offset,
+        post-indexed, or pre-indexed addressing        
+        """
+        ins_id = ARMInstruction.ldrh_immediate_thumb
+        if encoding == eEncodingT1:
+            # imm32 = ZeroExtend(imm5:'0', 32);
+            imm32 = get_bits(opcode, 10, 6) << 1
+            Rn = get_bits(opcode, 5, 3)
+            Rt = get_bits(opcode, 2, 0)
+            index = True
+            add = True
+            wback = False
+            
+            # LDRH<c> <Rt>, [<Rn>{, #<imm>}]
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+            ins = Instruction(ins_id, opcode, "LDRH", False, None, operands, encoding)
+        
+        elif encoding == eEncodingT2:
+            Rn = get_bits(opcode, 19, 16)
+            Rt = get_bits(opcode, 15, 12)
+            imm32 = get_bits(opcode, 11, 0)
+            index = True
+            add = True
+            wback = False
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            # if Rn == '1111' then SEE LDRH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrh_literal_thumb(opcode, eEncodingT1)
+            
+            index = True
+            add = True
+            wback = False
+
+            # if t == 13 then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+            
+            # LDRH<c>.W <Rt>, [<Rn>{, #<imm12>}]
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+            ins = Instruction(ins_id, opcode, "LDRH", False, None, operands, encoding, ".W")
+        
+        elif encoding == eEncodingT3:
+            Rn = get_bits(opcode, 19, 16)
+            Rt = get_bits(opcode, 15, 12)
+            imm32 = get_bits(opcode, 7, 0)
+            P = get_bit(opcode, 10)
+            U = get_bit(opcode, 9)
+            W = get_bit(opcode, 8)
+
+            # if Rn == '1111' then SEE LDRH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrh_literal_thumb(opcode, eEncodingT1)
+            
+            # if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE "Related instructions";
+            if Rt == 0b1111 and P == 1 and U == 0 and W == 0:
+                raise RuntimeError("SEE Related instructions")
+                
+            # if P == '1' && U == '1' && W == '0' then SEE LDRHT;
+            if P == 1 and U == 1 and W == 0:
+                raise RuntimeError("SEE LDRHT")
+            
+            # if P == '0' && W == '0' then UNDEFINED;
+            if P == 0 and W == 0:
+                raise UndefinedOpcode()
+            
+            # index = (P == '1'); add = (U == '1'); wback = (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+
+            # if t ==13 || (t ==15 && W == '1') || (wback && n == t) then UNPREDICTABLE;
+            if Rt == 14 or (Rt == 15 and W == 1) or (wback and Rn == Rt):
+                raise UnpredictableInstructionException()
+
+            # LDRH{<c>}{<q>} <Rt>, [<Rn> {, #+/-<imm>}]    Offset: index==TRUE, wback==FALSE
+            # LDRH{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!      Pre-indexed: index==TRUE, wback==TRUE
+            # LDRH{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>       Post-indexed: index==FALSE, wback==TRUE
+            if not add:
+                imm32 *= -1
+                
+            if index == True and wback == False:
+                operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+                ins = Instruction(ins_id, opcode, "LDRH", False, None, operands, encoding)
+        
+            elif index == True and wback == True:
+                operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32), wback=True)]
+                ins = Instruction(ins_id, opcode, "LDRH", False, None, operands, encoding)
+        
+            elif index == False and wback == True:
+                operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+                ins = Instruction(ins_id, opcode, "LDRH", False, None, operands, encoding)
+                
+        return ins
+
+    def decode_ldrh_immediate_arm(self, opcode, encoding):
+        """
+        A8.8.80
+        LDRH (immediate, ARM)
+        Load Register Halfword (immediate) calculates an address from a base register value
+        and an immediate offset, loads a halfword from memory, zero-extends it to form a
+        32-bit word, and writes it to a register. It can use offset, post-indexed, or pre-indexed
+        addressing        
+        """
+        ins_id = ARMInstruction.ldrh_immediate_arm
+        if encoding == eEncodingA1:
+            cond = self.decode_condition_field(opcode)
+            P = get_bit(opcode, 24)
+            U = get_bit(opcode, 23)
+            W = get_bit(opcode, 21)
+            
+            Rn = get_bits(opcode, 19, 16)
+            Rt = get_bits(opcode, 15, 12)
+            
+            imm4H = get_bits(opcode, 11, 8)
+            imm4L = get_bits(opcode, 3, 0)
+            
+            # if Rn == '1111' then SEE LDRH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrh_literal(opcode, encoding)
+            
+            # if P == '0' && W == '1' then SEE LDRHT;
+            if P == 0 and W == 1:
+                # TODO: Implement
+                raise RuntimeError("Implement LDRHT")
+            
+            # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            imm32 = (imm4H << 4) | imm4L 
+            
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1 
+            wback = (P == 0) or (W == 1)
+            
+            if not add:
+                imm32 *= -1
+            
+            # if t == 15 || (wback && n == t) then UNPREDICTABLE;
+            if Rt == 15 or (wback and Rn == Rt):
+                raise UnpredictableInstructionException()
+
+            # LDRH{<c>}{<q>} <Rt>, [<Rn> {, #+/-<imm>}] Offset: index==TRUE, wback==FALSE
+            # LDRH{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!   Pre-indexed: index==TRUE, wback==TRUE
+            # LDRH{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>    Post-indexed: index==FALSE, wback==TRUE
+            if index == True and wback == False:
+                operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm32), wback)]
+                ins = Instruction(ins_id, opcode, "LDRH", False, cond, operands, encoding)            
+                
+            elif index == True and wback == True:
+                operands = [Register(Rt), Memory(Register(Rn), None, Immediate(imm32), wback)]
+                ins = Instruction(ins_id, opcode, "LDRH", False, cond, operands, encoding)            
+    
+            elif index == False and wback == True:
+                operands = [Register(Rt), Memory(Register(Rn), None, None, wback), Immediate(imm32)]
+                ins = Instruction(ins_id, opcode, "LDRH", False, cond, operands, encoding)
+        
+        return ins
+    
+    def decode_ldrh_literal_thumb(self, opcode, encoding):
+        """
+        A8.8.81
+        LDRH (literal)
+        Load Register Halfword (literal) calculates an address from the PC value 
+        and an immediate offset, loads a halfword from memory, zero-extends it to form a
+        32-bit word, and writes it to a register.        
+        """        
+        ins_id = ARMInstruction.ldrh_literal_thumb
+        if encoding == eEncodingT1:
+            U = get_bit(opcode, 23)
+            Rt = get_bits(opcode, 15, 12)
+            imm32 = get_bits(opcode, 11, 0)
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1');
+            add = U == 1
+            if not add:
+                imm32 *= -1
+            
+            # if t == 13 then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+            
+            condition = None            
+            operands = [Register(Rt), Immediate(imm32)]
+            ins = Instruction(ins_id, opcode, "LDRH", False, condition, operands, encoding)            
+        
+        return ins
+    
+    def decode_ldrh_literal_arm(self, opcode, encoding):
+        """
+        A8.8.81
+        LDRH (literal)
+        Load Register Halfword (literal) calculates an address from the PC value 
+        and an immediate offset, loads a halfword from memory, zero-extends it to form a
+        32-bit word, and writes it to a register.        
+        """
+        ins_id = ARMInstruction.ldrh_literal_arm
+        if encoding == eEncodingA1:
+            condition = self.decode_condition_field(opcode)
+            
+            U = get_bit(opcode, 23)
+            Rt = get_bits(opcode, 15, 12)
+            imm4H = get_bits(opcode, 11, 8)
+            imm4L = get_bits(opcode, 3, 0)
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            imm32 = (imm4H << 4) | imm4L
+            add = U == 1
+            
+            # if t == 15 then UNPREDICTABLE;
+            if Rt == 15:
+                raise UnpredictableInstructionException()
+
+            if not add:
+                imm32 *= -1
+
+            operands = [Register(Rt), Immediate(imm32)]
+            ins = Instruction(ins_id, opcode, "LDRH", False, condition, operands, encoding)
+            
+        return ins
+
+    def decode_ldrh_register_thumb(self, opcode, encoding):
+        """
+        A8.8.82
+        LDRH (register)
+        Load Register Halfword (register) calculates an address from a base register
+        value and an offset register value, loads a halfword from memory, zero-extends it 
+        to form a 32-bit word, and writes it to a register. The offset register value
+        can be shifted left by 0, 1, 2, or 3 bits.         
+        """
+        ins_id = ARMInstruction.ldrh_register_thumb
+        if encoding == eEncodingT1:
+            # if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE";    
+            Rm = get_bits(opcode, 8, 6)
+            Rn = get_bits(opcode, 5, 3)
+            Rt = get_bits(opcode, 2, 0)
+            
+            # LDRH<c> <Rt>, [<Rn>, <Rm>]
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm))]
+            ins = Instruction(ins_id, opcode, "LDRH", False, None, operands, encoding)
+        
+        elif encoding == eEncodingT2:
+            Rn = get_bits(opcode, 19, 16)
+            Rt = get_bits(opcode, 15, 12)
+            Rm = get_bits(opcode, 3, 0)
+            imm2 = get_bits(opcode, 5, 4)
+            
+            # if Rn == '1111' then SEE LDRH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrh_literal_thumb(opcode, eEncodingT1)
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            index = True
+            add = True
+            wback = False            
+            shift_t, shift_n = SRType_LSL, imm2
+
+            # if t == 13 || m IN {13,15} then UNPREDICTABLE;
+            if Rt == 13 or Rm in [13, 15]:
+                raise UnpredictableInstructionException()
+
+            # LDRH<c>.W <Rt>, [<Rn>, <Rm>{, LSL #<imm2>}]
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n))]
+            ins = Instruction(ins_id, opcode, "LDRH", False, None, operands, encoding, ".W")
+
+        return ins
+            
+    def decode_ldrh_register_arm(self, opcode, encoding):
+        """
+        A8.8.82
+        LDRH (register)
+        Load Register Halfword (register) calculates an address from a base register
+        value and an offset register value, loads a halfword from memory, zero-extends it 
+        to form a 32-bit word, and writes it to a register. The offset register value
+        can be shifted left by 0, 1, 2, or 3 bits.         
+        """
+        ins_id = ARMInstruction.ldrh_register_arm
+        if encoding == eEncodingA1:
+            condition = self.decode_condition_field(opcode)
+            
+            P = get_bit(opcode, 24)
+            U = get_bit(opcode, 23)
+            W = get_bit(opcode, 21)
+            Rn = get_bits(opcode, 19, 16)
+            Rt = get_bits(opcode, 15, 12)
+            Rm = get_bits(opcode, 3, 0)
+            
+            # if P == '0' && W == '1' then SEE LDRHT;
+            if P == 0 and W == 1:
+                raise RuntimeError("SEE LDRHT")
+            
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = (P == 0) or (W == 1)
+
+            # if t == 15 || m == 15 then UNPREDICTABLE;
+            if Rt == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+            
+            # if wback && (n == 15 || n == t) then UNPREDICTABLE;
+            if wback and (Rn == 15 or Rn == Rt):
+                raise UnpredictableInstructionException()
+            
+            # if ArchVersion() < 6 && wback && m == n then UNPREDICTABLE;
+            if self.ArchVersion() < 6 and wback and Rm == Rn:
+                raise UnpredictableInstructionException()
+
+            if index == True and wback == False:
+                # LDRH{<c>}{<q>} <Rt>, [<Rn>, <Rm>{, LSL #<imm>}]
+                operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, not add))]
+                ins = Instruction(ins_id, opcode, "LDRH", False, condition, operands, encoding)
+            
+            elif index == True and wback == True:
+                # LDRH{<c>}{<q>} <Rt>, [<Rn>, +/-<Rm>]!
+                operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, not add), wback=wback)]
+                ins = Instruction(ins_id, opcode, "LDRH", False, condition, operands, encoding)
+            
+            elif index == False and wback == True:
+                # LDRH{<c>}{<q>} <Rt>, [<Rn>], +/-<Rm>
+                operands = [Register(Rt), Memory(Register(Rn)), Register(Rm, False, not add)]
+                ins = Instruction(ins_id, opcode, "LDRH", False, condition, operands, encoding)
+
         return ins
     
     def decode_ldr_immediate_arm(self, opcode, encoding):

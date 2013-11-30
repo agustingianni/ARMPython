@@ -45,14 +45,14 @@ def disassemble(opcode, mode=0, whole=False):
         out = out.replace("r12", "ip")
         out = out.replace("r11", "fp")
         out = out.replace("r10", "sl")
-        out = out.split("\n")[0]
+        out = out.split("\n")[1].strip()
 
         if "undefined" in out:
             out = "Undefined"
 
         if "invalid" in out:
             out = "Undefined"
-    
+        
     return out
 
 import sys
