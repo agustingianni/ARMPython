@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import argparse
+import shlex
 
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import P_FLAGS
@@ -828,13 +829,27 @@ class ARMLinuxOS(LinuxOS):
         self.cpu.setRegister(ARMRegister.SP, stack)
 
 
+def parse_emulee_arguments(args):
+    emulee_args = args[args.index("--") + 1:]
+    
+    idx = -1
+    for i in xrange(0, len(emulee_args)):
+        if "=" in emulee_args[i]:
+            idx = i
+    
+    envp, argv, args = emulee_args[:idx+1], emulee_args[idx + 1:], args[:args.index("--")] 
+        
+    return envp, argv, args
+
 def main():
     parser = argparse.ArgumentParser(description='Userland binary emulator')
     parser.add_argument('program', type=str, metavar='PROGRAM', help='Program to emulate.')
     parser.add_argument('-d', '--debug', action='store_true', help='Print debugging information.')
     parser.add_argument('-r', '--root', type=str, help='Directory where all the needed libraries are placed.')
 
-    args = parser.parse_args()
+    # Parse the arguments and environment variables that we will pass to the emulee. 
+    envp, argv, args = parse_emulee_arguments(sys.argv)
+    args = parser.parse_args(args=args)
 
     # Check that we've a binary to execute.
     if not args.program:
@@ -847,13 +862,10 @@ def main():
     if debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    linux = ARMLinuxOS()
+    sys.exit()
 
-    argv = ["pname"]
-    envp = []
-    for i in xrange(0, 21):
-        envp.append("env%d=value%d" % (i, i))
-        
+
+    linux = ARMLinuxOS()        
     linux.execute(args.program, argv, envp)
 
 
