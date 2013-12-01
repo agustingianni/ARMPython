@@ -827,14 +827,17 @@ class ARMLinuxOS(LinuxOS):
 
 
 def parse_emulee_arguments(args):
-    emulee_args = args[args.index("--") + 1:]
+    try:
+        emulee_args = args[args.index("--") + 1:]
+    except ValueError:
+        raise RuntimeError("Error, invalid arguments passed. See help.")
     
     idx = -1
     for i in xrange(0, len(emulee_args)):
         if "=" in emulee_args[i]:
             idx = i
     
-    envp, argv, args = emulee_args[:idx+1], emulee_args[idx + 1:], args[:args.index("--")] 
+    envp, argv, args = emulee_args[:idx + 1], emulee_args[idx + 1:], args[:args.index("--")] 
         
     return envp, argv, args
 
@@ -844,13 +847,24 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', help='Print debugging information.')
     parser.add_argument('-r', '--root', type=str, help='Directory where all the needed libraries are placed.')
 
+    log.info("ARM Linux userland emulator")
+
     # Parse the arguments and environment variables that we will pass to the emulee. 
     envp, argv, args = parse_emulee_arguments(sys.argv)
+    if len(envp):
+        log.info("Using the following environment variables:")
+        for env in envp:
+            log.info("  %s" % env)
+
+    log.info("Program arguments:")
+    log.info("  " + "".join(argv))
+    
+    # Parse the arguments for the emulator.
     args = parser.parse_args(args=args)
 
     # Check that we've a binary to execute.
     if not args.program:
-        log.info("I need a binary to execute\n")
+        log.error("I need a binary to execute\n")
         parser.print_help()
         sys.exit(-1)
 
@@ -859,16 +873,15 @@ def main():
     if debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    sys.exit()
-        
-        
     linux = ARMLinuxOS()        
     linux.execute(args.program, argv, envp)
-
 
 if __name__ == "__main__":
     try:
         main()
 
+    except RuntimeError, e:
+        log.error("Error: %s" % e)
+
     except KeyboardInterrupt:
-        pass
+        log.error("Error: interrupted by the user")
