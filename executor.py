@@ -723,7 +723,7 @@ class LinuxOS(object):
         self.__start_thread__(elf_entry, stack)
         
         # Let the CPU consume instructions and execute.
-        self.cpu.run()
+        self.cpu.run(50)
 
 
 class ARMLinuxOS(LinuxOS):
@@ -808,11 +808,8 @@ class ARMLinuxOS(LinuxOS):
         self.cpu.setCPSR(ARMProcessor.USR_MODE)
 
         # Set the processor mode.
-        if elf_entry & 1:
-            self.cpu.setCurrentMode(ARMMode.THUMB)
-
-        else:
-            self.cpu.setCurrentMode(ARMMode.ARM)
+        mode = ARMMode.THUMB if (elf_entry & 1) else ARMMode.ARM
+        self.cpu.setCurrentMode(mode) 
 
         # TODO: Set endianess
 
@@ -852,7 +849,7 @@ def main():
 
     argv = ["pname"]
     envp = []
-    for i in xrange(0, 21):
+    for i in xrange(0, 1):
         envp.append("env%d=value%d" % (i, i))
         
     linux.execute(args.program, argv, envp)
