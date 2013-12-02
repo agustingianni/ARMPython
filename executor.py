@@ -417,7 +417,7 @@ class LinuxOS(object):
         return addr
 
 
-    def execute(self, binary, argv, envp):
+    def execute(self, argv, envp):
         """
         Load the binary in memory and then call the interpreter
         to resolve what is needed. The interpreter will be emulated so
@@ -426,6 +426,7 @@ class LinuxOS(object):
         Implemented following binfmt_elf.c from the linux kernel.
         """
         interpreter = None
+        binary = argv[0]
 
         log.info("Executing binary %s" % binary)
         main_binary = binary
@@ -874,7 +875,7 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
 
     linux = ARMLinuxOS()        
-    linux.execute(args.program, argv, envp)
+    linux.execute(argv, envp)
 
 if __name__ == "__main__":
     try:
