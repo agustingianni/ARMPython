@@ -318,16 +318,41 @@ class Condition(object):
     def __str__(self):
         return self.name
 
+flag2string = {}
+flag2string[0] = "N"
+flag2string[1] = "Z"
+flag2string[2] = "C"
+flag2string[3] = "V"
+flag2string[4] = "Q"
+
+class Flag(object):
+    def __init__(self, flag):
+        self.flag = flag
+        
+    def __str__(self):
+        return flag2string[self.flag]
+
+    def __eq__(self, other):
+        if isinstance(other, Flag):
+            return self.flag == other.flag
+        else:
+            return self.flag == other
+    
+    def __repr__(self):
+        return self.__str__()
+
 class ARMFLag:
-    N = 0
-    Z = 1
-    C = 2
-    V = 3
-    Q = 4
+    N = Flag(0)
+    Z = Flag(1)
+    C = Flag(2)
+    V = Flag(3)
+    Q = Flag(4)
+
+
 
 class ARMMode:
-    THUMB   = 0
-    ARM     = 1
+    THUMB = 0
+    ARM = 1
     JAZELLE = 2
     THUMBEE = 3
 
