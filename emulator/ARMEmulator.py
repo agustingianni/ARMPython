@@ -10,14 +10,15 @@ from disassembler.constants.arm import *
 from disassembler.arm import InstructionNotImplementedException, UnpredictableInstructionException
 from disassembler.arm import ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 from disassembler.arm import ARMDisassembler
-from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt
+from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt,\
+    set_bit
 from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
 from disassembler.arch import InvalidModeException, Register, BreakpointDebugEvent, HintDebug
 from disassembler.arch import ARMMode, ARMFLag, ARMRegister
 
 import copy
 from emulator.effects import RegisterReadEffect, RegisterWriteEffect,\
-    FlagReadEffect, MemoryWriteEffect, MemoryReadEffect
+    FlagReadEffect, MemoryWriteEffect, MemoryReadEffect, FlagWriteEffect
 
 class ARMProcessor(object):
     USR26_MODE = 0x00000000
@@ -332,9 +333,9 @@ class ExecutionContext(object):
     a thread of execution.
     """
 
-    def __init__(self, regs, flags):
+    def __init__(self, regs, cpsr):
         self.regs = copy.deepcopy(regs)
-        self.flags = copy.deepcopy(flags)
+        self.flags = cpsr
 
 
 class ARMEmulator(object):
@@ -355,7 +356,6 @@ class ARMEmulator(object):
         
         self.update_pc = True
 
-        self.flags_map = {}
         self.register_map = {}
         self.memory_map = memory_map
         self.log = logging.getLogger("ARMEmulator")
@@ -363,8 +363,11 @@ class ARMEmulator(object):
         # The instruction set state register, ISETSTATE
         self.arm_mode = ARMMode.ARM
 
-        self.__init_flags_map__()
+        # Initialize the processor state.
+        self.__init_cpsr__()
         self.__init_register_map__()
+        
+        # We need to disassemble instructions to emulate them.
         self.disassembler = ARMDisassembler()
 
         # Initialize the IT block tracker.
@@ -525,6 +528,13 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.wfi] = self.emulate_wfi
         self.instructions[ARMInstruction.yield_] = self.emulate_yield
 
+    def __init_cpsr__(self):
+        """
+        In ARMv7-A and ARMv7-R, the APSR is the same register as the CPSR, but the APSR must be
+        used only to access the N, Z, C, V, Q, and GE[3:0] bits.
+        """
+        self.cpsr = 0
+
     def __init_register_map__(self):
         """
         Initialize general purpose registers.
@@ -547,17 +557,6 @@ class ARMEmulator(object):
         self.register_map[ARMRegister.R13.reg] = 0
         self.register_map[ARMRegister.R14.reg] = 0
         self.register_map[ARMRegister.R15.reg] = 0
-
-    def __init_flags_map__(self):
-        """
-        Initialize processor flags to an initial state.
-        """
-        self.log.debug("Initialized flags map")
-
-        self.flags_map[ARMFLag.N] = 0
-        self.flags_map[ARMFLag.C] = 0
-        self.flags_map[ARMFLag.V] = 0
-        self.flags_map[ARMFLag.Z] = 0
 
     def start_instruction_effects_record(self, mask=ALL_EFFECTS):
         """
@@ -697,14 +696,14 @@ class ARMEmulator(object):
         Returns the current execution context. The execution context is
         comprised of all the registers and flags.
         """
-        return ExecutionContext(self.register_map, self.flags_map)
+        return ExecutionContext(self.register_map, self.cpsr)
 
     def setContext(self, context):
         """
         Replace the current execution state with 'context'.
         """
         self.register_map = copy.deepcopy(context.regs)
-        self.flags_map = copy.deepcopy(context.flags)
+        self.cpsr = context.cpsr
 
     def set_byte(self, address, value):
         if self.effects_mask & ARMEmulator.MEM_EFFECTS:
@@ -803,7 +802,7 @@ class ARMEmulator(object):
         """
         Return the value of a flag.
         """
-        flag_val = self.flags_map[flag]
+        flag_val = get_bit(self.cpsr, flag.bit_pos)
 
         # Save the flag read iif we are recording effects.
         if self.effects_mask & ARMEmulator.FLAG_EFFECTS:
@@ -817,9 +816,9 @@ class ARMEmulator(object):
         """
         # Save the flag write iif we are recording effects.
         if self.effects_mask & ARMEmulator.FLAG_EFFECTS:
-            self.effects.append(RegisterWriteEffect(flag, value, self.flags_map[flag]))
+            self.effects.append(FlagWriteEffect(flag, value, get_bit(self.cpsr, flag.bit_pos)))
         
-        self.flags_map[flag] = value
+        self.cpsr = set_bit(self.cpsr, flag.bit_pos, value)
 
     def ArchVersion(self):
         """
