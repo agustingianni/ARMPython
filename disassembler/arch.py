@@ -328,6 +328,7 @@ flag2string[4] = "Q"
 class Flag(object):
     def __init__(self, flag):
         self.flag = flag
+        self.bit_pos = 31 - flag
         
     def __str__(self):
         return flag2string[self.flag]
