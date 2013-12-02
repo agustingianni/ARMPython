@@ -9,6 +9,9 @@ def get_bits(value, end, start):
 def get_bit(value, bit):
     return ((value >> bit) & 1)
 
+def set_bit(value, pos, bit):
+    return value | (1 << pos) if bit else value & ~(1 << pos) 
+
 def Align(val, alignment):
     return alignment * (val / alignment)
 
@@ -19,7 +22,7 @@ def SInt(x, N):
         if get_bit(x, i):
             result = result + 2 ** i
     
-    if get_bit(x, N-1):
+    if get_bit(x, N - 1):
         result = result - 2 ** N
         
     return result
