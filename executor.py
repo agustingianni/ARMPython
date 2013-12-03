@@ -5,7 +5,8 @@ import argparse
 
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import P_FLAGS
-from disassembler.arch import ARMRegister, ARMMode
+from disassembler.arch import ARMRegister, ARMMode,\
+    InstructionNotImplementedException
 from emulator.memory import ConcreteMemoryMap, GetLastValidAddress
 from emulator.ARMEmulator import ARMEmulator, ARMProcessor
 from disassembler.utils.bits import Align
@@ -851,7 +852,12 @@ def main():
     log.info("ARM Linux userland emulator")
 
     # Parse the arguments and environment variables that we will pass to the emulee. 
-    envp, argv, args = parse_emulee_arguments(sys.argv)
+    try:
+        envp, argv, args = parse_emulee_arguments(sys.argv)
+    except RuntimeError:
+        parser.print_help()
+        sys.exit(-1)        
+    
     if len(envp):
         log.info("Using the following environment variables:")
         for env in envp:
@@ -874,8 +880,13 @@ def main():
     if debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    linux = ARMLinuxOS()        
-    linux.execute(argv, envp)
+    linux = ARMLinuxOS()     
+    
+    try:   
+        linux.execute(argv, envp)
+    
+    except InstructionNotImplementedException, e:
+        log.error(e)
 
 if __name__ == "__main__":
     try:
