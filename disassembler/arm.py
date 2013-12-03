@@ -686,7 +686,10 @@ class ARMDisassembler(object):
         # YIELD ARMv7 (executes as NOP in ARMv6T2)
         (0xffffffff, 0xf3af8001, ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_yield),
 
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
+        # UBFX ARMv6T2, ARMv7
+        (0xfff08020, 0xf3c00000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ubfx),
+
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_unknown),        
         )
 
     def __build_arm_table__(self):        
@@ -1096,6 +1099,10 @@ class ARMDisassembler(object):
         (0x0fffffff, 0x0320f002, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfe),
         (0x0fffffff, 0x0320f003, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_wfi),
         (0x0fffffff, 0x0320f004, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sev),
+        
+        # UBFX ARMv6T2, ARMv7
+        (0x0fe00070, 0x07e00050, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ubfx),
+    
         (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
     )
     
@@ -5903,6 +5910,50 @@ class ARMDisassembler(object):
         """
         ins_id = ARMInstruction.unknown
         ins = Instruction(ins_id, opcode, "UNK", False, None, [], encoding)
+        return ins
+    
+    def decode_ubfx(self, opcode, encoding):
+        """
+        A8.8.246
+        UBFX
+        Unsigned Bit Field Extract extracts any number of adjacent bits at any position from a register, zero-extends them
+        to 32 bits, and writes the result to the destination register.        
+        """
+        ins_id = ARMInstruction.ubfx
+        
+        if encoding == eEncodingT1:
+            condition = None
+            # UBFX<c> <Rd>, <Rn>, #<lsb>, #<width>
+            Rn = get_bits(opcode, 19, 16)
+            imm3 = get_bits(opcode, 14, 12)
+            Rd = get_bits(opcode, 11, 8)
+            imm2 = get_bits(opcode, 7, 6)
+            widthm1 = get_bits(opcode, 4, 0)
+            
+            # lsbit = UInt(imm3:imm2); widthminus1 = UInt(widthm1);
+            lsbit = imm3 << 2 | imm2
+            widthminus1 = widthm1 + 1
+            
+            # if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;
+            if BadReg(Rd) or BadReg(Rn):
+                raise UnpredictableInstructionException()
+        
+        elif encoding == eEncodingA1:
+            # UBFX<c> <Rd>, <Rn>, #<lsb>, #<width>
+            condition = self.decode_condition_field(opcode)
+            
+            # lsbit = UInt(lsb); widthminus1 = UInt(widthm1);
+            widthminus1 = get_bits(opcode, 20, 16) + 1
+            Rd = get_bits(opcode, 15, 12)
+            lsbit = get_bits(opcode, 11, 7)
+            Rn = get_bits(opcode, 3, 0)
+
+            # if d == 15 || n == 15 then UNPREDICTABLE;
+            if Rd == 15 or Rn == 15:
+                raise UnpredictableInstructionException()
+
+        operands = [Register(Rd), Register(Rn), Immediate(lsbit), Immediate(widthminus1)]
+        ins = Instruction(ins_id, opcode, "UBFX", False, condition, operands, encoding)
         return ins
 
     def decode_sev(self, opcode, encoding):

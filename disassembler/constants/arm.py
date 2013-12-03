@@ -220,3 +220,4 @@ class ARMInstruction:
     ldrh_literal_arm = 0x0097
     ldrh_register_thumb = 0x0098
     ldrh_register_arm = 0x0099
+    ubfx = 0x009a
