@@ -155,6 +155,10 @@ class MemoryMap(object):
         return out
 
 
+class InvalidMemoryAccessException(Exception):
+    def __init__(self, reason):
+        super(InvalidMemoryAccessException, self).__init__(reason)
+
 class ConcreteMemoryMap(MemoryMap):
     def __init__(self):
         MemoryMap.__init__(self)
@@ -167,7 +171,7 @@ class ConcreteMemoryMap(MemoryMap):
         if self.memory.has_key(address):
             return self.memory[address]
 
-        return None
+        raise InvalidMemoryAccessException("Address 0x%.8x is not mapped" % address)
 
     def __set_bytes__(self, address, value):
         for i in range(len(value)):
