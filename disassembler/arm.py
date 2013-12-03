@@ -145,9 +145,8 @@ class ARMDisassembler(object):
         # ADD (register, Thumb) ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xfffffe00, 0x00001800, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_add_register_thumb),
         
-        # TODO: I have no idea how to implement this
         # ADD (register, Thumb) ARMv6T2 | ARMv7 if <Rdn> and <Rm> are both from R0-R7, ARMv4T | ARMv5TAll | ARMv6All | ARMv7 otherwise
-        # (0xfffffe00, 0x00001800, ARMvAll, eEncodingT2, No_VFP, eSize16, self.decode_ADDReg),
+        (0xffff7f80, 0x00004400, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize16, self.decode_add_register_thumb),
         
         # ADD (register, Thumb) ARMv6T2 | ARMv7
         (0xffe08000, 0xeb000000, ARMv6T2 | ARMv7, eEncodingT3, No_VFP, eSize32, self.decode_add_register_thumb),
@@ -7334,7 +7333,7 @@ class ARMDisassembler(object):
         LDR{<c>}{<q>} <Rt>, <label>         Normal form
         LDR{<c>}{<q>} <Rt>, [PC, #+/-<imm>] Alternative form        
         """
-        ins_id = ARMInstruction.ldc_literal
+        ins_id = ARMInstruction.ldr_literal
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
