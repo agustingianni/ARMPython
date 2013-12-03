@@ -254,7 +254,10 @@ class ITSession(object):
         """
         Keep track of the IT Block progression.
         """
+        # Possible values: 0, 1, 2, 3, 4.
         self.ITCounter = 0
+        
+        # A2.5.2 Consists of IT[7:5] and IT[4:0] initially.
         self.ITState = 0
 
     def CountITSize(self, ITMask):
@@ -263,6 +266,7 @@ class ITSession(object):
 
         Valid return values are {1, 2, 3, 4}, with 0 signifying an error condition.
         """
+        # Count the trailing zeros of the IT mask.
         TZ = CountTrailingZeros(ITMask)
         if TZ > 3:
             return 0
@@ -323,7 +327,8 @@ class ITSession(object):
         """
         if self.InITBlock():
             return get_bits(self.ITState, 7, 4)
-
+        
+        # COND_AL = 0x0e
         return 0b1110
 
 class ExecutionContext(object):
@@ -2199,7 +2204,6 @@ class ARMEmulator(object):
                     Rn, imm32 = mem.op1, mem.op2
                     wback = mem.wback
                     index = True
-                    pass
 
                 else:
                     # LDRH{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>       Post-indexed: index==FALSE, wback==TRUE
@@ -4206,7 +4210,7 @@ class ARMEmulator(object):
 
         # Get the instruction representation of the opcode.
         ins = self.disassembler.disassemble(opcode, self.getCurrentMode())
-
+        
         # Emulate the instruction. Mode changes can occour.
         self.emulate(ins, True)
 
@@ -4218,14 +4222,21 @@ class ARMEmulator(object):
         """
         self.set_pc_needs_update(True)
 
+        # Advance the ITSTATE bits to their values for the next instruction. 
+        if self.getCurrentMode() == ARMMode.THUMB and self.it_session.InITBlock():
+            self.it_session.ITAdvance()
+
         if dump_state:
             # self.log.info(self.dump_state())
             # state = self.get_state()
             mode_str = "ARM  " if self.getCurrentMode() == ARMMode.ARM else "THUMB"
-            self.log.info("Ins @ pc=%.8x | opcode=%.8x | mode=%s | %s" % (self.getActualPC(), ins.opcode, mode_str, ins))
+            self.log.info("Ins @ pc=0x%.8x | opcode=0x%.8x | mode=%s | %s" % (self.getActualPC(), ins.opcode, mode_str, ins))
             
             self.clear_instruction_effects_record()
             self.start_instruction_effects_record()
+
+        if ins.opcode == 0x0000bf28:
+            pass
 
         try:
             self.instructions[ins.id](ins)
