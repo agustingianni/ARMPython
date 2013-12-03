@@ -532,6 +532,7 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.wfe] = self.emulate_wfe
         self.instructions[ARMInstruction.wfi] = self.emulate_wfi
         self.instructions[ARMInstruction.yield_] = self.emulate_yield
+        self.instructions[ARMInstruction.ubfx] = self.emulate_ubfx
 
     def __init_cpsr__(self):
         """
@@ -4179,6 +4180,31 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             raise InstructionNotImplementedException()
 
+    def emulate_ubfx(self, ins):
+        if self.ConditionPassed(ins):
+            # msbit = lsbit + widthminus1;
+            # if msbit <= 31 then
+            #     R[d] = ZeroExtend(R[n]<msbit:lsbit>, 32);
+            # else
+            #     UNPREDICTABLE;
+            Rd, Rn, lsbit, width = ins.operands
+            # is the bit number of the least significant bit in the field, in the range 0-31. This determines the
+            # required value of lsbit.
+            lsbit = lsbit.n
+            
+            # is the width of the field, in the range 1 to 32-<lsb>. The required value of widthminus1 is <width>-1.
+            width = width.n
+            
+            msbit = lsbit + width - 1
+            if msbit <= 31:                
+                
+                Rn_val = self.getRegister(Rn)
+                value = (Rn_val >> lsbit) & ((1 << width) - 1)
+                self.setRegister(Rd, value)
+            
+            else:
+                raise UnpredictableInstructionException()
+
     def emulate_wfe(self, ins):
         if self.ConditionPassed(ins):
             raise InstructionNotImplementedException()
@@ -4235,7 +4261,7 @@ class ARMEmulator(object):
             self.clear_instruction_effects_record()
             self.start_instruction_effects_record()
 
-        if ins.opcode == 0x0000bf28:
+        if ins.opcode == 0x000058e0:
             pass
 
         try:
