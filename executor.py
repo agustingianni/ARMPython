@@ -7,7 +7,8 @@ from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import P_FLAGS
 from disassembler.arch import ARMRegister, ARMMode,\
     InstructionNotImplementedException
-from emulator.memory import ConcreteMemoryMap, GetLastValidAddress
+from emulator.memory import ConcreteMemoryMap, GetLastValidAddress,\
+    InvalidMemoryAccessException
 from emulator.ARMEmulator import ARMEmulator, ARMProcessor
 from disassembler.utils.bits import Align
 
@@ -886,6 +887,9 @@ def main():
         linux.execute(argv, envp)
     
     except InstructionNotImplementedException, e:
+        log.error(e)
+    
+    except InvalidMemoryAccessException, e:
         log.error(e)
 
 if __name__ == "__main__":
