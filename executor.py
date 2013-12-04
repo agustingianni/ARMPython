@@ -5,9 +5,9 @@ import argparse
 
 from elftools.elf.elffile import ELFFile
 from elftools.elf.constants import P_FLAGS
-from disassembler.arch import ARMRegister, ARMMode,\
+from disassembler.arch import ARMRegister, ARMMode, \
     InstructionNotImplementedException
-from emulator.memory import ConcreteMemoryMap, GetLastValidAddress,\
+from emulator.memory import ConcreteMemoryMap, GetLastValidAddress, \
     InvalidMemoryAccessException
 from emulator.ARMEmulator import ARMEmulator, ARMProcessor
 from disassembler.utils.bits import Align
@@ -730,13 +730,14 @@ class LinuxOS(object):
 
 
 class ARMLinuxOS(LinuxOS):
-    def __init__(self):
+    def __init__(self, settings):
         """
         Emulate Linux running on an ARM processor.
         """
         memory = ConcreteMemoryMap()
-        cpu = ARMEmulator(memory)
+        cpu = ARMEmulator(memory, settings)
         self.stack_grows_down = True
+        self.settings = settings
 
         super(ARMLinuxOS, self).__init__(cpu, memory)
 
@@ -849,7 +850,12 @@ def main():
     parser.add_argument('program', type=str, metavar='PROGRAM', help='Program to emulate.')
     parser.add_argument('-d', '--debug', action='store_true', help='Print debugging information.')
     parser.add_argument('-r', '--root', type=str, help='Directory where all the needed libraries are placed.')
-
+    parser.add_argument('-m', '--max', default=None, type=int, help='Maximum number of instructions to emulate.')
+    parser.add_argument('--effects-all', default=[0], action='append_const', const=ARMEmulator.ALL_EFFECTS, dest="effects_mask", help='Show all instruction effects.')
+    parser.add_argument('--effects-regs', default=[0], action='append_const', const=ARMEmulator.REG_EFFECTS, dest="effects_mask", help='Show register read & write accesses.')
+    parser.add_argument('--effects-mem', default=[0], action='append_const', const=ARMEmulator.MEM_EFFECTS, dest="effects_mask", help='Show memory read & write accesses.')
+    parser.add_argument('--effects-flags', default=[0], action='append_const', const=ARMEmulator.FLAG_EFFECTS, dest="effects_mask", help='Show flag read & write accesses.')
+    
     log.info("ARM Linux userland emulator")
 
     # Parse the arguments and environment variables that we will pass to the emulee. 
@@ -880,8 +886,17 @@ def main():
     debug = args.debug
     if debug:
         logging.basicConfig(level=logging.DEBUG)
-
-    linux = ARMLinuxOS()     
+        
+    # Parse the effects mask if any.
+    acum_mask = 0
+    for value in args.effects_mask:
+        acum_mask |= value
+        
+    settings = {}
+    settings["show-effects"] = acum_mask != 0
+    settings["effects-mask"] = acum_mask
+    settings["max-instructions"] = args.max
+    linux = ARMLinuxOS(settings)     
     
     try:   
         linux.execute(argv, envp)

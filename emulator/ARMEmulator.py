@@ -353,10 +353,11 @@ class ARMEmulator(object):
     FLAG_EFFECTS = 1 << 2
     ALL_EFFECTS = MEM_EFFECTS | REG_EFFECTS | FLAG_EFFECTS
     
-    def __init__(self, memory_map):
+    def __init__(self, memory_map, settings):
+        self.settings = settings
         # Controll the collection of instructions effects.
-        self.effects_mask = 0
-        self.record_effects = False
+        self.effects_mask = settings["effects-mask"]
+        self.record_effects = settings["show-effects"]
         self.effects = []
         
         self.update_pc = True
@@ -592,7 +593,7 @@ class ARMEmulator(object):
 
     def CallSupervisor(self, imm):
         # TODO: Implement
-        pass
+        raise RuntimeError("SVC not implemented")
 
     def UnalignedSupport(self):
         """
@@ -2549,7 +2550,7 @@ class ARMEmulator(object):
             offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
 
             # offset_addr = (R[n] + offset);
-            offset_addr = self.getRegister(Rn) + offset
+            offset_addr = (self.getRegister(Rn) + offset) & 0xffffffff
 
             address = offset_addr
 
@@ -4217,11 +4218,11 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             raise InstructionNotImplementedException()
 
-    def run(self, i=None):
+    def run(self):
         """
-        Run the program for @i instructions. If @i is not set then
-        run indefinitely.
+        Run the program.
         """
+        i = self.settings["max-instructions"]
         n = 0
         while i is None or n < i:
             self.step()
@@ -4259,9 +4260,8 @@ class ARMEmulator(object):
             self.log.info("Ins @ pc=0x%.8x | opcode=0x%.8x | mode=%s | %s" % (self.getActualPC(), ins.opcode, mode_str, ins))
             
             self.clear_instruction_effects_record()
-            self.start_instruction_effects_record()
 
-        if ins.opcode == 0x000058e0:
+        if ins.opcode == 0x912fff1e:
             pass
 
         try:
@@ -4289,9 +4289,9 @@ class ARMEmulator(object):
             #    
             #print
             for effect in self.get_instruction_effects_record():
-                print effect
+                self.log.info(effect)
                 
-            print
+            self.log.info("")
 
     def set_pc_needs_update(self, value):
         # assert self.update_pc != value, "update_pc value matches value, failed somewhere to reset it"
