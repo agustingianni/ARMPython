@@ -341,7 +341,7 @@ class Flag(object):
     
     def __repr__(self):
         return self.__str__()
-
+    
 class ARMFLag:
     N = Flag(0)
     Z = Flag(1)
