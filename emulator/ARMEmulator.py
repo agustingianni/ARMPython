@@ -10,14 +10,13 @@ from disassembler.constants.arm import *
 from disassembler.arm import InstructionNotImplementedException, UnpredictableInstructionException
 from disassembler.arm import ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 from disassembler.arm import ARMDisassembler
-from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt,\
-    set_bit
+from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt
 from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
 from disassembler.arch import InvalidModeException, Register, BreakpointDebugEvent, HintDebug
 from disassembler.arch import ARMMode, ARMFLag, ARMRegister
 
 import copy
-from emulator.effects import RegisterReadEffect, RegisterWriteEffect,\
+from emulator.effects import RegisterReadEffect, RegisterWriteEffect, \
     FlagReadEffect, MemoryWriteEffect, MemoryReadEffect, FlagWriteEffect
 
 class ARMProcessor(object):
@@ -25,25 +24,28 @@ class ARMProcessor(object):
     FIQ26_MODE = 0x00000001
     IRQ26_MODE = 0x00000002
     SVC26_MODE = 0x00000003
+    
+    # B1.3.1 ARM processor modes
     USR_MODE = 0x00000010
     FIQ_MODE = 0x00000011
     IRQ_MODE = 0x00000012
     SVC_MODE = 0x00000013
     MON_MODE = 0x00000016
     ABT_MODE = 0x00000017
+    HYP_MODE = 0x0000001a
     UND_MODE = 0x0000001b
     SYS_MODE = 0x0000001f
 
     def __init__(self):
-        self.cpsr = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        self.cpsr = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
 
         # SPSR: banked Saved Program Status Register.
-        self.spsr_svc = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
-        self.spsr_mon = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
-        self.spsr_abt = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
-        self.spsr_und = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
-        self.spsr_irq = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
-        self.spsr_fiq = {"n": 0, "z": 0, "c": 0, "v": 0, "q": 0, "e": 0, "a": 0, "i": 0, "f": 0, "t": 0, "m": 0}
+        self.spsr_svc = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
+        self.spsr_mon = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
+        self.spsr_abt = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
+        self.spsr_und = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
+        self.spsr_irq = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
+        self.spsr_fiq = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
 
         self.regs = {}
 
@@ -340,8 +342,7 @@ class ExecutionContext(object):
 
     def __init__(self, regs, cpsr):
         self.regs = copy.deepcopy(regs)
-        self.flags = cpsr
-
+        self.flags = copy.deepcopy(cpsr)
 
 class ARMEmulator(object):
     """
@@ -353,8 +354,11 @@ class ARMEmulator(object):
     FLAG_EFFECTS = 1 << 2
     ALL_EFFECTS = MEM_EFFECTS | REG_EFFECTS | FLAG_EFFECTS
     
-    def __init__(self, memory_map, settings):
+    def __init__(self, memory_map, settings, os):
+        # We need a reference to the os to dispatch syscalls.
+        self.os = os
         self.settings = settings
+        
         # Controll the collection of instructions effects.
         self.effects_mask = settings["effects-mask"]
         self.record_effects = settings["show-effects"]
@@ -370,7 +374,7 @@ class ARMEmulator(object):
         self.arm_mode = ARMMode.ARM
 
         # Initialize the processor state.
-        self.__init_cpsr__()
+        self.__init_status_registers__()
         self.__init_register_map__()
         
         # We need to disassemble instructions to emulate them.
@@ -378,6 +382,10 @@ class ARMEmulator(object):
 
         # Initialize the IT block tracker.
         self.it_session = ITSession()
+
+        # We need to implement these:
+        # B4.1.65 HCR, Hyp Configuration Register, Virtualization Extensions
+        self.HCR = {}
 
         self.instructions = {}
         self.instructions[ARMInstruction.adc_immediate] = self.emulate_adc_immediate
@@ -535,12 +543,25 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.yield_] = self.emulate_yield
         self.instructions[ARMInstruction.ubfx] = self.emulate_ubfx
 
-    def __init_cpsr__(self):
+    def __init_status_registers__(self):
         """
         In ARMv7-A and ARMv7-R, the APSR is the same register as the CPSR, but the APSR must be
         used only to access the N, Z, C, V, Q, and GE[3:0] bits.
         """
-        self.cpsr = 0
+        # SPSR is to record the pre-exception value of the CPSR
+        self.spsr = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
+        self.cpsr = {"N": 0, "Z": 0, "C": 0, "V": 0, "Q": 0, "J": 0, "GE": 0, "E": 0, "A": 0, "I": 0, "F": 0, "T": 0, "M": 0}
+
+        # B4.1.130 SCTLR, System Control Register, VMSA
+        self.sctlr = {"TE" : 0, "AFE" : 0, "TRE" : 0, "NMFI" : 0, "EE" : 0, "VE" : 0, "U" : 1, "FI" : 0,
+                      "UWXN" : 0, "WXN" : 0, "HA" : 0, "RR" : 0, "SW" : 0, "B" : 0, "CP15BEN" : 0,
+                      "C" : 0, "A" : 0, "M" : 0, "V" : 1, "I" : 0, "Z" : 0}
+        
+        # B4.1.71 HSCTLR, Hyp System Control Register, Virtualization Extensions
+        self.hsctlr = {"TE" : 0, "EE" : 0, "FI" : 0, "WXN" : 0, "I" : 0, "CP15BEN" : 0, "C" : 0, "A" : 0, "M" : 0}
+        
+        # B4.1.129 SCR, Secure Configuration Register, Security Extensions
+        self.scr = {"SIF" : 0, "HCE" : 0, "SCD" : 0, "nET" : 0, "AW" : 0, "FW" : 0, "EA" : 0, "FIQ" : 0, "IRQ" : 0, "NS" : 0}
 
     def __init_register_map__(self):
         """
@@ -591,9 +612,195 @@ class ARMEmulator(object):
         """
         return self.effects
 
-    def CallSupervisor(self, imm):
-        # TODO: Implement
-        raise RuntimeError("SVC not implemented")
+    def TakeSVCException(self, ins, immediate):
+        # Determine return information. SPSR is to be the current CPSR, after changing the IT[]
+        # bits to give them the correct values for the following instruction, and LR is to be
+        # the current PC minus 2 for Thumb or 4 for ARM, to change the PC offsets of 4 or 8
+        # respectively from the address of the current instruction into the required address of
+        # the next instruction, the SVC instruction having size 2bytes for Thumb or 4 bytes for ARM.
+        
+        # TODO: Do we need to check if in THUMB to do this?
+        self.it_session.ITAdvance()
+        
+        # new_lr_value = if CPSR.T == '1' then PC-2 else PC-4;
+        new_lr_value = self.getPC() - 2 if self.getCurrentMode() == ARMMode.THUMB else self.getPC() - 4 
+                
+        # new_spsr_value = CPSR;
+        new_spsr_value = copy.deepcopy(self.cpsr)
+        
+        # vect_offset = 8;
+        vect_offset = 8
+        
+        # TODO: Implement these as needed.
+        # take_to_hyp = (HaveVirtExt() && HaveSecurityExt() && SCR.NS == '1' && CPSR.M == '11010');
+        take_to_hyp = False
+        
+        # if HCR.TGE is set to 1, take to Hyp mode through Hyp Trap vector
+        # route_to_hyp = (HaveVirtExt() && HaveSecurityExt() && !IsSecure() && HCR.TGE == '1' && CPSR.M == '10000');
+        route_to_hyp = False
+
+        # preferred_exceptn_return = new_lr_value;    
+        preferred_exceptn_return = new_lr_value
+
+        # if take_to_hyp then
+        #     EnterHypMode(new_spsr_value, preferred_exceptn_return, vect_offset);
+        # elsif route_to_hyp then
+        #     EnterHypMode(new_spsr_value, preferred_exceptn_return, 20);
+        # else
+        #     // Enter Supervisor ('10011') mode, and ensure Secure state if initially in Monitor
+        #     // ('10110') mode. This affects the Banked versions of various registers accessed later in the code.
+        #     if CPSR.M == '10110' then SCR.NS = '0';
+        #     CPSR.M = '10011';
+        #
+        #     // Write return information to registers, and make further CPSR changes: IRQs disabled,
+        #     // IT state reset, instruction set and endianness set to SCTLR-configured values.
+        #     SPSR[] = new_spsr_value;
+        #     R[14] = new_lr_value;
+        #     CPSR.I = '1';
+        #     CPSR.IT = '00000000';
+        #     CPSR.J = '0';
+        #     CPSR.T = SCTLR.TE; // TE=0: ARM, TE=1: Thumb
+        #     CPSR.E = SCTLR.EE;    // EE=0: little-endian, EE=1: big-endian
+        #
+        #     // Branch to SVC vector.
+        #     BranchTo(ExcVectorBase() + vect_offset);
+        if take_to_hyp:
+            self.EnterHypMode(new_spsr_value, preferred_exceptn_return, vect_offset)
+        
+        elif route_to_hyp:
+            self.EnterHypMode(new_spsr_value, preferred_exceptn_return, 20)
+        
+        else:
+            # As of now we do not support the other two routes of this if.
+            if self.cpsr["M"] == ARMProcessor.MON_MODE:
+                # Non-secure bit. Except when the processor is in Monitor mode,
+                # this bit determines the security state of the processor
+                self.scr["NS"] = 0
+            
+            # This field determines the current mode of the processor.
+            self.cpsr["M"] = ARMProcessor.SVC_MODE
+            
+            # Record the pre-exception value of the CPSR.
+            self.spsr = new_spsr_value
+            
+            # Set the return address.
+            self.setRegister(ARMRegister.LR, new_lr_value)
+            
+            # IRQ Mask bit, 1 means masked.
+            self.cpsr["I"] = 1
+            
+            # If-Then execution state bits for the Thumb IT (If-Then) instruction.
+            self.cpsr["IT"] = 0
+            
+            # Jazelle bit.
+            self.cpsr["J"] = 0
+            
+            # Thumb execution state bit.
+            self.cpsr["T"] = self.sctlr["TE"]  # TE=0: ARM, TE=1: Thumb
+            
+            # Endianness execution state bit. 
+            self.cpsr["E"] = self.sctlr["EE"]  # EE=0: little-endian, EE=1: big-endian
+            
+            # Jump to the handler.
+            # self.BranchTo(self.ExcVectorBase() + vect_offset)
+            # NOTE: Here we do not branch to the handler in the vector, we
+            # go straight to our syscall dispatched in the OS class.
+            self.os.__dispatch_syscall__()
+        
+    def ExcVectorBase(self):
+        """
+        For an exception taken to a PL1 mode other than Monitor mode, the ExcVectorBase() function 
+        determines the exception base address.
+        """
+        if self.sctlr["V"] == 1:
+            # Hivecs selected, base = 0xFFFF0000
+            return 0xFFFF0000
+        
+        elif self.HaveSecurityExt():
+            # VBAR, Vector Base Address Register, Security Extensions
+            raise RuntimeError("VBAR not implemented.")
+        
+        else:
+            return 0
+        
+    def EnterHypMode(self, new_spsr_value, preferred_exceptn_return, vect_offset):
+        """
+        The EnterHypMode() function changes the processor mode to Hyp mode, with the required state changes.
+        """
+        self.cpsr["M"] = ARMProcessor.HYP_MODE
+        self.spsr = copy.deepcopy(new_spsr_value)
+        self.ELR_hyp = preferred_exceptn_return
+        self.cpsr["J"] = 0
+        self.cpsr["T"] = self.hsctlr["TE"]
+        self.cpsr["E"] = self.hsctlr["EE"]
+        
+        if self.scr["EA"] == 0:
+            self.cpsr["A"] = 1
+        
+        if self.scr["FIQ"] == 0:
+            self.cpsr["F"] = 1
+        
+        if self.scr["IRQ"] == 0:
+            self.cpsr["I"] = 1
+        
+        self.cpsr["IT"] = 0
+        self.BranchTo(self.HVBAR + vect_offset)
+        
+    def IsSecure(self):
+        """
+        The IsSecure() function returns TRUE if the processor is in Secure state, or if the 
+        implementation does not include the Security Extensions, and FALSE otherwise.
+        """
+        return not self.HaveSecurityExt() or self.scr["NS"] == 0 or self.cpsr["M"] == ARMProcessor.MON_MODE
+
+    def HaveVirtExt(self):
+        """
+        This function returns TRUE if the implementation includes the Virtualization Extensions.
+        """
+        return False
+    
+    def HaveSecurityExt(self):
+        """
+        The HaveSecurityExt() function returns TRUE if the implementation includes the Security Extensions, and FALSE otherwise.
+        """
+        return False   
+
+    def CallSupervisor(self, ins, immediate):
+        """
+        The CallSupervisor() function generates a Supervisor Call exception, after setting up the HSR if the
+        exception must be taken to Hyp mode. Valid execution of the SVC instruction calls this function.
+
+        if CurrentModeIsHyp() || (HaveVirtExt() && !IsSecure() && !CurrentModeIsNotUser() && HCR.TGE == '1') then
+            // will be taken to Hyp mode so must set HSR
+            HSRString = Zeros(25);
+            HSRString<15:0> = if CurrentCond() == '1110' then immediate else bits(16) UNKNOWN;
+            WriteHSR('010001', HSRString);
+            
+        // This will go to Hyp mode if necessary
+        TakeSVCException();
+        """
+        if self.CurrentModeIsHyp() or (self.HaveVirtExt() and not self.IsSecure() and not self.CurrentModeIsNotUser() and self.HCR["TGE"]):
+            if self.CurrentCond(ins) == 0b1110:
+                HSRString = immediate
+            
+            else:
+                raise RuntimeError("HSRString = UNKNOWN")
+        
+            self.WriteHSR(0b010001, HSRString)
+        
+        self.TakeSVCException(ins, immediate)
+
+    def WriteHSR(self, val, string):
+        # TODO: Implement.
+        raise NotImplementedError("WriteHSR")
+
+    def CurrentModeIsHyp(self):
+        # TODO: Implement.
+        return False
+    
+    def CurrentModeIsNotUser(self):
+        # TODO: Implement.
+        return False
 
     def UnalignedSupport(self):
         """
@@ -684,9 +891,9 @@ class ARMEmulator(object):
 
     def setCPSR(self, cpsr):
         """
-        TODO: Implement.
+        Set the status register.
         """
-        pass
+        self.cpsr = copy.deepcopy(cpsr)
 
 
     def setCurrentMode(self, mode):
@@ -703,14 +910,14 @@ class ARMEmulator(object):
         Returns the current execution context. The execution context is
         comprised of all the registers and flags.
         """
-        return ExecutionContext(self.register_map, self.cpsr)
+        return ExecutionContext(self.register_map, copy.deepcopy(self.cpsr))
 
     def setContext(self, context):
         """
         Replace the current execution state with 'context'.
         """
         self.register_map = copy.deepcopy(context.regs)
-        self.cpsr = context.cpsr
+        self.cpsr = copy.deepcopy(context.cpsr)
 
     def set_byte(self, address, value):
         if self.effects_mask & ARMEmulator.MEM_EFFECTS:
@@ -739,6 +946,45 @@ class ARMEmulator(object):
             self.effects.append(MemoryWriteEffect(address, value, old_value))
         
         self.memory_map.set_qword(address, value)
+
+    def read_c_string(self, address):
+        stop = False
+        out_string = ""
+        
+        i = 0
+        while not stop:
+            value = self.memory_map.get_byte(address + i)
+            if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+                self.effects.append(MemoryReadEffect(address + i, value))
+                
+            # Check for '\x00'
+            if not value:
+                break
+            
+            out_string += chr(value)
+            i += 1
+            
+        return out_string
+
+    def get_bytes(self, address, size):
+        out = self.memory_map.get_bytes(address, size)
+
+        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+            for i in xrange(0, size):
+                self.effects.append(MemoryReadEffect(address + i, ord(out[i])))
+            
+        return out
+
+    def memset(self, address, value, size):
+        self.memory_map.memset(address, value, size)
+
+    def set_bytes(self, address, chars):
+        old = self.memory_map.get_bytes(address, len(chars))
+        self.memory_map.set_bytes(address, chars)
+        
+        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+            for i in xrange(0, len(chars)):
+                self.effects.append(MemoryWriteEffect(address + i, ord(chars[i]), ord(old[i])))
 
     def get_byte(self, address):
         value = self.memory_map.get_byte(address)
@@ -809,7 +1055,7 @@ class ARMEmulator(object):
         """
         Return the value of a flag.
         """
-        flag_val = get_bit(self.cpsr, flag.bit_pos)
+        flag_val = self.cpsr[str(flag)]
 
         # Save the flag read iif we are recording effects.
         if self.effects_mask & ARMEmulator.FLAG_EFFECTS:
@@ -823,9 +1069,9 @@ class ARMEmulator(object):
         """
         # Save the flag write iif we are recording effects.
         if self.effects_mask & ARMEmulator.FLAG_EFFECTS:
-            self.effects.append(FlagWriteEffect(flag, value, get_bit(self.cpsr, flag.bit_pos)))
+            self.effects.append(FlagWriteEffect(flag, value, self.cpsr[str(flag)]))
         
-        self.cpsr = set_bit(self.cpsr, flag.bit_pos, value)
+        self.cpsr[str(flag)] = value
 
     def ArchVersion(self):
         """
@@ -3993,7 +4239,7 @@ class ARMEmulator(object):
             imm32 = ins.operands[0]
 
             # CallSupervisor(imm32<15:0>);
-            self.CallSupervisor(get_bits(imm32.n, 15, 0))
+            self.CallSupervisor(ins, get_bits(imm32.n, 15, 0))
 
     def emulate_swp(self, ins):
         if self.ConditionPassed(ins):
@@ -4261,9 +4507,6 @@ class ARMEmulator(object):
             
             self.clear_instruction_effects_record()
 
-        if ins.opcode == 0x912fff1e:
-            pass
-
         try:
             self.instructions[ins.id](ins)
 
@@ -4282,12 +4525,12 @@ class ARMEmulator(object):
         self.set_pc_needs_update(True)
 
         if dump_state:
-            #self.log.info(self.dump_state())
-            #self.log.info("")
-            #for diff in self.diff_states(state, self.get_state()):
+            # self.log.info(self.dump_state())
+            # self.log.info("")
+            # for diff in self.diff_states(state, self.get_state()):
             #    print "  ", diff
             #    
-            #print
+            # print
             for effect in self.get_instruction_effects_record():
                 self.log.info(effect)
                 
