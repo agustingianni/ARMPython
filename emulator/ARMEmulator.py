@@ -75,13 +75,14 @@ class ARMProcessor(object):
         pass
 
 
+# This is not two's complement.
 def NOT(val):
     return ~val & 0xffffffff
 
 
 def AddWithCarry(x, y, carry_in):
     # unsigned_sum = UInt(x) + UInt(y) + UInt(carry_in);
-    unsigned_sum = UInt(x, 32) + UInt(y, 32) + UInt(carry_in, 32)
+    unsigned_sum = UInt(x, 32) + UInt(y, 32) + UInt(carry_in, 32) 
 
     # signed_sum = SInt(x) + SInt(y) + UInt(carry_in);
     signed_sum = SInt(x, 32) + SInt(y, 32) + UInt(carry_in, 32)
@@ -90,7 +91,7 @@ def AddWithCarry(x, y, carry_in):
     result = get_bits(unsigned_sum, 31, 0)
 
     # carry_out = if UInt(result) == unsigned_sum then '0' else '1';
-    if UInt(result, 32) == signed_sum:
+    if UInt(result, 32) == unsigned_sum:
         carry_out = 0
     else:
         carry_out = 1
@@ -1935,10 +1936,10 @@ class ARMEmulator(object):
         self.setFlag(ARMFLag.N, get_bit(result, 31))
         self.setFlag(ARMFLag.Z, int(result == 0))
 
-        if carry:
+        if carry is not None:
             self.setFlag(ARMFLag.C, carry)
 
-        if overflow:
+        if overflow is not None:
             self.setFlag(ARMFLag.V, overflow)
 
     def emulate_cmp_immediate(self, ins):
@@ -2281,16 +2282,78 @@ class ARMEmulator(object):
 
     def emulate_ldrb_immediate_arm(self, ins):
         """
-        TODO: Implement
+        Done
         """
-        raise InstructionNotImplementedException("LDRB Immediate ARM")
+        if self.ConditionPassed(ins):
+            P = get_bit(ins.opcode, 24)
+            U = get_bit(ins.opcode, 23)
+            W = get_bit(ins.opcode, 21)
+
+            index = P == 1
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            if len(ins.operands) == 2:
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op2
+            
+            else:
+                Rt, mem, imm32 = ins.operands
+                Rn = mem.op1
+            
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            address = offset_addr if index else self.getRegister(Rn)
+            
+            # R[t] = ZeroExtend(MemU[address,1], 32);
+            self.setRegister(Rt, self.get_byte(address))
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
 
     def emulate_ldrb_immediate_thumb(self, ins):
         """
-        TODO: Implement
+        Done
         """
-        raise InstructionNotImplementedException("LDRB Immediate THUMB")
+        if self.ConditionPassed(ins):
+            # LDRB<c> <Rt>, [<Rn>, #-<imm8>]
+            # LDRB<c> <Rt>, [<Rn>, #+/-<imm8>]!
+            # LDRB<c> <Rt>, [<Rn>], #+/-<imm8>
 
+            if ins.encoding in [eEncodingT1, eEncodingT2]:
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op2
+
+                index = True
+                wback = False
+            
+            else:
+                P = get_bit(ins.opcode, 10)
+                W = get_bit(ins.opcode, 8)
+                
+                index = P == 1
+                wback = W == 1
+                
+                if len(ins.operands) == 3:
+                    Rt, mem, imm32 = ins.operands
+                    Rn = mem.op1
+                    
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            address = offset_addr if index else self.getRegister(Rn)
+            
+            # R[t] = ZeroExtend(MemU[address,1], 32);
+            self.setRegister(Rt, self.get_byte(address))
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+                    
     def emulate_ldrb_immediate(self, ins):
         """
         Done
@@ -2302,11 +2365,57 @@ class ARMEmulator(object):
 
     def emulate_ldrb_literal(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+            raise InstructionNotImplementedException("LDRB Literal")
 
     def emulate_ldrb_register(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+            """
+            Done
+            """
+            if ins.encoding in [eEncodingT1, eEncodingT2]:
+                Rt, mem = ins.operands
+                Rn, Rm = mem.op1, mem.op2
+                shift_t, shift_n = (mem.op3.type_, mem.op3.value) if mem.op3 else (SRType_LSL, 0)
+                add = True
+                index = True
+                wback = False
+            
+            else:                
+                P = get_bit(ins.opcode, 24)
+                U = get_bit(ins.opcode, 23)
+                W = get_bit(ins.opcode, 21)
+
+                index = P == 1
+                add = U == 1
+                wback = P == 0 or W == 1
+                
+                if len(ins.operands) == 4:
+                    Rt, mem, Rm, shift = ins.operands
+                    Rn = mem.op1
+                    shift_t, shift_n = shift.type_, shift.value
+                
+                else:
+                    Rt, mem = ins.operands
+                    Rn, Rm, shift = mem.op1, mem.op2, mem.op3
+            
+            # Register may be negative, adjust.        
+            Rm_val = self.getRegister(Rm) * -1 if Rm.negative else self.getRegister(Rm)
+            
+            # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+            offset = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+            offset_addr = self.getRegister(Rn) + offset if add else self.getRegister(Rn) - offset
+            
+            # address = if index then offset_addr else R[n];
+            address = offset_addr if index else self.getRegister(Rn)
+            
+            # R[t] = ZeroExtend(MemU[address,1],32);
+            self.setRegister(Rt, self.get_byte(address))
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
 
     def emulate_ldrbt(self, ins):
         if self.ConditionPassed(ins):
@@ -3228,8 +3337,15 @@ class ARMEmulator(object):
             self.__write_reg_and_set_flags__(Rd, result, carry, None, ins.setflags)
 
     def emulate_pld(self, ins):
+        """
+        address = if add then (R[n] + imm32) else (R[n] - imm32);
+        if is_pldw then
+            Hint_PreloadDataForWrite(address);
+        else
+            Hint_PreloadData(address);
+        """
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+            return
 
     def emulate_pop_arm(self, ins):
         """
@@ -3861,15 +3977,66 @@ class ARMEmulator(object):
 
     def emulate_stm_user_registers(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+            raise InstructionNotImplementedException("STM User Registers")
 
     def emulate_strb_immediate_arm(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+            P = get_bit(ins.opcode, 24)
+            W = get_bit(ins.opcode, 21)
 
+            index = P == 1
+            wback = P == 0 or W == 1
+
+            if len(ins.operands) == 2:
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op2
+            
+            else:
+                Rt, mem, imm32 = ins.operands
+                Rn = mem.op1
+
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            address = offset_addr if index else self.getRegister(Rn)
+            
+            # MemU[address,1] = R[t]<7:0>;
+            self.set_byte(address, self.getRegister(Rt) & 0xff)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+        
+            
     def emulate_strb_immediate_thumb(self, ins):
-        if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+        """
+        EncodingSpecificOperations(); NullCheckIfThumbEE(n);
+        offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+        address = if index then offset_addr else R[n];
+        MemU[address,1] = R[t]<7:0>;
+        
+        if wback then
+            R[n] = offset_addr;        
+        """
+        if self.ConditionPassed(ins):        
+            Rt, mem = ins.operands
+            Rn, imm32 = mem.op1, mem.op2
+            wback = mem.wback
+            index = get_bit(ins.opcode, 10) == 1
+            
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            address = offset_addr if index else self.getRegister(Rn)
+            
+            # MemU[address,1] = R[t]<7:0>;
+            self.set_byte(address, self.getRegister(Rt) & 0xff)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)        
 
     def emulate_strb_immediate(self, ins):
         if self.arm_mode == ARMMode.ARM:
@@ -3879,7 +4046,73 @@ class ARMEmulator(object):
 
     def emulate_strb_register(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+            """
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm))]
+            ins = Instruction(ins_id, opcode, "STRB", False, condition, operands, encoding)
+
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n))]
+            ins = Instruction(ins_id, opcode, "STRB", False, condition, operands, encoding, ".W")
+
+            if index == True and wback == False:
+                operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, not add), RegisterShift(shift_t, shift_n), wback=False)]
+                ins = Instruction(ins_id, opcode, "STRB", False, condition, operands, encoding)
+            
+            elif index == True and wback == True:
+                operands = [Register(Rt), Memory(Register(Rn), Register(Rm, False, not add), RegisterShift(shift_t, shift_n), wback=True)]
+                ins = Instruction(ins_id, opcode, "STRB", False, condition, operands, encoding)
+            
+            elif index == False and wback == True:
+                operands = [Register(Rt), Memory(Register(Rn)), Register(Rm, False, not add), RegisterShift(shift_t, shift_n)]
+                ins = Instruction(ins_id, opcode, "STRB", False, condition, operands, encoding)
+            """
+            if ins.opcode == 0xf8038006:
+                pass
+            
+            if ins.encoding in [eEncodingT1, eEncodingT2]:
+                Rt, mem = ins.operands
+                Rn, Rm = mem.op1, mem.op2
+                shift_t, shift_n = (mem.op3.type_, mem.op3.value.n) if mem.op3 else (SRType_LSL, 0)
+                add = True
+                index = True
+                wback = False
+            
+            else:
+                add = get_bit(ins.opcode, 23) == 1
+                index = get_bit(ins.opcode, 24) == 1
+                
+                P = get_bit(ins.opcode, 24)
+                W = get_bit(ins.opcode, 21)
+
+                wback = P == 0 or W == 1 
+                
+                if len(ins.operands) == 4:
+                    Rt, mem, Rm, shift = ins.operands
+                    Rn = mem.op1
+                    shift_t, shift_n = shift.type_, shift.value
+                
+                else:
+                    Rt, mem = ins.operands
+                    Rn, Rm, shift = mem.op1, mem.op2, mem.op3
+            
+            # Register may be negative, adjust.        
+            Rm_val = self.getRegister(Rm) * -1 if Rm.negative else self.getRegister(Rm)
+                        
+            # offset = Shift(R[m], shift_t, shift_n, APSR.C);
+            offset = Shift(Rm_val, shift_t, shift_n, self.getCarryFlag())
+            
+            # offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+            offset_addr = self.getRegister(Rn) + offset if add else self.getRegister(Rn) - offset
+            
+            # address = if index then offset_addr else R[n];
+            address = offset_addr if index else self.getRegister(Rn)
+            
+            # MemU[address,1] = R[t]<7:0>;
+            self.set_byte(address, self.getRegister(Rt) & 0xff)
+            
+            # if wback then R[n] = offset_addr;
+            if wback:
+                self.setRegister(Rn, offset_addr)
+
 
     def emulate_strbt(self, ins):
         if self.ConditionPassed(ins):
@@ -4481,7 +4714,7 @@ class ARMEmulator(object):
         # It does not matter what execution mode we are on, just get a dword and decode it.
         opcode = self.get_dword(self.getActualPC() & ~1)
 
-        # Get the instruction representation of the opcode.
+        # Get the instruction representation of the opcode.        
         ins = self.disassembler.disassemble(opcode, self.getCurrentMode())
         
         # Emulate the instruction. Mode changes can occour.
@@ -4504,8 +4737,11 @@ class ARMEmulator(object):
             # state = self.get_state()
             mode_str = "ARM  " if self.getCurrentMode() == ARMMode.ARM else "THUMB"
             self.log.info("Ins @ pc=0x%.8x | opcode=0x%.8x | mode=%s | %s" % (self.getActualPC(), ins.opcode, mode_str, ins))
-            
+
             self.clear_instruction_effects_record()
+
+        if self.getActualPC() == 0x0000f574:
+            pass
 
         try:
             self.instructions[ins.id](ins)
@@ -4534,7 +4770,7 @@ class ARMEmulator(object):
             for effect in self.get_instruction_effects_record():
                 self.log.info(effect)
                 
-            self.log.info("")
+            # self.log.info("")
 
     def set_pc_needs_update(self, value):
         # assert self.update_pc != value, "update_pc value matches value, failed somewhere to reset it"

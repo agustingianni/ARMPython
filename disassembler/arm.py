@@ -146,7 +146,7 @@ class ARMDisassembler(object):
         (0xfffffe00, 0x00001800, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_add_register_thumb),
         
         # ADD (register, Thumb) ARMv6T2 | ARMv7 if <Rdn> and <Rm> are both from R0-R7, ARMv4T | ARMv5TAll | ARMv6All | ARMv7 otherwise
-        (0xffff7f80, 0x00004400, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize16, self.decode_add_register_thumb),
+        (0xffffff00, 0x00004400, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize16, self.decode_add_register_thumb),
         
         # ADD (register, Thumb) ARMv6T2 | ARMv7
         (0xffe08000, 0xeb000000, ARMv6T2 | ARMv7, eEncodingT3, No_VFP, eSize32, self.decode_add_register_thumb),
@@ -471,6 +471,10 @@ class ARMDisassembler(object):
 
         # POP (thumb) ARMv6T2 | ARMv7
         (0xffff0fff, 0xf85d0b04, ARMv6T2 | ARMv7, eEncodingT3, No_VFP, eSize32, self.decode_pop_thumb),
+        
+        # PLD, PLDW (immediate) 
+        (0xffd0f000, 0xf890f000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_pld),
+        (0xffd0ff00, 0xf810fc00, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_pld),  
 
         # PUSH ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xfffffe00, 0x0000b400, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_push),
@@ -506,7 +510,7 @@ class ARMDisassembler(object):
         (0xfbe08000, 0xf1c00000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_rsb_immediate),
         
         # RSB (register) ARMv6T2 | ARMv7
-        (0xffe08000, 0xea400000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_rsb_register),
+        (0xffe08000, 0xebc00000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_rsb_register),
 
         # SBC (immediate) ARMv6T2 | ARMv7
         (0xfbe08000, 0xf1600000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_sbc_immediate),
@@ -697,6 +701,9 @@ class ARMDisassembler(object):
         """
         self.arm_table = \
         (
+        # PLD, PLDW (immediate) 
+        (0xff30f000, 0xf510f000, ARMv5TEAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_pld),
+         
         # LDRH (register, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
         (0x0e500ff0, 0x001000b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_register_arm),         
          
@@ -876,7 +883,7 @@ class ARMDisassembler(object):
         (0x0fef0070, 0x01a00020, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_lsr_immediate),
 
         # LSR (register) ARMv4All | ARMv5TAll | ARMv6All | ARMv7
-        (0x0fef00f0, 0x01a00050, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_lsr_register),
+        (0x0fef00f0, 0x01a00030, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_lsr_register),
         
         # MLA ARMv4All | ARMv5TAll | ARMv6All | ARMv7
         (0x0fe000f0, 0x00200090, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_mla),
@@ -2664,7 +2671,8 @@ class ARMDisassembler(object):
             imm5 = get_bits(opcode, 7, 3)
             Rn = get_bits(opcode, 2, 0)
             
-            imm32 = (i << 5) | imm5
+            # imm32 = ZeroExtend(i:imm5:'0', 32);
+            imm32 = ((i << 5) | imm5) << 1
             nonzero = op == 1
             
             # if InITBlock() then UNPREDICTABLE;
@@ -6860,7 +6868,7 @@ class ARMDisassembler(object):
             
             # if Rn == '1111' then UNDEFINED;
             if Rn == 0b1111:
-                return self.decode_ldr_literal(opcode, encoding)
+                return self.decode_ldr_literal(opcode, eEncodingT2)
             
             # if t == 15 && InITBlock() && !LastInITBlock() then UNPREDICTABLE;
             if Rt == 15 and self.InITBlock() and not self.LastInITBlock():
@@ -8475,9 +8483,68 @@ class ARMDisassembler(object):
 
         return ins
     
+    def decode_pld_literal(self, opcode, encoding):
+        raise NotImplementedError("PLD Literal")
+    
     def decode_pld(self, opcode, encoding):
+        """
+        A8.8.126
+        PLD, PLDW (immediate)
+        Preload Data signals the memory system that data memory accesses from a specified address are likely in the near
+        future. The memory system can respond by taking actions that are expected to speed up the memory accesses when
+        they do occur, such as pre-loading the cache line containing the specified address into the data cache
+        """
         ins_id = ARMInstruction.pld
-        raise InstructionNotImplementedException("decode_pld")    
+        if encoding == eEncodingT1:
+            # PLD{W}<c> [<Rn>, #<imm12>]
+            W = get_bit(opcode, 21)
+            Rn = get_bits(opcode, 19, 16)
+            imm32 = get_bits(opcode, 11, 0)
+            
+            # if Rn == '1111' then SEE PLD (literal);
+            if Rn == 0b1111:
+                return self.decode_pld_literal(opcode, encoding)
+            
+            # n = UInt(Rn); imm32 = ZeroExtend(imm12, 32); add = TRUE; is_pldw = (W == '1');
+            is_pldw = W == 1
+            add = True
+        
+        elif encoding == eEncodingT2:
+            # PLD{W}<c> [<Rn>, #-<imm8>]
+            W = get_bit(opcode, 21)
+            Rn = get_bits(opcode, 19, 16)
+            imm32 = get_bits(opcode, 7, 0)
+
+            # if Rn == '1111' then SEE PLD (literal);
+            if Rn == 0b1111:
+                return self.decode_pld_literal(opcode, encoding)
+            
+            # n = UInt(Rn); imm32 = ZeroExtend(imm8, 32); add = FALSE; is_pldw = (W == '1');
+            is_pldw = W == 1
+            add = False
+            imm32 *= -1
+    
+        elif encoding == eEncodingA1:
+            # PLD{W} [<Rn>, #+/-<imm12>]
+            R = get_bit(opcode, 22)
+            U = get_bit(opcode, 23)
+            Rn = get_bits(opcode, 19, 16)
+            imm32 = get_bits(opcode, 11, 0)
+            
+            # if Rn == '1111' then SEE PLD (literal);
+            if Rn == 0b1111:
+                return self.decode_pld_literal(opcode, encoding)
+            
+            # n = UInt(Rn); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); is_pldw = (R == '0');
+            add = U == 1
+            is_pldw = R == 0
+            
+            if not add:
+                imm32 *= -1
+
+        operands = [Memory(Register(Rn), Immediate(imm32))]
+        ins = Instruction(ins_id, opcode, "PLD", False, None, operands, encoding)            
+        return ins
     
     def decode_pop_thumb(self, opcode, encoding):
         """
