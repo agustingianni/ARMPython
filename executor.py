@@ -8,7 +8,7 @@ from elftools.elf.constants import P_FLAGS
 from disassembler.arch import ARMRegister, ARMMode, \
     InstructionNotImplementedException
 from emulator.memory import ConcreteMemoryMap, GetLastValidAddress, \
-    InvalidMemoryAccessException
+    InvalidMemoryAccessException, MemoryMapIterator
 from emulator.ARMEmulator import ARMEmulator
 from disassembler.utils.bits import Align
 from collections import namedtuple
@@ -1260,6 +1260,7 @@ class LinuxOS(object):
         if None in self.files:
             fd = self.files.index(None)
             self.files[fd] = f
+            
         else:
             self.files.append(f)
             fd = len(self.files) - 1
@@ -1554,7 +1555,7 @@ class LinuxOS(object):
 
         # Here we define our stack.
         stack_top = 0xc0000000
-        stack_size = 8 * 1024
+        stack_size = 0x21000
         stack_base = stack_top - stack_size
 
         # Current stack pointer value.
@@ -1585,27 +1586,26 @@ class LinuxOS(object):
             task.memory.set_bytes(arg_address, arg_var + '\x00')
             argvlst.append(arg_address)
 
+        stack, platform_addr = self.__stack_alloc__(stack, 4)
+        task.memory.set_bytes(arg_address, "v7l\x00")
+        
         # Align the stack since the strings may not be aligned.
         stack = ((stack - 4) / 4) * 4
-
-        # Two null's. I have no idea why.
-        # stack = self.__stack_push__(stack, 0)
-        # stack = self.__stack_push__(stack, 0)
 
         # Mark the end of the vector.
         stack = self.__stack_push__(stack, 0x00000000)
         stack = self.__stack_push__(stack, AT_NULL)
 
         # String identifying CPU for optimizations.
-        stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, platform_addr)
         stack = self.__stack_push__(stack, AT_PLATFORM)  # f
 
         # Filename of program.
-        stack = self.__stack_push__(stack, 0x00000000)
+        stack = self.__stack_push__(stack, argvlst[0])
         stack = self.__stack_push__(stack, AT_EXECFN)  # 1f
 
-        # Address of 16 random bytes.
-        stack = self.__stack_push__(stack, 0x00000000)
+        # Address of 16 random bytes. Secure crypto right here y0.
+        stack = self.__stack_push__(stack, stack)
         stack = self.__stack_push__(stack, AT_RANDOM)  # 19
 
         # Secure mode boolean.
@@ -1638,7 +1638,7 @@ class LinuxOS(object):
 
         # Base address of interpreter.
         stack = self.__stack_push__(stack, interp_load_addr)
-        stack = self.__stack_push__(stack, AT_BASE)
+        stack = self.__stack_push__(stack, AT_BASE)        
 
         # Number of program headers.
         stack = self.__stack_push__(stack, elf.header.e_phnum)
@@ -1651,7 +1651,7 @@ class LinuxOS(object):
         # Program headers for program.
         stack = self.__stack_push__(stack, load_addr + elf.header.e_phoff)
         stack = self.__stack_push__(stack, AT_PHDR)
-        
+                
         # Frequency at which times() increments.
         stack = self.__stack_push__(stack, 0x00000064)
         stack = self.__stack_push__(stack, AT_CLKTCK)
@@ -1681,19 +1681,22 @@ class LinuxOS(object):
         # Set the value of 'int argc'
         stack = self.__stack_push__(stack, len(argvlst))
 
-        log.debug("Entry point: %.8x" % elf_entry)
-        log.debug("Stack start: %.8x" % stack)
-        log.debug("Brk        : %.8x" % elf_brk)
-
-        # log.debug("Stack Dump:")
+        # log.info("Stack Dump:")
         # for addr, value in MemoryMapIterator(task.memory, start_addr=stack, end_addr=stack_top, step_size=4):
-        #     log.debug("\t[%.8x] = %.8x" % (addr, task.memory.get_dword(addr)))
+        #     log.info("\t[%.8x] = %.8x" % (addr, task.memory.get_dword(addr)))
+        # 
+        # for addr in xrange(stack, stack_top - 4 - 4, 4*4):
+        #     a1 = task.memory.get_dword(addr + 4 * 0)
+        #     a2 = task.memory.get_dword(addr + 4 * 1)
+        #     a3 = task.memory.get_dword(addr + 4 * 2)
+        #     a4 = task.memory.get_dword(addr + 4 * 3)
+        #     print "0x%.8x: 0x%.8x  0x%.8x  0x%.8x  0x%.8x" % (addr, a1, a2, a3, a4)
 
         # Setup special registers following per-architecture ABI.
         self.__elf_plat_init__(reloc_func_desc)
 
         self.__start_thread__(elf_entry, stack)
-        
+
         # Let the CPU consume instructions and execute.
         self.cpu.run()
 
