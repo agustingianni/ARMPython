@@ -6921,7 +6921,7 @@ class ARMDisassembler(object):
                 ins = Instruction(ins_id, opcode, "STR", False, None, operands, encoding)
         
             elif index == False and wback == True:
-                operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+                operands = [Register(Rt), Memory(Register(Rn), wback=True), Immediate(imm32)]
                 ins = Instruction(ins_id, opcode, "STR", False, None, operands, encoding)
 
         else:

@@ -1255,8 +1255,22 @@ class LinuxOS(object):
     def sys_open(self, pathname, flags, mode):
         """
         open, creat - open and possibly create a file or device
+        
+        open() and creat() return the new file descriptor, or -1 if an error occurred.
         """
-        f = File(self.cpu.read_c_string(pathname))
+        path = self.cpu.read_c_string(pathname)
+        if path[0] == os.path.sep:
+            path = path[1:]
+            
+        path = os.path.join(self.root_dir, path)
+        
+        try:
+            f = File(path)
+        
+        except IOError:
+            log.info("sys_open: Could not open %s" % path)
+            return -1
+        
         if None in self.files:
             fd = self.files.index(None)
             self.files[fd] = f
@@ -1712,7 +1726,8 @@ class ARMLinuxOS(LinuxOS):
         cpu = ARMEmulator(memory, settings, self)
         self.stack_grows_down = True
         self.settings = settings
-
+        self.root_dir = settings["root-dir"]
+        
         super(ARMLinuxOS, self).__init__(cpu, memory)
 
         # Build the table that maps a syscall number to its descriptor with useful information
@@ -1778,7 +1793,7 @@ class ARMLinuxOS(LinuxOS):
         self.syscall_table[NR_dup] = SyscallInfo("dup", NR_dup, 1, "%d", self.sys_dup)
         self.syscall_table[NR_pipe] = SyscallInfo("pipe", NR_pipe, 1, "%p", self.sys_pipe)
         self.syscall_table[NR_dup2] = SyscallInfo("dup2", NR_dup2, 2, "%d, %d", self.sys_dup2)
-        self.syscall_table[NRnewselect] = SyscallInfo("newselect", NRnewselect, 0, "", self.sys_newselect) # TODO: What do? No MAN
+        self.syscall_table[NRnewselect] = SyscallInfo("newselect", NRnewselect, 0, "", self.sys_newselect)  # TODO: What do? No MAN
         self.syscall_table[NR_ftruncate] = SyscallInfo("ftruncate", NR_ftruncate, 2, "%p, %d", self.sys_ftruncate)
         self.syscall_table[NR_fsync] = SyscallInfo("fsync", NR_fsync, 1, "%d", self.sys_fsync)
         self.syscall_table[NR_fchown32] = SyscallInfo("fchown32", NR_fchown32, 3, "%d, %d, %d", self.sys_fchown32)
@@ -2020,8 +2035,11 @@ class ARMLinuxOS(LinuxOS):
         sys_no = self.cpu.getRegister(ARMRegister.R7)
         sys_info = self.syscall_table[sys_no]
         args = self.__get_syscall_arguments__(sys_info)
-        sys_info.handler(*args)
+        ret = sys_info.handler(*args)
         
+        # Set the return value in r0 and return past the SVC instruction.
+        self.cpu.setRegister(ARMRegister.R0, ret)
+        #self.cpu.setRegister(ARMRegister.PC, self.cpu.getRegister(ARMRegister.LR))
 
 def parse_emulee_arguments(args):
     try:
@@ -2075,6 +2093,10 @@ def main():
         parser.print_help()
         sys.exit(-1)
 
+    # If the user did not specify a root directory, the cwd is chosen.
+    root_dir = os.path.realpath(args.root if args.root else os.getcwd())
+    log.info("Using directory %s as the root directory for syscalls." % root_dir)
+    
     # Enable debug if requested.
     debug = args.debug
     if debug:
@@ -2089,6 +2111,7 @@ def main():
     settings["show-effects"] = acum_mask != 0
     settings["effects-mask"] = acum_mask
     settings["max-instructions"] = args.max
+    settings["root-dir"] = root_dir
     linux = ARMLinuxOS(settings)     
     
     try:   

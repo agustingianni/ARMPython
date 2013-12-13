@@ -621,7 +621,7 @@ class ARMEmulator(object):
         # the next instruction, the SVC instruction having size 2bytes for Thumb or 4 bytes for ARM.
         
         # TODO: Do we need to check if in THUMB to do this?
-        self.it_session.ITAdvance()
+        # self.it_session.ITAdvance()
         
         # new_lr_value = if CPSR.T == '1' then PC-2 else PC-4;
         new_lr_value = self.getPC() - 2 if self.getCurrentMode() == ARMMode.THUMB else self.getPC() - 4 
@@ -685,7 +685,7 @@ class ARMEmulator(object):
             self.spsr = new_spsr_value
             
             # Set the return address.
-            self.setRegister(ARMRegister.LR, new_lr_value)
+            #self.setRegister(ARMRegister.LR, new_lr_value)
             
             # IRQ Mask bit, 1 means masked.
             self.cpsr["I"] = 1
@@ -707,6 +707,8 @@ class ARMEmulator(object):
             # NOTE: Here we do not branch to the handler in the vector, we
             # go straight to our syscall dispatched in the OS class.
             self.os.__dispatch_syscall__()
+            
+            self.setRegister(ARMRegister.PC, new_lr_value)
         
     def ExcVectorBase(self):
         """
@@ -4064,10 +4066,7 @@ class ARMEmulator(object):
             elif index == False and wback == True:
                 operands = [Register(Rt), Memory(Register(Rn)), Register(Rm, False, not add), RegisterShift(shift_t, shift_n)]
                 ins = Instruction(ins_id, opcode, "STRB", False, condition, operands, encoding)
-            """
-            if ins.opcode == 0xf8038006:
-                pass
-            
+            """            
             if ins.encoding in [eEncodingT1, eEncodingT2]:
                 Rt, mem = ins.operands
                 Rn, Rm = mem.op1, mem.op2
@@ -4740,7 +4739,7 @@ class ARMEmulator(object):
 
             self.clear_instruction_effects_record()
 
-        if self.getActualPC() == 0x0000f574:
+        if self.getActualPC() == 0x00012f9c:
             pass
 
         try:
