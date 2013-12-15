@@ -1113,7 +1113,7 @@ class ARMEmulator(object):
         elif get_bit(address, 1) == 0:
             # Switch to ARM
             self.SelectInstrSet(ARMMode.ARM)
-            self.BranchTo(address & 0xfffffffe)
+            self.BranchTo(address & 0xfffffffc)
 
         else:
             raise UnpredictableInstructionException()
