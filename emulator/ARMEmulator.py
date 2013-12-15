@@ -543,6 +543,7 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.wfi] = self.emulate_wfi
         self.instructions[ARMInstruction.yield_] = self.emulate_yield
         self.instructions[ARMInstruction.ubfx] = self.emulate_ubfx
+        self.instructions[ARMInstruction.tb] = self.emulate_tb
 
     def __init_status_registers__(self):
         """
@@ -4477,6 +4478,32 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             raise InstructionNotImplementedException()
 
+    def emulate_tb(self, ins):
+        """
+        Done
+
+        if is_tbh then
+            halfwords = UInt(MemU[R[n]+LSL(R[m],1), 2]);
+        else
+            halfwords = UInt(MemU[R[n]+R[m], 1]);
+        
+        BranchWritePC(PC + 2*halfwords);
+        """
+        if self.ConditionPassed(ins):
+            if ins.name == "TBH":
+                # halfwords = UInt(MemU[R[n]+LSL(R[m],1), 2]);
+                Rn, Rm, shift = ins.operands
+                shift_t, shift_n = shift.type_, shift.value
+                
+                shifted = Shift(self.getRegister(Rm), shift_t, shift_n.n, 0)
+                halfwords = self.get_word(self.getRegister(Rn) + shifted)
+            else:
+                # halfwords = UInt(MemU[R[n]+R[m], 1]);
+                Rn, Rm = ins.operands
+                halfwords = self.get_byte(self.getRegister(Rn) + self.getRegister(Rm))
+                
+            self.BranchWritePC(self.getPC() + 2 * halfwords)
+
     def emulate_teq_immediate(self, ins):
         """
         Done
@@ -4739,7 +4766,7 @@ class ARMEmulator(object):
 
             self.clear_instruction_effects_record()
 
-        if self.getActualPC() == 0x00012f9c:
+        if self.getActualPC() == 0x0000f550:
             pass
 
         try:

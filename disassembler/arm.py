@@ -515,6 +515,9 @@ class ARMDisassembler(object):
         # SBC (immediate) ARMv6T2 | ARMv7
         (0xfbe08000, 0xf1600000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_sbc_immediate),
         
+        # TBB, TBH ARMv6T2 | ARMv7
+        (0xfff0ffe0, 0xe8d0f000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_tb),
+        
         # SBC (register) ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xffffffc0, 0x00004180, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_sbc_register),
         
@@ -3088,8 +3091,11 @@ class ARMDisassembler(object):
             imm3 = get_bits(opcode, 14, 12)
             Rd = get_bits(opcode, 11, 8)
             imm8 = get_bits(opcode, 7, 0)
-            
+                        
+            # imm32 = ZeroExtend(i:imm3:imm8, 32);
             imm32 = (i << (3 + 8)) | (imm3 << 8) | (imm8)
+            print bin(i), bin(imm3), bin(imm8)
+            print bin(imm32)
             
             #  if d == 15 then UNPREDICTABLE;
             if Rd == 15:
@@ -4860,6 +4866,48 @@ class ARMDisassembler(object):
         ins_id = ARMInstruction.rsc_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "RSC")
     
+    def decode_tb(self, opcode, encoding):
+        """
+        A8.8.236 
+        TBB, TBH
+
+        Table Branch Byte causes a PC-relative forward branch using a table of single byte offsets. A base register provides
+        a pointer to the table, and a second register supplies an index into the table. The branch length is twice the value of
+        the byte returned from the table.
+        Table Branch Halfword causes a PC-relative forward branch using a table of single halfword offsets. A base register
+        provides a pointer to the table, and a second register supplies an index into the table. The branch length is twice the
+        value of the halfword returned from the table.
+        
+        TBB{<c>}{<q>} [<Rn>, <Rm>]
+        TBH{<c>}{<q>} [<Rn>, <Rm>, LSL #1]        
+        """
+        ins_id = ARMInstruction.tb
+        Rn = get_bits(opcode, 19, 16)
+        H = get_bit(opcode, 4)
+        Rm = get_bits(opcode, 3, 0)
+        
+        # is_tbh = (H == '1');
+        is_tbh = H == 1
+        
+        # if n == 13 || m IN {13,15} then UNPREDICTABLE;
+        if Rn == 13 or BadReg(Rm):
+            raise UnpredictableInstructionException()
+    
+        # if InITBlock() && !LastInITBlock() then UNPREDICTABLE;
+        if self.InITBlock() and not self.LastInITBlock():
+            raise UnpredictableInstructionException()
+
+        if is_tbh:
+            operands = [Register(Rn), Register(Rm), RegisterShift(SRType_LSL, 1)]
+            ins = Instruction(ins_id, opcode, "TBH", False, None, operands, encoding)
+        
+        else:
+            operands = [Register(Rn), Register(Rm)]
+            ins = Instruction(ins_id, opcode, "TBB", False, None, operands, encoding)
+        
+        return ins        
+            
+    
     def decode_tst_rsr(self, opcode, encoding):
         """
         A8.8.242
@@ -5247,7 +5295,7 @@ class ARMDisassembler(object):
     
             # if Rn == '1101' then SEE SUB (SP minus immediate);
             if (Rn == 13):
-                return self.decode_sub_sp_minus_immediate(opcode, encoding)
+                return self.decode_sub_sp_minus_immediate(opcode, eEncodingT2)
     
             # if d == 13 or (d == 15 and S == '0') or n == 15 then UNPREDICTABLE;
             if (Rd == 13 or (Rd == 15 and not setflags) or Rn == 15):

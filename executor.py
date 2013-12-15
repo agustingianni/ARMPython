@@ -154,8 +154,17 @@ def PAGE_END(x):
 
 
 class File(object):
-    def __init__(self, *args, **kwargs):
-        self.file = file(*args, **kwargs)
+    def __init__(self, filename, flags):
+        if flags & os.O_RDONLY:
+            mode = "r"
+        elif flags & os.O_WRONLY:
+            mode = "w"
+        elif flags & os.O_RDWR:
+            mode = "w+"
+        else:
+            raise RuntimeError("Invalid open mode %.8x" % flags)
+            
+        self.file = os.fdopen(os.open(filename, flags), mode)
 
     def stat(self):
         return os.fstat(self.fileno())
@@ -557,15 +566,31 @@ class LinuxOS(object):
         """
         raise MissingSyscallException("munlock")
 
-    def sys_readv(self):
+    def sys_readv(self, fd, iov, iovcnt):
         """
+        readv, writev, preadv, pwritev - read or write data into multiple buffers
         """
         raise MissingSyscallException("readv")
 
-    def sys_writev(self):
+    def sys_writev(self, fd, iov, iovcnt):
         """
-        """
-        raise MissingSyscallException("writev")
+        readv, writev, preadv, pwritev - read or write data into multiple buffers
+
+        struct iovec {
+            void  *iov_base;    /* Starting address */
+            size_t iov_len;     /* Number of bytes to transfer */
+        };
+        """        
+        total = 0
+        for i in xrange(0, iovcnt):
+            buf = self.cpu.get_dword(iov + (i * 8))
+            size = self.cpu.get_dword((iov + (i * 8)) + 4)
+
+            data = self.cpu.get_bytes(buf, size)
+            self.files[fd].write(data)
+            total += size
+        
+        return total
 
     def sys_fcntl(self):
         """
@@ -1007,7 +1032,7 @@ class LinuxOS(object):
         """
         raise MissingSyscallException("listen")
 
-    def sys_accept(self):
+    def sys_accept(self, sockfd, addr, addrlen):
         """
         """
         raise MissingSyscallException("accept")
@@ -1183,6 +1208,7 @@ class LinuxOS(object):
         """
         close - close a file descriptor
         """
+        self.files[fd].close()
         self.files[fd] = None
         return 0
             
@@ -1256,16 +1282,16 @@ class LinuxOS(object):
         """
         open, creat - open and possibly create a file or device
         
-        open() and creat() return the new file descriptor, or -1 if an error occurred.
-        """
+        open() and creat() return the new file descriptor, or -1 if an error occurred.        
+        """        
         path = self.cpu.read_c_string(pathname)
         if path[0] == os.path.sep:
             path = path[1:]
             
         path = os.path.join(self.root_dir, path)
-        
+                
         try:
-            f = File(path)
+            f = File(path, flags)
         
         except IOError:
             log.info("sys_open: Could not open %s" % path)
@@ -2035,11 +2061,15 @@ class ARMLinuxOS(LinuxOS):
         sys_no = self.cpu.getRegister(ARMRegister.R7)
         sys_info = self.syscall_table[sys_no]
         args = self.__get_syscall_arguments__(sys_info)
+        
+        log.info("Dispatching syscall %s" % sys_info.name)
+        
         ret = sys_info.handler(*args)
         
-        # Set the return value in r0 and return past the SVC instruction.
+        # Set the return value in r0.
         self.cpu.setRegister(ARMRegister.R0, ret)
-        #self.cpu.setRegister(ARMRegister.PC, self.cpu.getRegister(ARMRegister.LR))
+        
+        log.info("Syscall %s returned %d" % (sys_info.name, ret))
 
 def parse_emulee_arguments(args):
     try:
@@ -2125,6 +2155,9 @@ def main():
         
     except EmulationExited, e:
         log.info("Program exited")
+    
+    except MissingSyscallException, e:
+        log.error("Missing syscall, please implement it: %s" % e)
 
 if __name__ == "__main__":
     try:
