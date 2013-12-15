@@ -1108,12 +1108,12 @@ class ARMEmulator(object):
         if get_bit(address, 0) == 1:
             # Switch to THUMB
             self.SelectInstrSet(ARMMode.THUMB)
-            self.BranchTo(address)
+            self.BranchTo(address & 0xfffffffe)
 
         elif get_bit(address, 1) == 0:
             # Switch to ARM
             self.SelectInstrSet(ARMMode.ARM)
-            self.BranchTo(address)
+            self.BranchTo(address & 0xfffffffe)
 
         else:
             raise UnpredictableInstructionException()
@@ -4766,7 +4766,7 @@ class ARMEmulator(object):
 
             self.clear_instruction_effects_record()
 
-        if self.getActualPC() == 0x0000f550:
+        if self.getActualPC() == 0x0000cac5:
             pass
 
         try:
