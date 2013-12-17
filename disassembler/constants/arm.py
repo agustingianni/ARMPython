@@ -222,3 +222,6 @@ class ARMInstruction:
     ldrh_register_arm = 0x0099
     ubfx = 0x009a
     tb = 0x009b
+    strh_immediate_arm = 0x009c
+    strh_immediate_thumb = 0x009d
+    strh_register = 0x009e

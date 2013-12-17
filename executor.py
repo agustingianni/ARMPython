@@ -156,11 +156,11 @@ def PAGE_END(x):
 class File(object):
     def __init__(self, filename, flags):
         if flags & os.O_RDONLY:
-            mode = "r"
+            mode = "rb"
         elif flags & os.O_WRONLY:
-            mode = "w"
+            mode = "wb"
         elif flags & os.O_RDWR:
-            mode = "w+"
+            mode = "wb+"
         else:
             raise RuntimeError("Invalid open mode %.8x" % flags)
             
@@ -587,6 +587,10 @@ class LinuxOS(object):
             size = self.cpu.get_dword((iov + (i * 8)) + 4)
 
             data = self.cpu.get_bytes(buf, size)
+            
+            # log.info("DEBUG: %.8x %d" % (buf, size))
+            # log.info("DEBUG: %s" % (data))
+            
             self.files[fd].write(data)
             total += size
         
@@ -2062,7 +2066,8 @@ class ARMLinuxOS(LinuxOS):
         sys_info = self.syscall_table[sys_no]
         args = self.__get_syscall_arguments__(sys_info)
         
-        log.info("Dispatching syscall %s" % sys_info.name)
+        args_string = ", ".join(map(lambda x: "0x%.8x" % x, args))  
+        log.info("Dispatching syscall %s(%s)" % (sys_info.name, args_string))
         
         ret = sys_info.handler(*args)
         

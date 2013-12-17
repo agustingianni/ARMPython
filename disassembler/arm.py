@@ -62,7 +62,8 @@ from disassembler.utils.bits import get_bit, get_bits, CountTrailingZeros, BitCo
 from disassembler.utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, DecodeImmShiftThumb
 from disassembler.utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
 from disassembler.utils.arm import ThumbImm12
-from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding
+from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding,\
+    ARMRegister
 from disassembler.arch import UnpredictableInstructionException, InstructionNotImplementedException
 from disassembler.arch import Memory, RegisterShift, Condition, ProcessorFlag, RegisterSet
 from disassembler.arch import UndefinedOpcode, Jump, Register
@@ -1019,6 +1020,9 @@ class ARMDisassembler(object):
 
         # STR (register) ARMv4All | ARMv5TAll | ARMv6All | ARMv7
         (0x0e500010, 0x06000000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_str_reg),
+        
+        # STRH (immediate, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
+        (0x0e5000f0, 0x004000b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_strh_immediate_arm),
         
         # STRB (immediate, ARM) ARMv4All | ARMv5TAll | ARMv6All | ARMv7
         (0x0e500000, 0x04400000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_strb_immediate_arm),
@@ -2419,7 +2423,9 @@ class ARMDisassembler(object):
             Rd = get_bits(opcode, 11, 8)
             Rm = get_bits(opcode, 3, 0)
             
+            # m_high = (M == '1');
             M = get_bit(opcode, 4)
+            m_high = M == 1
                         
             # if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
             if BadReg(Rd) or BadReg(Rn) or BadReg(Rm):
@@ -2432,7 +2438,9 @@ class ARMDisassembler(object):
             Rm = get_bits(opcode, 11, 8)
             Rn = get_bits(opcode, 3, 0)
 
+            # m_high = (M == '1');
             M = get_bit(opcode, 6)            
+            m_high = M == 1
             
             # if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;
             if Rd == 15 or Rn == 15 or Rm == 15:
@@ -2441,8 +2449,9 @@ class ARMDisassembler(object):
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
 
+        name = "SMULWT" if m_high else "SMULWB"
         operands = [Register(Rd), Register(Rn), Register(Rm)]
-        ins = Instruction(ins_id, opcode, "SMULL", False, condition, operands, encoding)
+        ins = Instruction(ins_id, opcode, name, False, condition, operands, encoding)
         return ins
 
     def decode_smlal(self, opcode, encoding):
@@ -6052,11 +6061,9 @@ class ARMDisassembler(object):
         condition = self.decode_condition_field(opcode)
         
         if encoding == eEncodingT1:
-            condition = None
             option = get_bits(opcode, 3, 0)
             
         elif encoding == eEncodingA1:
-            condition = None
             option = get_bits(opcode, 3, 0)
 
         else:
@@ -6176,7 +6183,7 @@ class ARMDisassembler(object):
             imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C"))
             
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
-            if BadReg(Rd) and setflags:
+            if Rd == 0b1111 and setflags:
                 return self.decode_subs_pc_lr_arm(opcode, encoding)
 
             operands = [Register(Rd), Immediate(imm32)]
@@ -6789,6 +6796,76 @@ class ARMDisassembler(object):
                 
         return ins
 
+    def decode_strh_immediate_thumb(self, opcode, encoding):
+        """
+        A8.8.216
+        STRH (immediate, Thumb)
+        Store Register Halfword (immediate) calculates an address from a base register value and an immediate offset, and
+        stores a halfword from a register to memory. It can use offset, post-indexed, or pre-indexed addressing        
+        """
+        pass
+
+    def decode_strh_immediate_arm(self, opcode, encoding):
+        """
+        A8.8.217
+        STRH (immediate, ARM)
+        Store Register Halfword (immediate) calculates an address from a base register value and an immediate offset, and
+        stores a halfword from a register to memory. It can use offset, post-indexed, or pre-indexed addressing.         
+        """
+        ins_id = ARMInstruction.strh_immediate_arm
+        condition = self.decode_condition_field(opcode)
+        
+        P = get_bit(opcode, 24)
+        U = get_bit(opcode, 23)
+        W = get_bit(opcode, 21)
+        Rn = get_bits(opcode, 19, 16)
+        Rt = get_bits(opcode, 15, 12)
+        imm4H = get_bits(opcode, 11, 8)
+        imm4L = get_bits(opcode, 3, 0)
+        
+        # if P == '0' && W == '1' then SEE STRHT;
+        if P == 0 and W == 1:
+            raise RuntimeError("SEE STRHT")
+        
+        # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
+        imm32 = (imm4H << 4) | imm4L
+        
+        # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+        index = P == 1
+        add = U == 1
+        wback = P == 0 or W == 1
+        
+        if not add:
+            imm32 *= -1
+        
+        if Rt == 15:
+            raise UnpredictableInstructionException()
+        
+        if wback and (Rn == 15 or Rn == Rt):
+            raise UnpredictableInstructionException()
+        
+        if index == True and wback == False:
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+        
+        elif index == True and wback == True:
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32), wback=True)]
+            
+        else:
+            operands = [Register(Rt), Memory(Register(Rn), wback=True), Immediate(imm32)]
+            
+        return Instruction(ins_id, opcode, "STRH", False, condition, operands, encoding)
+    
+    def decode_strh_register(self, opcode, encoding):
+        """
+        A8.8.218
+        STRH (register)
+        Store Register Halfword (register) calculates an address from a base register value and an offset register value, and
+        stores a halfword from a register to memory. The offset register value can be shifted left by 0, 1, 2, or 3 bits.        
+        """
+        pass
+    
+    
+    
     def decode_strt(self, opcode, encoding):
         """
         A8.8.220
@@ -7105,7 +7182,7 @@ class ARMDisassembler(object):
             
             # if Rn == '1111' then SEE LDRH (literal);
             if Rn == 0b1111:
-                return self.decode_ldrh_literal(opcode, encoding)
+                return self.decode_ldrh_literal_arm(opcode, encoding)
             
             # if P == '0' && W == '1' then SEE LDRHT;
             if P == 0 and W == 1:
@@ -7205,7 +7282,7 @@ class ARMDisassembler(object):
             if not add:
                 imm32 *= -1
 
-            operands = [Register(Rt), Immediate(imm32)]
+            operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
             ins = Instruction(ins_id, opcode, "LDRH", False, condition, operands, encoding)
             
         return ins
@@ -8590,8 +8667,10 @@ class ARMDisassembler(object):
             if not add:
                 imm32 *= -1
 
+        qual = "W" if is_pldw else ""
+
         operands = [Memory(Register(Rn), Immediate(imm32))]
-        ins = Instruction(ins_id, opcode, "PLD", False, None, operands, encoding)            
+        ins = Instruction(ins_id, opcode, "PLD", False, None, operands, encoding, qual)
         return ins
     
     def decode_pop_thumb(self, opcode, encoding):

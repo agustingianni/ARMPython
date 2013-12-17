@@ -544,6 +544,7 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.yield_] = self.emulate_yield
         self.instructions[ARMInstruction.ubfx] = self.emulate_ubfx
         self.instructions[ARMInstruction.tb] = self.emulate_tb
+        self.instructions[ARMInstruction.strh_immediate_arm] = self.emulate_strh_immediate_arm
 
     def __init_status_registers__(self):
         """
@@ -865,10 +866,10 @@ class ARMEmulator(object):
             result = self.getNFlag() == 1
 
         elif cond_3_1 == 0b011:
-            result = self.getCarryFlag() == 1
+            result = self.getOverflowFlag() == 1
 
         elif cond_3_1 == 0b100:
-            result = self.getCarryFlag() == 1 and self.getZeroFlag()
+            result = self.getCarryFlag() == 1 and self.getZeroFlag() == 0
 
         elif cond_3_1 == 0b101:
             result = self.getNFlag() == self.getOverflowFlag()
@@ -1045,6 +1046,14 @@ class ARMEmulator(object):
         """
         Set the value of a register.
         """
+        # This will tell us if we've fucked up PC.
+        if register == ARMRegister.PC:
+            if self.CurrentInstrSet() == ARMMode.THUMB:
+                assert (value & 0b1) == 0
+                
+            else:
+                assert (value & 0b11) == 0
+                
         # Save the register write iif we are recording effects.
         if self.effects_mask & ARMEmulator.REG_EFFECTS:
             self.effects.append(RegisterWriteEffect(register, value, self.register_map[register.reg]))
@@ -2652,7 +2661,9 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             # operands = [Register(Rt), Immediate(imm32)]
-            Rt, imm32 = ins.operands
+            # operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
+            Rt, mem = ins.operands
+            imm32 = mem.op2
             
             # base = Align(PC,4);
             base = Align(self.getPC(), 4)
@@ -4312,6 +4323,33 @@ class ARMEmulator(object):
                 self.setRegister(Rn, offset_addr)
 
 
+    def emulate_strh_immediate_arm(self, ins):
+        if self.ConditionPassed(ins):
+            index = get_bit(ins.opcode, 24) == 1
+            wback = get_bit(ins.opcode, 24) == 0 or get_bit(ins.opcode, 21) == 1
+            
+            if len(ins.operands) == 2:
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op2
+            
+            else:
+                Rt, mem, imm32 = ins.operands
+                Rn = mem.op1
+
+            # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
+            offset_addr = self.getRegister(Rn) + imm32.n
+            
+            # address = if index then offset_addr else R[n];
+            address = offset_addr if index else self.getRegister(Rn)
+            
+            if self.UnalignedSupport() or get_bit(address, 0) == 0:
+                self.set_dword(address, self.getRegister(Rt) & 0xffff)
+            else:
+                raise RuntimeError("MemU[address,2] = bits(16) UNKNOWN;")
+            
+            if wback:
+                self.setRegister(Rn, offset_addr)
+
     def emulate_strt(self, ins):
         if self.ConditionPassed(ins):
             raise InstructionNotImplementedException()
@@ -4766,7 +4804,7 @@ class ARMEmulator(object):
 
             self.clear_instruction_effects_record()
 
-        if self.getActualPC() == 0x0000cac5:
+        if self.getActualPC() == 0x0000ff90:
             pass
 
         try:
