@@ -364,6 +364,9 @@ class LinuxOS(object):
             if k > last_bss:
                 last_bss = k
 
+        # Set the .bss to zero.
+        self.cpu.memset(elf_bss, 0, last_bss - elf_bss)
+        
         if last_bss > elf_bss:
             elf_bss = PAGE_START(elf_bss + PAGE_SIZE - 1)
             self.__set_brk__(elf_bss, last_bss - elf_bss)
@@ -1570,8 +1573,11 @@ class LinuxOS(object):
         start_data += load_bias
         end_data += load_bias
 
-        log.debug("ELF elf_bss    : %.8x" % elf_bss)
-        log.debug("ELF elf_brk    : %.8x" % elf_brk)
+        # Set the .bss to zero.
+        self.cpu.memset(elf_bss, 0, elf_brk - elf_bss)
+
+        log.info("ELF elf_bss    : %.8x" % elf_bss)
+        log.info("ELF elf_brk    : %.8x" % elf_brk)
         log.debug("ELF start_code : %.8x" % start_code)
         log.debug("ELF end_code   : %.8x" % end_code)
         log.debug("ELF start_data : %.8x" % start_data)

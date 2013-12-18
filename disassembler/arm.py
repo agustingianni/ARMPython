@@ -695,6 +695,12 @@ class ARMDisassembler(object):
 
         # UBFX ARMv6T2, ARMv7
         (0xfff08020, 0xf3c00000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ubfx),
+        
+        # UXTB ARMv6*, ARMv7 
+        (0xffffffc0, 0x0000b2c0, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_uxtb),
+        
+        # UXTB ARMv6T2, ARMv7
+        (0xfffff0c0, 0xfa5ff080, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_uxtb),
 
         (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_unknown),        
         )
@@ -1115,6 +1121,9 @@ class ARMDisassembler(object):
         
         # UBFX ARMv6T2, ARMv7
         (0x0fe00070, 0x07e00050, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ubfx),
+
+        # UXTB ARMv6T2, ARMv7
+        (0x0fff03f0, 0x06ef0070, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_uxtb),
     
         (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
     )
@@ -3231,7 +3240,7 @@ class ARMDisassembler(object):
             
             # if Rn == '1101' then SEE SUB (SP minus register);
             if Rn == 0b1101:
-                return self.decode_sub_sp_minus_register(opcode, encoding)
+                return self.decode_sub_sp_minus_register(opcode, eEncodingT1)
             
             # if d == 13 || (d == 15 && S == '0') || n == 15 || m IN {13,15} then UNPREDICTABLE;
             if (Rd == 13 or (Rd == 15 and not setflags) or Rn == 15 or BadReg(Rm)):
@@ -5976,6 +5985,45 @@ class ARMDisassembler(object):
         ins = Instruction(ins_id, opcode, "UNK", False, None, [], encoding)
         return ins
     
+    def decode_uxtb(self, opcode, encoding):
+        """
+        A8.8.274
+        UXTB
+        Unsigned Extend Byte extracts an 8-bit value from a register, zero-extends it to 32 bits, and writes the result to the
+        destination register. The instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the 8-bit value.        
+        """
+        condition = None
+        ins_id = ARMInstruction.uxtb
+        if encoding == eEncodingT1:
+            Rm = get_bits(opcode, 5, 3)
+            Rd = get_bits(opcode, 2, 0)
+            rotation = 0
+        
+        elif encoding == eEncodingT2:
+            Rd = get_bits(opcode, 11, 8)
+            rotation = get_bits(opcode, 5, 4) << 3
+            Rm = get_bits(opcode, 3, 0)
+            
+            if BadReg(Rd) or BadReg(Rm):
+                raise UnpredictableInstructionException()
+        
+        elif encoding == eEncodingA1:
+            condition = self.decode_condition_field(opcode)
+            
+            Rd = get_bits(opcode, 15, 12)
+            Rm = get_bits(opcode, 3, 0)
+            rotation = get_bits(opcode, 11, 10) << 3
+            
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+            
+            
+            Rm = get_bits(opcode, 3, 0)
+
+        operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+        ins = Instruction(ins_id, opcode, "UXTB", False, condition, operands, encoding)
+        return ins
+            
     def decode_ubfx(self, opcode, encoding):
         """
         A8.8.246
@@ -9272,7 +9320,7 @@ class ARMDisassembler(object):
             ins = Instruction(ins_id, opcode, "B", False, condition, operands, encoding)
             
         elif encoding == eEncodingT3:
-            cond = get_bits(get_bits(opcode, 9, 6), 3, 1)
+            cond = get_bits(opcode, 25, 22)
                         
             S = get_bit(opcode, 26)
             J1 = get_bit(opcode, 13)
@@ -9284,7 +9332,7 @@ class ARMDisassembler(object):
             imm = SignExtend32(imm, 21)
             
             # if cond<3:1> == '111' then SEE "Related encodings";
-            if ((cond >> 1) & 0b111) == 0b111:
+            if get_bits(cond, 3, 1) == 0b111:
                 raise InstructionNotImplementedException("SEE Related encodings")
             
             # if InITBlock() then UNPREDICTABLE;

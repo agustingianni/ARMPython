@@ -175,7 +175,6 @@ class ConcreteMemoryMap(MemoryMap):
 
     def __set_bytes__(self, address, value):
         for i in range(len(value)):
-            #print "[%.8x]  = %.2x" % (address + i, value[i])
             self.__setitem__(address + i, value[i])
 
     def __get_bytes__(self, address, size):

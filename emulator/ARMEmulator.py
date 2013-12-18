@@ -545,6 +545,7 @@ class ARMEmulator(object):
         self.instructions[ARMInstruction.ubfx] = self.emulate_ubfx
         self.instructions[ARMInstruction.tb] = self.emulate_tb
         self.instructions[ARMInstruction.strh_immediate_arm] = self.emulate_strh_immediate_arm
+        self.instructions[ARMInstruction.uxtb] = self.emulate_uxtb
 
     def __init_status_registers__(self):
         """
@@ -1220,6 +1221,7 @@ class ARMEmulator(object):
                 Rn = Rd
                 shift_t = SRType_LSL
                 shift_n = 0
+                ins.setflags = not self.it_session.InITBlock()
 
             else:
                 # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
@@ -1285,6 +1287,9 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
             # operands = [Register(Rd), Immediate(imm32)]
+            if ins.encoding in [eEncodingT1, eEncodingT2]:
+                ins.setflags = not self.it_session.InITBlock()
+                
             if len(ins.operands) == 3:
                 Rd, Rn, imm32 = ins.operands
             else:
@@ -1345,6 +1350,7 @@ class ARMEmulator(object):
                 Rd, Rn, Rm = ins.operands
                 shift_t = SRType_LSL
                 shift_n = 0
+                ins.setflags = not self.it_session.InITBlock()
 
             elif ins.encoding == eEncodingT2:
                 # operands = [Register(Rd), Register(Rm)]
@@ -1545,6 +1551,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
                 Rn = Rd
@@ -1597,6 +1606,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                
             Rd, Rm, imm32 = ins.operands
             Rm_val = self.getRegister(Rm)
             imm32_val = imm32.n
@@ -1612,6 +1624,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                            
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
                 Rn = Rd
@@ -1669,6 +1684,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+            
             # operands = [Register(Rd), Register(Rm)]
             # operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
             if len(ins.operands) == 2:
@@ -2057,6 +2075,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+            
             if len(ins.operands) == 2:
                 Rn, Rm = ins.operands
                 Rd = Rn
@@ -2352,6 +2373,10 @@ class ARMEmulator(object):
                 if len(ins.operands) == 3:
                     Rt, mem, imm32 = ins.operands
                     Rn = mem.op1
+                
+                else:
+                    Rt, mem = ins.operands
+                    Rn, imm32 = mem.op1, mem.op2
                     
             # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
             offset_addr = self.getRegister(Rn) + imm32.n
@@ -2913,7 +2938,7 @@ class ARMEmulator(object):
 
             else:
                 shift_t = memory.op3.type_
-                shift_n = memory.op3.value
+                shift_n = memory.op3.value.n
 
                 # offset = Shift(R[m], shift_t, shift_n, APSR.C);
             offset = Shift(self.getRegister(Rm), shift_t, shift_n, self.getCarryFlag())
@@ -2950,6 +2975,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+            
             # operands = [Register(Rd), Register(Rm), Immediate(imm5)]
             Rd, Rm, imm32 = ins.operands
 
@@ -2966,6 +2994,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+            
             if len(ins.operands) == 2:
                 Rd, Rm = ins.operands
                 Rn = Rd
@@ -2986,6 +3017,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+            
             # operands = [Register(Rd), Register(Rm), Immediate(imm5)]
             Rd, Rm, imm32 = ins.operands
 
@@ -3000,8 +3034,9 @@ class ARMEmulator(object):
         """
         Done
         """
-        if self.ConditionPassed(ins):
+        if self.ConditionPassed(ins):            
             if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
                 # operands = [Register(Rd), Register(Rm)]
                 Rd, Rm = ins.operands
                 Rn = Rd
@@ -3085,6 +3120,8 @@ class ARMEmulator(object):
             Rd, immediate = ins.operands
 
             if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                
                 carry = self.getCarryFlag()
                 immediate_val = immediate.n
 
@@ -3173,6 +3210,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+            
             # operands = [Register(Rd), Register(Rn), Register(Rm)]
             Rd, Rn, Rm = ins.operands
 
@@ -3219,6 +3259,8 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                
                 shift_t = SRType_LSL
                 shift_n = 0
 
@@ -3298,6 +3340,8 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                
                 # operands = [Register(Rd), Register(Rm)]
                 Rd, Rm = ins.operands
                 Rn = Rd
@@ -3465,6 +3509,8 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                
                 # operands = [Register(Rd), Register(Rm)]
                 Rd, Rm = ins.operands
                 Rn = Rd
@@ -3500,6 +3546,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+
             # operands = [Register(Rd), Register(Rn), Immediate(imm32)]
             Rd, Rn, imm32 = ins.operands
 
@@ -3626,6 +3675,8 @@ class ARMEmulator(object):
         """
         if self.ConditionPassed(ins):
             if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+                
                 # operands = [Register(Rd), Register(Rm)]
                 Rd, Rm = ins.operands
                 Rn = Rd
@@ -4373,6 +4424,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding in [eEncodingT1, eEncodingT2]:
+                ins.setflags = not self.it_session.InITBlock()
+            
             if len(ins.operands) == 2:
                 Rd, imm32 = ins.operands
                 Rn = Rd
@@ -4395,6 +4449,9 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
+            if ins.encoding == eEncodingT1:
+                ins.setflags = not self.it_session.InITBlock()
+            
             if len(ins.operands) == 3:
                 Rd, Rn, Rm = ins.operands
                 shift_t = SRType_LSL
@@ -4724,6 +4781,14 @@ class ARMEmulator(object):
         if self.ConditionPassed(ins):
             raise InstructionNotImplementedException()
 
+    def emulate_uxtb(self, ins):
+        if self.ConditionPassed(ins):
+            # rotated = ROR(R[m], rotation);
+            # R[d] = ZeroExtend(rotated<7:0>, 32);
+            Rd, Rm, rotation = ins.operands
+            rotated = ROR(self.getRegister(Rm), rotation.n)
+            self.setRegister(Rd, get_bits(rotated, 7, 0)) 
+
     def emulate_ubfx(self, ins):
         if self.ConditionPassed(ins):
             # msbit = lsbit + widthminus1;
@@ -4780,7 +4845,7 @@ class ARMEmulator(object):
 
         # Get the instruction representation of the opcode.        
         ins = self.disassembler.disassemble(opcode, self.getCurrentMode())
-        
+                
         # Emulate the instruction. Mode changes can occour.
         self.emulate(ins, True)
 
@@ -4792,19 +4857,18 @@ class ARMEmulator(object):
         """
         self.set_pc_needs_update(True)
 
-        # Advance the ITSTATE bits to their values for the next instruction. 
-        if self.getCurrentMode() == ARMMode.THUMB and self.it_session.InITBlock():
-            self.it_session.ITAdvance()
+        # print self.dump_state_gdb()
 
         if dump_state:
             # self.log.info(self.dump_state())
             # state = self.get_state()
             mode_str = "ARM  " if self.getCurrentMode() == ARMMode.ARM else "THUMB"
             self.log.info("Ins @ pc=0x%.8x | opcode=0x%.8x | mode=%s | %s" % (self.getActualPC(), ins.opcode, mode_str, ins))
-
+            # print "0x%.8x" % self.getActualPC()
+            
             self.clear_instruction_effects_record()
 
-        if self.getActualPC() == 0x0000ff90:
+        if self.getActualPC() in [0x0000c49c]:
             pass
 
         try:
@@ -4823,6 +4887,11 @@ class ARMEmulator(object):
                 self.setPC(self.getActualPC() + 2)
 
         self.set_pc_needs_update(True)
+
+        # Advance the ITSTATE bits to their values for the next instruction. If we are IT then do not advance.
+        if self.getCurrentMode() == ARMMode.THUMB and self.it_session.InITBlock() and ins.id != ARMInstruction.it:
+            self.it_session.ITAdvance()
+
 
         if dump_state:
             # self.log.info(self.dump_state())
@@ -4889,6 +4958,34 @@ class ARMEmulator(object):
             i += 1
         
         return diffs
+    
+    def dump_state_gdb(self):
+        out = "TOK "
+        for i in xrange(0, 15):
+            v = self.getRegister(Register(i))
+            out += "0x%.8x " % (v)
+        
+        out += "0x%.8x " % self.getActualPC()
+        out += "0x%.8x" % self.get_cpsr_as_integer()
+            
+        return out
+    
+    def get_cpsr_as_integer(self):
+        n = self.getFlag(ARMFLag.N)
+        z = self.getFlag(ARMFLag.Z)
+        c = self.getFlag(ARMFLag.C)
+        v = self.getFlag(ARMFLag.V)
+        # i = self.getFlag(ARMFLag.I)
+        # f = self.getFlag(ARMFLag.F)
+        # t = self.getFlag(ARMFLag.T)
+        
+        out = 0
+        out |= n << 31
+        out |= z << 30
+        out |= c << 29
+        out |= v << 28
+        
+        return out
     
     def dump_state(self):
         """
