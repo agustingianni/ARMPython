@@ -83,7 +83,7 @@ class MemoryMap(object):
             self.__join_bytes__ = self.__join_bytes_be__
 
     def is_mapped(self, address):
-        return self.__getitem__(address) is not None
+        raise Exception("Method not implemented")
 
     def __getitem__(self, address):
         """
@@ -166,6 +166,9 @@ class ConcreteMemoryMap(MemoryMap):
 
     def __setitem__(self, address, value):
         self.memory[address] = value & 0xff
+
+    def is_mapped(self, address):
+        return self.memory.has_key(address) == True
 
     def __getitem__(self, address):
         if self.memory.has_key(address):

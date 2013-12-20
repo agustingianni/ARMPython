@@ -188,6 +188,48 @@ class Register(object):
     def __repr__(self):
         return self.__str__()
 
+class CoprocessorName(object):
+    def __init__(self, n):
+        self.n = n
+        
+    def __str__(self):
+        return "p%d" % self.n
+
+    def __repr__(self):
+        return self.__str__()
+    
+    def __eq__(self, other):
+        if isinstance(other, CoprocessorName):
+            return self.n == other.n
+        else:
+            return self.n == other
+
+class CoprocessorRegister(Register):
+    def __init__(self, reg):
+        super(CoprocessorRegister, self).__init__(reg)
+    
+    def __eq__(self, other):
+        if isinstance(other, CoprocessorRegister):
+            return self.reg == other.reg
+        else:
+            return self.reg == other
+    
+    def __str__(self):
+        return "c%d" % self.reg
+
+class CoprocessorOpCode(object):
+    def __init__(self, n):
+        self.n = n
+
+    def __eq__(self, other):
+        if isinstance(other, CoprocessorOpCode):
+            return self.n == other.n
+        else:
+            return self.n == other
+    
+    def __str__(self):
+        return "%d" % self.n
+
 class Memory(object):
     def __init__(self, op1=None, op2=None, op3=None, wback=False):
         self.op1 = op1
@@ -377,3 +419,10 @@ class ARMRegister:
     R13 = SP = Register(13)
     R14 = LR = Register(14)
     R15 = PC = Register(15)
+
+if __name__ == '__main__':
+    cn = CoprocessorName(1)
+    print cn
+    
+    cr = CoprocessorRegister(2)
+    print cr

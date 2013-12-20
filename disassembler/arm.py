@@ -63,7 +63,7 @@ from disassembler.utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, De
 from disassembler.utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
 from disassembler.utils.arm import ThumbImm12
 from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding,\
-    ARMRegister
+    ARMRegister, CoprocessorName, CoprocessorOpCode, CoprocessorRegister
 from disassembler.arch import UnpredictableInstructionException, InstructionNotImplementedException
 from disassembler.arch import Memory, RegisterShift, Condition, ProcessorFlag, RegisterSet
 from disassembler.arch import UndefinedOpcode, Jump, Register
@@ -702,6 +702,12 @@ class ARMDisassembler(object):
         # UXTB ARMv6T2, ARMv7
         (0xfffff0c0, 0xfa5ff080, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_uxtb),
 
+        # MRC ARMv6T2, ARMv7 
+        (0xff100010, 0xee100010, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_mrc),
+
+        # MRC ARMv6T2, ARMv7
+        (0xff100010, 0xfe100010, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_mrc),
+
         (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_unknown),        
         )
 
@@ -1124,7 +1130,13 @@ class ARMDisassembler(object):
 
         # UXTB ARMv6T2, ARMv7
         (0x0fff03f0, 0x06ef0070, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_uxtb),
-    
+
+        # MRC ARMv4*, ARMv5T*, ARMv6*, ARMv7
+        (0x0f100010, 0x0e100010, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_mrc),
+
+        # MRC ARMv5T*, ARMv6*, ARMv7
+        (0xff100010, 0xfe100010, ARMv6T2 | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_mrc),
+        
         (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
     )
     
@@ -1480,9 +1492,53 @@ class ARMDisassembler(object):
         raise InstructionNotImplementedException("decode_mcr")
     
     def decode_mrc(self, opcode, encoding):
+        """
+        A8.8.107
+        MRC, MRC2
+        Move to ARM core register from Coprocessor causes a coprocessor to transfer a value to an ARM core register or
+        to the condition flags. If no coprocessor can execute the instruction, an Undefined Instruction exception is
+        generated.        
+        """
         ins_id = ARMInstruction.mrc
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_mrc")
+        
+        condition = self.decode_condition_field(opcode) if encoding == eEncodingA1 else None              
+            
+        opc1 = get_bits(opcode, 23, 21)
+        CRn = get_bits(opcode, 19, 16)
+        Rt = get_bits(opcode, 15, 12)
+        coproc = get_bits(opcode, 11, 8)
+        opc2 = get_bits(opcode, 7, 5)
+        CRm = get_bits(opcode, 3, 0)
+        
+        # if coproc IN "101x" then SEE "Advanced SIMD and Floating-point";
+        if coproc in [0b1010, 0b1011] and encoding in [eEncodingT1, eEncodingA1]:
+            raise RuntimeError("SEE Advanced SIMD and Floating-point")
+        
+        elif coproc in [0b1010, 0b1011]:
+            raise UnpredictableInstructionException()
+    
+        # t = UInt(Rt); cp = UInt(coproc);
+        cp = coproc
+    
+        # if t == 13 && (CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;
+        if Rt == 13 and encoding == eEncodingA1:
+            raise UnpredictableInstructionException()
+            
+        # MRC{2}{<c>}{<q>} <coproc>, {#}<opc1>, <Rt>, <CRn>, <CRm>{, {#}<opc2>}
+        # 2: If specified, selects encoding T2/A2. If omitted, selects encoding T1/A1.
+        # <coproc> The name of the coprocessor. The generic coprocessor names are p0-p15.
+        # <opc1> Is a coprocessor-specific opcode in the range 0 to 7.
+        # <Rt> Is the destination ARM core register. This register can be R0-R14 or APSR_nzcv.
+        # <CRn> Is the coprocessor register that contains the first operand.
+        # <CRm> Is an additional source or destination coprocessor register.
+        # <opc2> Is a coprocessor-specific opcode in the range 0 to 7. If omitted, <opc2> is assumed to be 0.
+        
+        name = "MRC" if not encoding in [eEncodingA2, eEncodingT2] else "MRC2"
+        operands = [CoprocessorName(coproc), CoprocessorOpCode(opc1), Register(Rt),
+                    CoprocessorRegister(CRn), CoprocessorRegister(CRm), CoprocessorOpCode(opc2)]
+        
+        ins = Instruction(ins_id, opcode, name, False, condition, operands, encoding)
+        return ins
         
     def decode_swp(self, opcode, encoding):
         """

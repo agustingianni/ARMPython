@@ -37,6 +37,7 @@ NR_chroot = 61
 NR_prctl = 172
 NR_capget = 184
 NR_capset = 185
+NR_sigaltstack = 186
 NR_acct = 51
 NR_read = 3
 NR_write = 4

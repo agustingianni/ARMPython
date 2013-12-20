@@ -12,7 +12,8 @@ from disassembler.arm import ThumbExpandImm_C, ARMExpandImm_C, DecodeImmShift
 from disassembler.arm import ARMDisassembler
 from disassembler.utils.bits import get_bits, get_bit, SignExtend64, Align, UInt
 from disassembler.utils.bits import CountLeadingZeroBits, BitCount, LowestSetBit, CountTrailingZeros, SInt
-from disassembler.arch import InvalidModeException, Register, BreakpointDebugEvent, HintDebug
+from disassembler.arch import InvalidModeException, Register, BreakpointDebugEvent, HintDebug,\
+    Immediate
 from disassembler.arch import ARMMode, ARMFLag, ARMRegister
 
 import copy
@@ -925,42 +926,50 @@ class ARMEmulator(object):
         self.register_map = copy.deepcopy(context.regs)
         self.cpsr = copy.deepcopy(context.cpsr)
 
-    def set_byte(self, address, value):
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+    def set_byte(self, address, value, effects=True):
+        address = self.__check_address__(address)
+        
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             old_value = self.memory_map.get_byte(address)
             self.effects.append(MemoryWriteEffect(address, value, old_value))
         
         self.memory_map.set_byte(address, value)
 
-    def set_word(self, address, value):
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+    def set_word(self, address, value, effects=True):
+        address = self.__check_address__(address)
+        
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             old_value = self.memory_map.get_word(address)
             self.effects.append(MemoryWriteEffect(address, value, old_value))
         
         self.memory_map.set_word(address, value)
     
-    def set_dword(self, address, value):
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+    def set_dword(self, address, value, effects=True):
+        address = self.__check_address__(address)
+        
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             old_value = self.memory_map.get_dword(address)
             self.effects.append(MemoryWriteEffect(address, value, old_value))
         
         self.memory_map.set_dword(address, value)
     
-    def set_qword(self, address, value):
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+    def set_qword(self, address, value, effects=True):
+        address = self.__check_address__(address)
+        
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             old_value = self.memory_map.get_qword(address)
             self.effects.append(MemoryWriteEffect(address, value, old_value))
         
         self.memory_map.set_qword(address, value)
 
-    def read_c_string(self, address):
+    def read_c_string(self, address, effects=True):
         stop = False
         out_string = ""
         
         i = 0
         while not stop:
             value = self.memory_map.get_byte(address + i)
-            if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+            if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
                 self.effects.append(MemoryReadEffect(address + i, value))
                 
             # Check for '\x00'
@@ -972,55 +981,74 @@ class ARMEmulator(object):
             
         return out_string
 
-    def get_bytes(self, address, size):
+    def get_bytes(self, address, size, effects=True):
+        address = self.__check_address__(address)
+        
         out = self.memory_map.get_bytes(address, size)
 
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             for i in xrange(0, size):
                 self.effects.append(MemoryReadEffect(address + i, ord(out[i])))
             
         return out
 
-    def memset(self, address, value, size):
+    def memset(self, address, value, size, effects=True):
         self.memory_map.memset(address, value, size)
 
-    def set_bytes(self, address, chars):
+    def set_bytes(self, address, chars, effects=True):
+        address = self.__check_address__(address)
+        
         old = self.memory_map.get_bytes(address, len(chars))
         self.memory_map.set_bytes(address, chars)
         
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             for i in xrange(0, len(chars)):
                 self.effects.append(MemoryWriteEffect(address + i, ord(chars[i]), ord(old[i])))
 
-    def get_byte(self, address):
+    def __check_address__(self, address):
+        if address != (address & 0xffffffff):
+            address &= 0xffffffff
+            self.log.info("ADDRESS IS NOT 32 BITS, GET YOUR ARITHMETIC TOGHETER AGUSTIN")
+
+        return address
+
+    def get_byte(self, address, effects=True):
+        address = self.__check_address__(address)
+        
         value = self.memory_map.get_byte(address)
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             self.effects.append(MemoryReadEffect(address, value))
         
         return value
 
-    def get_word(self, address):
+    def get_word(self, address, effects=True):
+        address = self.__check_address__(address)
+        
         value = self.memory_map.get_word(address)
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             self.effects.append(MemoryReadEffect(address, value))
         
         return value
 
-    def get_dword(self, address):
+    def get_dword(self, address, effects=True):
+        address = self.__check_address__(address)
+        
         value = self.memory_map.get_dword(address)
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             self.effects.append(MemoryReadEffect(address, value))
             
         return value
 
-    def get_qword(self, address):
+    def get_qword(self, address, effects=True):
+        address = self.__check_address__(address)
+        
         value = self.memory_map.get_qword(address)
-        if self.effects_mask & ARMEmulator.MEM_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.MEM_EFFECTS:
             self.effects.append(MemoryReadEffect(address, value))
         
         return value
 
-    def getRegister(self, register):
+    def getRegister(self, register, effects=True):
         """
         Return the value of a register. Special case for the PC
         register that should be PC + 4 in the case of THUMB
@@ -1038,12 +1066,12 @@ class ARMEmulator(object):
                 reg_val += 4
 
         # Save the register read iif we are recording effects.
-        if self.effects_mask & ARMEmulator.REG_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.REG_EFFECTS:
             self.effects.append(RegisterReadEffect(register, reg_val))
 
         return reg_val
 
-    def setRegister(self, register, value):
+    def setRegister(self, register, value, effects=True):
         """
         Set the value of a register.
         """
@@ -1056,7 +1084,7 @@ class ARMEmulator(object):
                 assert (value & 0b11) == 0
                 
         # Save the register write iif we are recording effects.
-        if self.effects_mask & ARMEmulator.REG_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.REG_EFFECTS:
             self.effects.append(RegisterWriteEffect(register, value, self.register_map[register.reg]))
         
         self.register_map[register.reg] = value
@@ -1065,24 +1093,24 @@ class ARMEmulator(object):
         if register.reg == ARMRegister.PC:
             self.set_pc_needs_update(False)
 
-    def getFlag(self, flag):
+    def getFlag(self, flag, effects=True):
         """
         Return the value of a flag.
         """
         flag_val = self.cpsr[str(flag)]
 
         # Save the flag read iif we are recording effects.
-        if self.effects_mask & ARMEmulator.FLAG_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.FLAG_EFFECTS:
             self.effects.append(FlagReadEffect(flag, flag_val))
         
         return flag_val
 
-    def setFlag(self, flag, value):
+    def setFlag(self, flag, value, effects=True):
         """
         Set the value of a flag.
         """
         # Save the flag write iif we are recording effects.
-        if self.effects_mask & ARMEmulator.FLAG_EFFECTS:
+        if effects and self.effects_mask & ARMEmulator.FLAG_EFFECTS:
             self.effects.append(FlagWriteEffect(flag, value, self.cpsr[str(flag)]))
         
         self.cpsr[str(flag)] = value
@@ -2472,7 +2500,19 @@ class ARMEmulator(object):
 
     def emulate_ldrex(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
+            Rt, mem = ins.operands
+            Rn, imm32 = mem.op1, mem.op2
+
+            # address = R[n] + imm32;
+            address = self.getRegister(Rn) + imm32.n
+            
+            # TODO: ???
+            # SetExclusiveMonitors(address,4);
+            # self.SetExclusiveMonitors(address, 4)
+            
+            # R[t] = MemA[address,4];
+            self.setRegister(Rt, self.get_dword(address))
+            
 
     def emulate_ldr_immediate_arm(self, ins):
         """
@@ -2832,12 +2872,12 @@ class ARMEmulator(object):
         Done
         """
         if self.ConditionPassed(ins):
-            if len(ins.operands) == 2:
-                Rt, imm32 = ins.operands
-
-            else:
+            if ins.encoding == eEncodingA1:
                 Rt, memory = ins.operands
                 imm32 = memory.op2
+
+            else:
+                Rt, imm32 = ins.operands
 
             PC = self.getPC()
             base = Align(PC, 4)
@@ -3185,10 +3225,35 @@ class ARMEmulator(object):
             Rd_val = (imm16.n << 16) | get_bits(self.getRegister(Rd), 15, 0)
             self.setRegister(Rd, Rd_val)
 
+    def Coproc_GetOneWord(self, cp, ins):
+        """
+        Get word from coprocessor, for an MRC or MRC2 instruction 
+        """
+        if cp == 15:
+            value = self.os.tls_value
+        
+        else:
+            raise RuntimeError("Coprocessor call not implemented: %r" % cp)
+        
+        return value
+
     def emulate_mrc(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
-
+            cp, opc2, Rt, CRn, CRm, opc2 = ins.operands
+            
+            # value = Coproc_GetOneWord(cp, ThisInstr());
+            value = self.Coproc_GetOneWord(cp, ins)
+            
+            if Rt != 15:
+                self.setRegister(Rt, value)
+            
+            else:
+                self.setFlag(ARMFLag.N, get_bit(value, 31))
+                self.setFlag(ARMFLag.Z, get_bit(value, 30))
+                self.setFlag(ARMFLag.C, get_bit(value, 29))
+                self.setFlag(ARMFLag.V, get_bit(value, 28))
+            
+            
     def emulate_mrrc(self, ins):
         if self.ConditionPassed(ins):
             raise InstructionNotImplementedException()
@@ -4076,20 +4141,25 @@ class ARMEmulator(object):
             
     def emulate_strb_immediate_thumb(self, ins):
         """
-        EncodingSpecificOperations(); NullCheckIfThumbEE(n);
-        offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
-        address = if index then offset_addr else R[n];
-        MemU[address,1] = R[t]<7:0>;
-        
-        if wback then
-            R[n] = offset_addr;        
+        Done
         """
-        if self.ConditionPassed(ins):        
-            Rt, mem = ins.operands
-            Rn, imm32 = mem.op1, mem.op2
+        if self.ConditionPassed(ins):
+            if ins.encoding in [eEncodingT1, eEncodingT2]:
+                index = True
+                wback = False
+            else:
+                index = get_bit(ins.opcode, 10) == 1
+                
+            if len(ins.operands) == 2:        
+                Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op2
+                
+            else:
+                Rt, mem, imm32 = ins.operands
+                Rn = mem.op1
+                
             wback = mem.wback
-            index = get_bit(ins.opcode, 10) == 1
-            
+                
             # offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
             offset_addr = self.getRegister(Rn) + imm32.n
             
@@ -4194,8 +4264,29 @@ class ARMEmulator(object):
 
     def emulate_strex(self, ins):
         if self.ConditionPassed(ins):
-            raise InstructionNotImplementedException()
-
+            if ins.encoding == eEncodingT1:
+                Rd, Rt, mem = ins.operands
+                Rn, imm32 = mem.op1, mem.op2
+                imm32 = imm32
+    
+            elif ins.encoding == eEncodingA1:
+                Rd, Rt, mem = ins.operands
+                Rn = mem.op1
+                imm32 = Immediate(0)
+            
+            # address = R[n] + imm32;
+            address = self.getRegister(Rn) + imm32.n
+            
+            # TODO:
+            # if ExclusiveMonitorsPass(address,4) then
+            #  MemA[address,4] = R[t];
+            #  R[d] = 0;
+            # else
+            #  R[d] = 1;
+            
+            self.set_dword(address, self.getRegister(Rt))
+            self.setRegister(Rd, 0)
+            
     def emulate_str_immediate_arm(self, ins):
         """
         Done
@@ -4868,7 +4959,7 @@ class ARMEmulator(object):
             
             self.clear_instruction_effects_record()
 
-        if self.getActualPC() in [0x0000c49c]:
+        if self.getActualPC() in [0x20007f3a]:  
             pass
 
         try:

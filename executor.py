@@ -155,12 +155,16 @@ def PAGE_END(x):
 
 class File(object):
     def __init__(self, filename, flags):
+        print os.O_RDONLY
         if flags & os.O_RDONLY:
             mode = "rb"
+            
         elif flags & os.O_WRONLY:
             mode = "wb"
+            
         elif flags & os.O_RDWR:
             mode = "wb+"
+        
         else:
             raise RuntimeError("Invalid open mode %.8x" % flags)
             
@@ -214,11 +218,63 @@ class File(object):
         self.seek(pos)
 
 
-class Task(object):
+class sigaction(object):
+    """
+    struct sigaction {
+        __sighandler_t    sa_handler;
+        unsigned long    sa_flags;
+        __sigrestore_t sa_restorer;
+        sigset_t    sa_mask;    /* mask last for extensibility */
+    };    
+    """
+    def __init__(self):
+        self.sa_handler = 0
+        self.sa_flags = 0
+        self.sa_restorer = 0
+        self.sa_mask = 0
+
+class k_sigaction(object):
+    """
+    struct k_sigaction {
+        struct sigaction sa;
+    };    
+    """
+    def __init__(self):
+        self.sa = sigaction()
+
+class sighand_struct(object):
+    """
+    This class is the equivalent of the linux kernel 'struct sighand_struct'
+
+    struct sighand_struct {
+        atomic_t        count;
+        struct k_sigaction    action[_NSIG];
+        spinlock_t        siglock;
+        wait_queue_head_t    signalfd_wqh;
+    };    
+    """
+    NSIG = 64
+    def __init__(self):
+        self.count = 0
+        self.action = []
+        
+        # Initialize empty k_sigaction structures.
+        for _ in xrange(0, sighand_struct.NSIG):
+            self.action.append(k_sigaction())
+        
+class task_struct(object):
+    """
+    This class is the equivalent of the 'struct task_struct' on the linux kernel.
+    """
     def __init__(self, memory):
         self.files = []
         self.memory = memory
+        
+        # Signal handling stuff.        
+        self.sas_ss_sp = 0
+        self.sas_ss_size = 0
 
+        self.sighand = sighand_struct()
 
 class MissingSyscallException(Exception):
     pass
@@ -237,6 +293,8 @@ class LinuxOS(object):
         Some of the syscalls can be implemented on this class due to their platform
         independency. Other syscalls should be implemented in platform specific classes.
         """
+        self.next_mmap_address = 0x20000000
+        
         # Set up the basic elements of the virtual machine.
         self.cpu = cpu
 
@@ -245,7 +303,7 @@ class LinuxOS(object):
 
         # This is a map of all the tasks being executed.
         self.tasks = {}
-        self.curr_task = Task(memory)
+        self.curr_task = task_struct(memory)
         
         self.elf_brk = 0
 
@@ -441,8 +499,10 @@ class LinuxOS(object):
 
     def sys_gettid(self):
         """
+        gettid - get thread identification
         """
-        raise MissingSyscallException("gettid")
+        # NOTE: This is a hack.
+        return os.getpid()
 
     def sys_getgroups32(self):
         """
@@ -544,10 +604,11 @@ class LinuxOS(object):
         """
         raise MissingSyscallException("_llseek")
 
-    def sys_mmap2(self):
+    def sys_mmap2(self, addr, length, prot, flags, fd, pgoffset):
         """
+        mmap2 - map files or devices into memory
         """
-        raise MissingSyscallException("mmap2")
+        return self.sys_mmap(addr, length, prot, flags, fd, pgoffset * 4096)
 
     def sys_mremap(self):
         """
@@ -799,10 +860,66 @@ class LinuxOS(object):
         """
         raise MissingSyscallException("setitimer")
 
-    def sys_sigaction(self):
+    def sys_sigaction(self, sig, act_addr, oact_addr):
         """
+        sigaction - examine and change a signal action
+        
+        The sigaction() system call is used to change the action taken by a process on receipt of a specific signal.
+        
+        int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact) {...}
+        
+        struct k_sigaction {
+            struct sigaction sa;
+        };        
+        
+        struct sigaction {
+            __sighandler_t sa_handler;
+            unsigned int   sa_flags;
+            __sigrestore_t sa_restorer;
+            sigset_t       sa_mask;
+        };
+        
         """
-        raise MissingSyscallException("sigaction")
+        
+        def valid_signal(sig):
+            return sig <= sighand_struct.NSIG
+        
+        # Sanity checks.
+        if not valid_signal(sig) or sig < 1:
+            # EINVAL
+            return -22
+
+        # k = &t->sighand->action[sig-1];
+        k = self.current().sighand.action[sig - 1]
+        
+        # Copy k (the old sigaction struct) into user space.
+        if oact_addr:
+            self.cpu.set_dword(oact_addr + (4 * 0), k.sa_handler, effects=False)
+            self.cpu.set_dword(oact_addr + (4 * 1), k.sa_flags, effects=False)
+            self.cpu.set_dword(oact_addr + (4 * 2), k.sa_restorer, effects=False)
+            self.cpu.set_dword(oact_addr + (4 * 3), k.sa_mask, effects=False)
+            
+        if act_addr:
+            # TODO: I'm missing this. Not sure how important it is but looks like a big deal.
+            # sigdelsetmask(&act->sa.sa_mask, sigmask(SIGKILL) | sigmask(SIGSTOP));
+
+            act = {}
+            act["sa_handler"] = self.cpu.get_dword(act_addr + (4 * 0), effects=False)
+            act["sa_flags"] = self.cpu.get_dword(act_addr + (4 * 1), effects=False)
+            act["sa_restorer"] = self.cpu.get_dword(act_addr + (4 * 2), effects=False)
+            act["sa_mask"] = self.cpu.get_dword(act_addr + (4 * 3), effects=False)
+            
+            # Set the new sigaction structure.
+            k.sa_handler = act["sa_handler"]
+            k.sa_flags = act["sa_flags"]
+            k.sa_restorer = act["sa_restorer"]
+            k.sa_mask = act["sa_mask"] 
+            
+            # TODO: Here we are also missing the case where we need to discard
+            # pending signals that are set to SIG_IGN.
+            # This seems like a corner case that can bite us in the ass someday.
+
+        return 0
 
     def sys_sigprocmask(self):
         """
@@ -909,10 +1026,20 @@ class LinuxOS(object):
         """
         raise MissingSyscallException("vfork")
 
-    def sys_madvise(self):
+    def sys_madvise(self, addr, length, advice):
         """
+        madvise - give advice about use of memory
+        
+        The  madvise()  system call advises the kernel about how to handle
+        paging input/output in the address range beginning at address addr 
+        and with size length the kernel how it expects to use some mapped 
+        or shared memory areas, so that the kernel can choose appropriate 
+        read-ahead and caching techniques.  This call does not influence
+        the  semantics  of the application (except in the case of MADV_DONTNEED)
         """
-        raise MissingSyscallException("madvise")
+        
+        log.info("Ignoring madvide(0x%.8x, 0x%.8x, 0x%.8x)" % (addr, length, advice))
+        return 0
 
     def sys_mincore(self):
         """
@@ -1114,15 +1241,102 @@ class LinuxOS(object):
         """
         raise MissingSyscallException("inotify_add_watch")
 
+    def current(self):
+        """
+        Return the current task_struct.
+        TODO: We need to implement this for multiple tasks.
+        """
+        return self.curr_task
+
+    def sys_sigaltstack(self, uss_addr, uoss_addr):
+        """
+        sigaltstack - set and/or get signal stack context
+        
+        typedef struct sigaltstack {
+            void __user *ss_sp;
+            int ss_flags;
+            size_t ss_size;
+        } stack_t;
+        
+        TODO:
+            - if we ever change the current stack to a kernel stack
+              we need to fill 'sp' with the user stack and not the current
+              SP value.
+        """
+        SS_ONSTACK = 1
+        SS_DISABLE = 2
+        
+        # Get the user stack pointer.
+        sp = self.cpu.getRegister(ARMRegister.SP, effects=False)
+        
+        # Mimic some kernel helpers
+        def on_sig_stack(sp):
+            return (sp > self.current().sas_ss_sp) and ((sp - self.current().sas_ss_sp) <= self.current().sas_ss_size)
+        
+        def sas_ss_flags(sp):            
+            if self.current().sas_ss_size == 0:
+                return SS_DISABLE
+            
+            elif on_sig_stack(sp):
+                return SS_ONSTACK
+            
+            else:
+                return 0
+        
+        # This would the be old ss.
+        oss = {}
+        oss["ss_sp"] = self.current().sas_ss_sp
+        oss["ss_size"] = self.current().sas_ss_size
+        oss["ss_flags"] = sas_ss_flags(sp)
+        
+        if uss_addr:
+            # Get the new "stack_t __user *uss" structure values.
+            uss = {}
+            uss["ss_sp"] = self.cpu.get_dword(uss_addr + (4 * 0), effects=False)
+            uss["ss_flags"] = self.cpu.get_dword(uss_addr + (4 * 1), effects=False)
+            uss["ss_size"] = self.cpu.get_dword(uss_addr + (4 * 1), effects=False)
+            
+            # error = -EPERM;
+            if on_sig_stack(sp):
+                return -1
+            
+            # error = -EINVAL;
+            if (uss["ss_flags"] != SS_DISABLE and uss["ss_flags"] != SS_ONSTACK and uss["ss_flags"] != 0):
+                return -22
+            
+            if uss["ss_flags"] == SS_DISABLE:
+                uss["ss_size"] = 0
+                uss["ss_sp"] = 0
+                
+            else:
+                MINSIGSTKSZ = 2048
+                
+                # error = -ENOMEM;
+                if uss["ss_size"] < MINSIGSTKSZ:
+                    return -12
+            
+            self.current().sas_ss_sp = uss["ss_sp"]
+            self.current().sas_ss_size = uss["ss_size"] 
+
+        if uoss_addr:
+            self.cpu.set_dword(uoss_addr + (4 * 0), oss["ss_sp"], effects=False)
+            self.cpu.set_dword(uoss_addr + (4 * 1), oss["ss_size"], effects=False)
+            self.cpu.set_dword(uoss_addr + (4 * 1), oss["ss_flags"], effects=False)
+
+        return 0
+
     def sys_inotify_rm_watch(self):
         """
         """
         raise MissingSyscallException("inotify_rm_watch")
 
-    def sys_ARM_set_tls(self):
+    def sys_ARM_set_tls(self, address):
         """
+        TODO: This is hackish
         """
-        raise MissingSyscallException("ARM_set_tls")
+        log.info("Setting TLS value to 0x%.8x" % address)
+        self.tls_value = address
+        return 0
 
     def sys_ARM_cacheflush(self):
         """
@@ -1271,7 +1485,8 @@ class LinuxOS(object):
         """
         mprotect - set protection on a region of memory
         """
-        raise MissingSyscallException()
+        log.info("SYSCALL NOT IMPLEMENTED AS MemoryMap DOES NOT GIVE A SHIT ABOUT PERMISSIONS")
+        return 0
         
     def sys_munmap(self, addr, length):
         """
@@ -1383,7 +1598,16 @@ class LinuxOS(object):
         getgid, getegid - get group identity
         """
         return 1000
+    
+    def __get_next_mmap_address__(self, size):
+        tmp = self.next_mmap_address
         
+        # Check this just in case.
+        assert self.cpu.memory_map.is_mapped(tmp) == False
+        
+        self.next_mmap_address = PAGE_ALIGN(self.next_mmap_address + size)
+        return tmp
+    
     def sys_mmap(self, addr, length, prot, flags, fd, offset):
         """
         @addr: starting address for the new mapping.
@@ -1401,11 +1625,7 @@ class LinuxOS(object):
         # Get the next free address aligned to the page boundary.
         if not addr:
             # This could return None, so default to a somewhat sane address.
-            tmp_addr = GetLastValidAddress(task.memory)
-            if not tmp_addr:
-                tmp_addr = 0x00400000
-
-            addr = PAGE_ALIGN(tmp_addr)
+            addr = self.__get_next_mmap_address__(length)
 
         if fd:
             log.debug("sys_mmap: addr = %.8x | size = %.8x | prot = %s | flags = %s | fd = %.8x | offset = %.8x" % \
@@ -1936,6 +2156,7 @@ class ARMLinuxOS(LinuxOS):
         self.syscall_table[NR_inotify_rm_watch] = SyscallInfo("inotify_rm_watch", NR_inotify_rm_watch, 2, "%d, %d", self.sys_inotify_rm_watch)
         self.syscall_table[NR_ARM_set_tls] = SyscallInfo("ARM_set_tls", NR_ARM_set_tls, 1, "%p", self.sys_ARM_set_tls)
         self.syscall_table[NR_ARM_cacheflush] = SyscallInfo("ARM_cacheflush", NR_ARM_cacheflush, 3, "%p, %p, %d", self.sys_ARM_cacheflush)
+        self.syscall_table[NR_sigaltstack] = SyscallInfo("sigaltstack", NR_sigaltstack, 2, "%p, %p", self.sys_sigaltstack)        
 
     def __align_stack__(self, p):
         """
