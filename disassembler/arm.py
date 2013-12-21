@@ -6033,6 +6033,51 @@ class ARMDisassembler(object):
         
         return ins
 
+    def decode_vldr(self, opcode, encoding):
+        """
+        A8.8.333
+        VLDR
+        This instruction loads a single extension register from memory, using an address
+        from an ARM core register, with an optional offset.
+        Depending on settings in the CPACR, NSACR, HCPTR, and FPEXC registers, and the 
+        security state and mode in which the instruction is executed, an attempt to execute 
+        the instruction might be UNDEFINED, or trapped to Hyp mode. Summary of general controls 
+        of CP10 and CP11 functionality on page B1-1226 and Summary of access controls for Advanced 
+        SIMD functionality on page B1-1228 summarize these controls.        
+        """
+        ins_id = ARMInstruction.vldr
+
+        # This is the same for all the encodings.
+        U = get_bit(opcode, 23)
+        D = get_bit(opcode, 22)
+        Rn = get_bits(opcode, 19, 16)
+        Vd = get_bits(opcode, 15 ,12)
+        imm8 = get_bits(7, 0)
+
+        add = U == 1
+        imm32 = imm8 << 2
+        
+        if encoding in [eEncodingT1, eEncodingA1]:            
+            # single_reg = FALSE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = False
+            
+            # d = UInt(D:Vd); n = UInt(Rn);
+            d = (D << 4) | Vd
+            cond = None if encoding == eEncodingT1 else self.decode_condition_field(opcode)
+            
+            operands = []
+            ins = Instruction(ins_id, opcode, "VLDR", False, cond, operands, encoding)
+        
+        elif encoding in [eEncodingT2, eEncodingA2]:
+            # single_reg = TRUE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = True
+            d = (Vd << 1) | D
+            cond = None if encoding == eEncodingT2 else self.decode_condition_field(opcode)
+            
+        
+
+        return ins
+
     def decode_unknown(self, opcode, encoding):
         """
         Default value for instructions we do not know how to decode.
