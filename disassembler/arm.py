@@ -65,9 +65,9 @@ from disassembler.utils.arm import ThumbImm12
 from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding,\
     ARMRegister, CoprocessorName, CoprocessorOpCode, CoprocessorRegister
 from disassembler.arch import UnpredictableInstructionException, InstructionNotImplementedException
-from disassembler.arch import Memory, RegisterShift, Condition, ProcessorFlag, RegisterSet
+from disassembler.arch import Memory, RegisterShift, Condition, RegisterSet
 from disassembler.arch import UndefinedOpcode, Jump, Register
-from disassembler.arch import ARMMode, ARMFLag, ARMRegister
+from disassembler.arch import ARMMode
 
 def memoize(func):
     cache = {}
@@ -1516,10 +1516,7 @@ class ARMDisassembler(object):
         
         elif coproc in [0b1010, 0b1011]:
             raise UnpredictableInstructionException()
-    
-        # t = UInt(Rt); cp = UInt(coproc);
-        cp = coproc
-    
+        
         # if t == 13 && (CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;
         if Rt == 13 and encoding == eEncodingA1:
             raise UnpredictableInstructionException()
@@ -1560,12 +1557,7 @@ class ARMDisassembler(object):
             Rn = get_bits(opcode, 19, 16)
             Rt = get_bits(opcode, 15, 12)
             Rt2 = get_bits(opcode, 3, 0)
-            
-            if B == 1:
-                size = 1
-            else:
-                size = 4
-            
+                        
             # if t == 15 || t2 == 15 || n == 15 || n == t || n == t2 then UNPREDICTABLE;
             if Rt == 15 or Rt2 == 15 or Rn == 15 or Rn == Rt or Rn == Rt2:
                 raise UnpredictableInstructionException()
@@ -1574,11 +1566,9 @@ class ARMDisassembler(object):
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
         
         operands = [Register(Rt), Register(Rt2), Memory(Register(Rn))]
-        if B == 1:
-            ins = Instruction(ins_id, opcode, "SWPB", False, condition, operands, encoding)
-
-        else:
-            ins = Instruction(ins_id, opcode, "SWP", False, condition, operands, encoding)
+        
+        name = "SWPB" if B == 1 else "SWP"
+        ins = Instruction(ins_id, opcode, name, False, condition, operands, encoding)
 
         return ins
     
@@ -2852,13 +2842,13 @@ class ARMDisassembler(object):
             if cond != 0b1110:
                 raise UnpredictableInstructionException()
             
-            condition = None
+            condition = Condition(cond)
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
         
         operands = [Immediate(imm)]
-        ins = Instruction(ins_id, opcode, "BKPT", False, None, operands, encoding)
+        ins = Instruction(ins_id, opcode, "BKPT", False, condition, operands, encoding)
         return ins
         
     def decode_smc(self, opcode, encoding):
@@ -4660,8 +4650,7 @@ class ARMDisassembler(object):
         # TODO:
         # if CurrentInstrSet() == InstrSet_ThumbEE then UNPREDICTABLE;
         # if CurrentModeIsHyp() then UNDEFINED;
-        Rn = 14
-        
+               
         # if InITBlock() && !LastInITBlock() then UNPREDICTABLE;
         if self.InITBlock() and not self.LastInITBlock():
             raise UnpredictableInstructionException()
@@ -4743,7 +4732,6 @@ class ARMDisassembler(object):
         elif encoding == eEncodingA1:
             S = get_bit(opcode, 20)
             Rd = get_bits(opcode, 15, 12)
-            imm12 = get_bits(opcode, 11, 0)
             
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 0b1111 and S == 1:
@@ -5123,8 +5111,7 @@ class ARMDisassembler(object):
                 return self.decode_tst_immediate(opcode, encoding)
             
             # (imm32, carry) = ThumbExpandImm(i:imm3:imm8, APSR.C)
-            # TODO: Check if this representation of the carry flag is suitable
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ThumbExpandImm_C(opcode, 0) 
             
             # if d == 13 || (d == 15 && S == '0') || n IN {13,15} then UNPREDICTABLE;
             if (Rd == 13 or (Rd == 15 and not setflags) or BadReg(Rn)):
@@ -5138,7 +5125,7 @@ class ARMDisassembler(object):
             setflags = get_bit(opcode, 20)
             
             # (imm32, carry) = ARMExpandImm(imm12, APSR.C)
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ARMExpandImm_C(opcode, 0) 
  
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if (Rd == 15 and setflags):
@@ -5175,8 +5162,7 @@ class ARMDisassembler(object):
                 return self.decode_teq_immediate(opcode, encoding)
             
             # (imm32, carry) = ThumbExpandImm(i:imm3:imm8, APSR.C)
-            # TODO: Check if this representation of the carry flag is suitable
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ThumbExpandImm_C(opcode, 0) 
             
             # if d == 13 || (d == 15 && S == '0') || n IN {13,15} then UNPREDICTABLE;
             if (Rd == 13 or (Rd == 15 and not setflags) or BadReg(Rn)):
@@ -5190,7 +5176,7 @@ class ARMDisassembler(object):
             setflags = get_bit(opcode, 20)
             
             # (imm32, carry) = ARMExpandImm(imm12, APSR.C)
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ARMExpandImm_C(opcode, 0) 
  
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if (Rd == 15 and setflags):
@@ -5220,7 +5206,6 @@ class ARMDisassembler(object):
         
         if encoding == eEncodingT1:
             Rd = get_bits(opcode, 10, 8)
-            add = True
             imm32 = get_bits(opcode, 7, 0) << 2
             
             condition = None
@@ -5229,7 +5214,6 @@ class ARMDisassembler(object):
              
         elif encoding == eEncodingT2:
             Rd = get_bits(opcode, 11, 8)
-            add = False
             
             imm3 = get_bits(opcode, 14, 12)
             imm8 = get_bits(opcode, 7, 0)
@@ -5248,7 +5232,6 @@ class ARMDisassembler(object):
             
         elif encoding == eEncodingT3:
             Rd = get_bits(opcode, 11, 8)
-            add = True
             
             imm3 = get_bits(opcode, 14, 12)
             imm8 = get_bits(opcode, 7, 0)
@@ -5268,7 +5251,6 @@ class ARMDisassembler(object):
         elif encoding == eEncodingA1:
             Rd = get_bits(opcode, 15, 12)
             imm32 = ARMExpandImm(opcode)
-            add = True
             
             operands = [Register(Rd), ARMRegister.PC, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "ADD", False, condition, operands, encoding)                        
@@ -5276,7 +5258,6 @@ class ARMDisassembler(object):
         elif encoding == eEncodingA2:
             Rd = get_bits(opcode, 15, 12)
             imm32 = ARMExpandImm(opcode)
-            add = False
 
             operands = [Register(Rd), ARMRegister.PC, Immediate(imm32)]
             ins = Instruction(ins_id, opcode, "SUB", False, condition, operands, encoding)                        
@@ -5730,7 +5711,7 @@ class ARMDisassembler(object):
         if encoding == eEncodingT1:
             Rn = get_bits(opcode, 19, 16)
             setflags = False
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ThumbExpandImm_C(opcode, 0) 
             
             # if n IN {13,15} then UNPREDICTABLE;
             if BadReg(Rn):
@@ -5741,7 +5722,7 @@ class ARMDisassembler(object):
         elif encoding == eEncodingA1:
             Rn = get_bits(opcode, 19, 16)
             setflags = False
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ARMExpandImm_C(opcode, 0) 
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -5766,7 +5747,7 @@ class ARMDisassembler(object):
         if encoding == eEncodingT1:
             Rn = get_bits(opcode, 19, 16)
             setflags = False
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ThumbExpandImm_C(opcode, 0) 
             
             # if n IN {13,15} then UNPREDICTABLE;
             if BadReg(Rn):
@@ -5777,7 +5758,7 @@ class ARMDisassembler(object):
         elif encoding == eEncodingA1:
             Rn = get_bits(opcode, 19, 16)
             setflags = False
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ARMExpandImm_C(opcode, 0) 
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -5882,7 +5863,7 @@ class ARMDisassembler(object):
             Rd = get_bits(opcode, 11, 8)
             Rn = get_bits(opcode, 19, 16)
             setflags = get_bit(opcode, 20)
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C"))
+            imm32, _ = ThumbExpandImm_C(opcode, 0)
             
             # if Rn == '1111' then SEE MOV (immediate);
             if Rn == 0b1111:
@@ -5898,7 +5879,7 @@ class ARMDisassembler(object):
             Rd = get_bits(opcode, 15, 12)
             Rn = get_bits(opcode, 19, 16)
             setflags = get_bit(opcode, 20)
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C")) 
+            imm32, _ = ARMExpandImm_C(opcode, 0) 
             
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 15 and setflags:
@@ -6288,7 +6269,6 @@ class ARMDisassembler(object):
             Rd = get_bits(opcode, 10, 8)
             setflags = not self.InITBlock()
             imm32 = get_bits(opcode, 7, 0)
-            carry = ProcessorFlag("C")
             
             condition = None
             operands = [Register(Rd), Immediate(imm32)]
@@ -6297,7 +6277,7 @@ class ARMDisassembler(object):
         elif encoding == eEncodingT2:
             Rd = get_bits(opcode, 11, 8)
             setflags = get_bit(opcode, 20)
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C"))
+            imm32, _ = ThumbExpandImm_C(opcode, 0)
             
             # if d IN {13,15} then UNPREDICTABLE;
             if BadReg(Rd):
@@ -6329,7 +6309,7 @@ class ARMDisassembler(object):
         elif encoding == eEncodingA1:
             Rd = get_bits(opcode, 15, 12)
             setflags = get_bit(opcode, 20)
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C"))
+            imm32, _ = ARMExpandImm_C(opcode, 0)
             
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 0b1111 and setflags:
@@ -6470,7 +6450,7 @@ class ARMDisassembler(object):
             Rd = get_bits(opcode, 15, 12)
             Rm = get_bits(opcode, 3, 0)
             setflags = get_bit(opcode, 20)
-            t, imm5 = DecodeImmShiftARM(opcode)
+            _, imm5 = DecodeImmShiftARM(opcode)
                     
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 15 and setflags:
@@ -6504,7 +6484,7 @@ class ARMDisassembler(object):
 
             setflags = not self.InITBlock()
             imm5 = get_bits(opcode, 10, 6)
-            t, imm5 = DecodeImmShift(0b10, imm5)
+            _, imm5 = DecodeImmShift(0b10, imm5)
 
             condition = None
             operands = [Register(Rd), Register(Rm), Immediate(imm5)]
@@ -6529,7 +6509,7 @@ class ARMDisassembler(object):
             Rm = get_bits(opcode, 3, 0)
             setflags = get_bit(opcode, 20)
             imm5 = get_bits(opcode, 11, 7)
-            a, imm5 = DecodeImmShift(0b10, imm5)
+            _, imm5 = DecodeImmShift(0b10, imm5)
 
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 15 and setflags:
@@ -6613,7 +6593,7 @@ class ARMDisassembler(object):
             Rn = get_bits(opcode, 19, 16)
             setflags = get_bit(opcode, 20)
                         
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C"))
+            imm32, _ = ThumbExpandImm_C(opcode, 0)
             
             # if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;
             if BadReg(Rd) or BadReg(Rn):
@@ -6626,7 +6606,7 @@ class ARMDisassembler(object):
             Rn = get_bits(opcode, 19, 16)
             setflags = get_bit(opcode, 20)
                         
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C"))
+            imm32, _ = ARMExpandImm_C(opcode, 0)
  
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 15 and setflags:
@@ -6657,7 +6637,7 @@ class ARMDisassembler(object):
             Rd = get_bits(opcode, 11, 8)
             setflags = get_bit(opcode, 20)
                         
-            imm32, carry = ThumbExpandImm_C(opcode, ProcessorFlag("C"))
+            imm32, _ = ThumbExpandImm_C(opcode, 0)
             
             # if d IN {13,15} then UNPREDICTABLE;
             if BadReg(Rd):
@@ -6669,7 +6649,7 @@ class ARMDisassembler(object):
             Rd = get_bits(opcode, 15, 12)
             setflags = get_bit(opcode, 20)
                         
-            imm32, carry = ARMExpandImm_C(opcode, ProcessorFlag("C"))
+            imm32, _ = ARMExpandImm_C(opcode, 0)
  
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 15 and setflags:
