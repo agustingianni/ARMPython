@@ -62,12 +62,169 @@ from disassembler.utils.bits import get_bit, get_bits, CountTrailingZeros, BitCo
 from disassembler.utils.arm import BadReg, DecodeImmShift, DecodeImmShiftARM, DecodeImmShiftThumb
 from disassembler.utils.arm import ThumbExpandImm, ThumbExpandImm_C, ARMExpandImm, ARMExpandImm_C
 from disassembler.utils.arm import ThumbImm12
-from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding,\
-    ARMRegister, CoprocessorName, CoprocessorOpCode, CoprocessorRegister
+from disassembler.arch import Immediate, Instruction, InvalidInstructionEncoding, \
+    ARMRegister, CoprocessorName, CoprocessorOpCode, CoprocessorRegister, \
+    MemoryBarrierOption, ISBOption, FPSCR, QRegister, DRegister, SRegister
 from disassembler.arch import UnpredictableInstructionException, InstructionNotImplementedException
 from disassembler.arch import Memory, RegisterShift, Condition, RegisterSet
 from disassembler.arch import UndefinedOpcode, Jump, Register
 from disassembler.arch import ARMMode
+
+# Mask the 'x' to indicate ignore bits of an opcode
+def I(x):
+    return (0x80000000 | x) 
+
+I1 = I(1)
+I2 = I(2)
+I3 = I(3)
+I4 = I(4)
+I5 = I(5)
+I6 = I(6)
+I7 = I(7)
+I8 = I(8)
+I9 = I(9)
+
+# Replicate the bits pattern in 'bits' a given ammount of 'times'
+def Replicate(bits, bits_size, times):
+    tmp = bits
+    for i in xrange(times - 1):
+        tmp = (tmp << bits_size) | bits
+    return tmp
+
+def VFPExpandImm(imm8, N):
+    if N == 32:
+        t = get_bit(imm8, 7)
+        t = (t << 1) | (~(get_bit(imm8, 6)) & 1)
+        t = (t << 5) | Replicate(get_bit(imm8, 6), 1, 5)
+        t = (t << 6) | get_bits(imm8, 5, 0)
+        t = (t << 19)
+        
+    else:
+        t = get_bit(imm8, 7)
+        t = (t << 1) | (~(get_bit(imm8, 6)) & 1)
+        t = (t << 8) | Replicate(get_bit(imm8, 6), 1, 8)
+        t = (t << 6) | get_bits(imm8, 5, 0)
+        t = (t << 48)
+    
+    return t
+
+def AdvSIMDExpandImm(op, cmode, imm8):
+    cmode_31 = get_bits(cmode, 3, 1)
+    if cmode_31 == 0b000:
+        # imm64 = Replicate(Zeros(24):imm8, 2);
+        testimm8 = False
+        imm64 = Replicate(imm8, 32, 2)
+    
+    elif cmode_31 == 0b001:
+        # imm64 = Replicate(Zeros(16):imm8:Zeros(8), 2);
+        testimm8 = True
+        imm64 = Replicate(imm8 << 8, 32, 2)
+
+    elif cmode_31 == 0b010:
+        # imm64 = Replicate(Zeros(8):imm8:Zeros(16), 2);
+        testimm8 = True
+        imm64 = Replicate(imm8 << 16, 32,  2)
+
+    elif cmode_31 == 0b011:
+        # imm64 = Replicate(imm8:Zeros(24), 2);
+        testimm8 = True
+        imm64 = Replicate(imm8 << 24, 32, 2)
+
+    elif cmode_31 == 0b100:
+        # imm64 = Replicate(Zeros(8):imm8, 4);
+        testimm8 = False
+        imm64 = Replicate(imm8, 16, 4)
+
+    elif cmode_31 == 0b101:
+        # imm64 = Replicate(imm8:Zeros(8), 4);
+        testimm8 = True
+        imm64 = Replicate(imm8 << 8, 16, 4)
+
+    elif cmode_31 == 0b110:
+        testimm8 = True
+        if get_bit(cmode, 0) == 0:
+            # imm64 = Replicate(Zeros(16):imm8:Ones(8), 2);
+            imm64 = Replicate((imm8 << 8) | 0b11111111, 32, 2)
+        
+        else:
+            # imm64 = Replicate(Zeros(8):imm8:Ones(16), 2);
+            imm64 = Replicate((imm8 << 16) | 0b1111111111111111, 32, 2)
+
+    elif cmode_31 == 0b111:
+        testimm8 = False
+
+        # if cmode<0> == '0' && op == '0' then
+        #     imm64 = Replicate(imm8, 8);
+        if get_bit(cmode, 0) == 0 and op == 0:
+            imm64 = Replicate(imm8, 8, 8)
+
+        if get_bit(cmode, 0) == 0 and op == 1:
+            imm8a = Replicate(get_bit(imm8, 7), 1, 8)
+            imm8b = Replicate(get_bit(imm8, 6), 1, 8)
+            imm8c = Replicate(get_bit(imm8, 5), 1, 8) 
+            imm8d = Replicate(get_bit(imm8, 4), 1, 8)
+            imm8e = Replicate(get_bit(imm8, 3), 1, 8) 
+            imm8f = Replicate(get_bit(imm8, 2), 1, 8)
+            imm8g = Replicate(get_bit(imm8, 1), 1, 8) 
+            imm8h = Replicate(get_bit(imm8, 0), 1, 8)
+
+            # imm64 = imm8a:imm8b:imm8c:imm8d:imm8e:imm8f:imm8g:imm8h;
+            imm64 = 0
+            imm64 = (imm64 << 8) | imm8a
+            imm64 = (imm64 << 8) | imm8b
+            imm64 = (imm64 << 8) | imm8c
+            imm64 = (imm64 << 8) | imm8d
+            imm64 = (imm64 << 8) | imm8e
+            imm64 = (imm64 << 8) | imm8f
+            imm64 = (imm64 << 8) | imm8g
+            imm64 = (imm64 << 8) | imm8h
+
+        # if cmode<0> == '1' && op == '0' then
+        #     imm32 = imm8<7>: NOT(imm8<6>) : Replicate(imm8<6>,5) : imm8<5:0> : Zeros(19);
+        #     imm64 = Replicate(imm32, 2);
+        if get_bit(cmode, 0) == 1 and op == 0:
+            imm32 = get_bit(imm8, 7) | (~get_bit(imm8, 6) & 1)
+            imm32 = (imm32 << 5) | Replicate(get_bit(imm8, 6), 1, 5)
+            imm32 = (imm32 << 6) | get_bits(imm8, 5, 0)
+            imm32 = (imm32 << 19)
+            imm64 = Replicate(imm32, 32, 2)
+
+        if get_bit(cmode, 0) == 1 and op == 1:
+            raise UndefinedOpcode()
+
+    if testimm8 and imm8 == 0:
+        raise UnpredictableInstructionException()
+
+    return imm64
+
+# Return true if the ignore bit is set
+def is_ignore(x):
+    return (0x80000000 & x) != 0
+
+def get_ignore_bits(x):
+    return (0x7fffffff & x)
+
+# Check that the decode mask sums 32 bits.
+def check(decode_mask):
+    t = map(get_ignore_bits, decode_mask)
+    return sum(t) == 32
+
+# Decode an opcode following a 'decode_mask'
+def decode_opcode(opcode, decode_mask):
+    # Check that we decode the full 32 bit values.
+    # assert check(decode_mask) != False
+    
+    elems = []
+    bit_pos = 31
+    for mask in decode_mask:
+        if is_ignore(mask):
+            bit_pos -= get_ignore_bits(mask)
+            continue
+        
+        elems.append(get_bits(opcode, bit_pos, bit_pos - mask + 1))
+        bit_pos -= mask
+        
+    return elems
 
 def memoize(func):
     cache = {}
@@ -119,9 +276,116 @@ class ARMDisassembler(object):
     def __build_thumb_table__(self):
         """
         Build thumb opcode to decoding function map.
+        
         """
         self.thumb_table = \
         (
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_uxth),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_uxth),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vpop),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vpop),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vpush),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vpush),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxtb),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_sxtb),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sbfx),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_orn_immediate),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_orn_register),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxth),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_sxth),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vorr_immediate),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vorr_register),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_veor),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_rev),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_rev),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vldm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vldm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vand_register),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vstm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vstm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_uxtab),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxtab),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vswp),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_uxtah),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxtah),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_rbit),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_immediate),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_register),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_ssat),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_stc),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_stc),            
+        (0xffff0fff, 0xeef10a10, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vmrs),
+        (0xff300f00, 0xed000b00, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vstr),
+        (0xff300f00, 0xed000a00, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vstr),
+        (0xffe00f00, 0xed100b00, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vldr),
+        (0xff300f00, 0xed100a00, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vldr),
+        (0xffff8020, 0xf36f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_bfc),
+        (0xfff08020, 0xf3600000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_bfi),
+        (0xff000010, 0xee000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_cdp),
+        (0xff000010, 0xfe000000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_cdp),
+        (0xffffffff, 0xf3bf8f2f, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_clrex),
+        (0xffffffe8, 0x0000b660, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_cps),
+        (0xfffff800, 0xf3af8000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_cps),
+        (0xfffffff0, 0xf3bf8f50, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_dmb),
+        (0xfffffff0, 0xf3bf8f40, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_dsb),
+        (0xffffff00, 0xf3bf8f00, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_eret),
+        (0xfff0f000, 0xf7e08000, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_hvc),
+        (0xfffffff0, 0xf3bf8f60, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_isb),
+        (0xfe100000, 0xec100000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldc_immediate),
+        (0xfffffff0, 0xfc100000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldc_immediate),
+        (0xfe1f0000, 0xec1f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldc_literal),
+        (0xfe1f0000, 0xfc1f0000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldc_literal),
+        (0xfe500000, 0xe8500000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrd_immediate),
+        (0xfe5f0000, 0xe85f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrd_literal),
+        (0xff7f0000, 0xf83f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrh_literal),
+        #(0xfffffe00, 0x00005a00, ARMv4T, ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrh_register),
+        #(0xfff00fc0, 0xf8300000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrh_register),
+        (0xfff00f00, 0xf8300e00, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrht),
+        (0xfff00000, 0xf9900000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsb_immediate),
+        (0xfff00800, 0xf9100800, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrsb_immediate),
+        (0xff7f0000, 0xf91f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsb_literal),
+        (0xfffffe00, 0x00005600, ARMv4T, ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsb_register),
+        (0xfff00fc0, 0xf9100000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrsb_register),
+        (0xfff00f00, 0xf9100f00, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsbt),
+        (0xfff00000, 0xf9b00000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsh_immediate),
+        (0xfff00800, 0xf9300800, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrsh_immediate),
+        (0xff7f0000, 0xf93f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsh_literal),
+        (0xfffffe00, 0x00005e00, ARMv4T, ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsh_register),
+        (0xfff00fc0, 0xf9300000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrsh_register),
+        (0xfff00f00, 0xf9300e00, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsht),
+        
+        #(0xffffffef, 0xf3bf8f0f, ThumbEE, eEncodingT1, No_VFP, eSize32, self.decode_enterx_leavex),
+         
+        # VMOV (between two ARM core registers and a doubleword extension register)
+        (0xffe00fd0, 0xec400b10, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_vmov_between_two_arm_core_registers_and_a_double_word_extension_register),
+        
+        # VMOV (between two ARM core registers and two single-precision registers)
+        (0xffe00fd0, 0xec400a10, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_vmov_between_two_arm_core_registers_and_two_single_precision_registers),
+        
+        # VMOV (between ARM core register and single-precision register) 
+        (0xffe00f7f, 0xee000a10, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_vmov_between_arm_core_register_and_single_precision_register),
+        
+        # VMOV (scalar to ARM core register)
+        (0xff100f1f, 0xee100b10, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_vmov_scalar_to_arm_core_register),
+         
+        # VMOV (ARM core register to scalar)
+        (0xff900f1f, 0xee000b10, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_vmov_arm_core_register_to_scalar),
+         
+        # VMOV register Advanced SIMD
+        (0xffb00f10, 0xef200110, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_vmov_register),
+
+        # VMOV register Advanced SIMD
+        (0xffbf0ed0, 0xeeb00a40, ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_vmov_register),
+         
+        # VMOV Advanced SIMD
+        (0xefb80090, 0xef800010, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_vmov_immediate),
+
+        # VMOV Advanced SIMD
+        (0xffb00ef0, 0xeeb00a00, ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_vmov_immediate),
+
+        # CLREX ARMv7
+        (0xffffffff, 0xf3bf8f2f, ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_clrex),
+         
         # adc (immediate) ARMv6T2 | ARMv7
         (0xfbe08000, 0xf1400000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_adc_immediate),
         
@@ -319,7 +583,7 @@ class ARMDisassembler(object):
         (0xfff00800, 0xf8500800, ARMv6T2 | ARMv7, eEncodingT4, No_VFP, eSize32, self.decode_ldr_immediate_thumb),
 
         # LDRH (immediate, Thumb) ARMv4T, ARMv5T*, ARMv6*, ARMv7
-        (0xfffff800, 0x00008800, ARMV4T_ABOVE, eEncodingT1, No_VFP, eSize16, self.decode_ldrh_immediate_thumb),        
+        (0xfffff800, 0x00008800, ARMV4T_ABOVE, eEncodingT1, No_VFP, eSize16, self.decode_ldrh_immediate_thumb),
         
         # LDRH (immediate, Thumb) ARMv6T2, ARMv7
         (0xfff00000, 0xf8b00000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrh_immediate_thumb),
@@ -475,7 +739,7 @@ class ARMDisassembler(object):
         
         # PLD, PLDW (immediate) 
         (0xffd0f000, 0xf890f000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_pld),
-        (0xffd0ff00, 0xf810fc00, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_pld),  
+        (0xffd0ff00, 0xf810fc00, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_pld),
 
         # PUSH ARMv4T | ARMv5TAll | ARMv6All | ARMv7
         (0xfffffe00, 0x0000b400, ARMv4T | ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_push),
@@ -707,8 +971,24 @@ class ARMDisassembler(object):
 
         # MRC ARMv6T2, ARMv7
         (0xff100010, 0xfe100010, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_mrc),
+                
+        # BFI ARMv6T2, ARMv7
+        (0xfff08020, 0xf3600000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_bfi),
 
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_unknown),        
+        # CDP ARMv6T2, ARMv7
+        (0xff000010, 0xee000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_cdp),
+
+        # CDP ARMv6T2, ARMv7
+        (0xff000010, 0xfe000000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_cdp),
+
+        # CPS ARMv6*, ARMv7
+        (0xffffffe8, 0x0000b660, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_cps),
+
+        # CPS ARMv6T2, ARMv7
+        (0xfffff800, 0xf3af8000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_cps),
+
+        # LAST
+        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_unknown),
         )
 
     def __build_arm_table__(self):        
@@ -717,14 +997,112 @@ class ARMDisassembler(object):
         """
         self.arm_table = \
         (
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_uxth),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vpop),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vpop),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vpush),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vpush),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxtb),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sbfx),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxth),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vorr_immediate),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vorr_register),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_veor),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_rev),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vldm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vldm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vand_register),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vstm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vstm),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_uxtab),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxtab),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vswp),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_uxtah),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxtah),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_rbit),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vmvn_immediate),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vmvn_register),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_ssat),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_stc),
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_stc),            
+        (0x0fff0fff, 0x0ef10a10, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vmrs),
+        (0x0f300f00, 0x0d000b00, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vstr),
+        (0x0f300f00, 0x0d000a00, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vstr),         
+        (0x0f300f00, 0x0d100b00, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vldr),
+        (0x0f300f00, 0x0d100a00, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vldr),
+        (0x0fe0007f, 0x07c0001f, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_bfc),
+        (0x0fe00070, 0x07c00010, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_bfi),
+        (0x0f000010, 0x0e000000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_cdp),
+        (0xff000010, 0xfe000000, ARMv5TAll | ARMv6All | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_cdp),
+        (0xffffffff, 0xf57ff01f, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_clrex),
+        (0xfff1fe20, 0xf1000000, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_cps),
+        (0xfffffff0, 0xf57ff050, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_dmb),
+        (0xfffffff0, 0xf57ff040, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_dsb),
+        (0x0fffffff, 0x0160006e, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_eret),
+        (0x0ff000f0, 0x01400070, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_hvc),
+        (0xfffffff0, 0xf57ff060, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_isb),
+        (0x0e100000, 0x0c100000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldc_immediate),
+        (0xfffffff0, 0xfc100000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_ldc_immediate),
+        (0x0e1f0000, 0x0c1f0000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldc_literal),
+        (0xfe1f0000, 0xfc1f0000, ARMv5TAll | ARMv6All | ARMv7 , eEncodingA2, No_VFP, eSize32, self.decode_ldc_literal),
+        (0x0e5000f0, 0x004000d0, ARMv5TEAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrd_immediate),
+        (0x0f7f00f0, 0x014f00d0, ARMv5TEAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrd_literal),
+        (0x0e500ff0, 0x000000d0, ARMv5TEAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrd_register),
+        (0x0f7f00f0, 0x015f00b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_literal),
+        (0x0f7000f0, 0x007000b0, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrht),
+        (0x0f700ff0, 0x003000b0, ARMv6T2 | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_ldrht),
+        (0x0e5000f0, 0x005000d0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsb_immediate),
+        (0x0e5f00f0, 0x005f00d0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsb_literal),
+        (0x0e5000f0, 0x001000d0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsb_register),
+        (0x0f7000f0, 0x007000d0, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsbt),
+        (0x0f700ff0, 0x003000d0, ARMv6T2 | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_ldrsbt),
+        (0x0e5000f0, 0x005000f0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsh_immediate),
+        (0x0e5f00f0, 0x005f00f0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsh_literal),
+        (0x0e5000f0, 0x001000f0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsh_register),
+        (0x0f7000f0, 0x007000f0, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrsht),
+        (0x0f700ff0, 0x003000f0, ARMv6T2 | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_ldrsht),
+         
+        # VMOV (between two ARM core registers and a doubleword extension register)
+        (0x0fe00fd0, 0x0c400b10, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_vmov_between_two_arm_core_registers_and_a_double_word_extension_register),
+         
+        # VMOV (between two ARM core registers and two single-precision registers)
+        (0x0fe00fd0, 0x0c400a10, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_vmov_between_two_arm_core_registers_and_two_single_precision_registers),
+         
+        # VMOV (between ARM core register and single-precision register) 
+        (0x0fe00f7f, 0x0e000a10, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_vmov_between_arm_core_register_and_single_precision_register),
+         
+        # VMOV (scalar to ARM core register)
+        (0x0f100f1f, 0x0e100b10, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_vmov_scalar_to_arm_core_register),
+         
+        # VMOV (ARM core register to scalar)
+        (0x0f900f1f, 0x0e000b10, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_vmov_arm_core_register_to_scalar),
+         
+        # VMOV register Advanced SIMD
+        (0xffb00f10, 0xf2200110, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_vmov_register),
+
+        # VMOV register Advanced SIMD
+        (0x0fbf0ed0, 0x0eb00a40, ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_vmov_register),
+         
+        # VMOV Advanced SIMD
+        (0xfeb80090, 0xf2800010, ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_vmov_immediate),
+
+        # VMOV Advanced SIMD
+        (0x0fb00ef0, 0x0eb00a00, ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_vmov_immediate),
+
+        # CPS ARMv6*, ARMv7
+        (0xfff1fe20, 0xf1000000, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_cps),
+         
+        # CLREX ARMv7
+        (0xffffffff, 0xf57ff01f, ARMv6K | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_clrex),
+         
         # PLD, PLDW (immediate) 
         (0xff30f000, 0xf510f000, ARMv5TEAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_pld),
          
         # LDRH (register, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
-        (0x0e500ff0, 0x001000b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_register_arm),         
+        (0x0e500ff0, 0x001000b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_register_arm),
          
         # LDRH (literal, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
-        (0x0f7f00f0, 0x015f00b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_literal_arm),         
+        (0x0f7f00f0, 0x015f00b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ldrh_literal_arm),
          
         # LDRH (immediate, ARM) ARMv4*, ARMv5T*, ARMv6*, ARMv7
         (0x0e5000f0, 0x005000b0, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32 , self.decode_ldrh_immediate_arm),
@@ -1136,6 +1514,18 @@ class ARMDisassembler(object):
 
         # MRC ARMv5T*, ARMv6*, ARMv7
         (0xff100010, 0xfe100010, ARMv6T2 | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_mrc),
+
+        # BFC ARMv6T2, ARMv7
+        (0x0fe0007f, 0x07c0001f, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_bfc),
+
+        # BFI ARMv6T2, ARMv7
+        (0x0fe00070, 0x07c00010, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_bfi),
+        
+        # CDP ARMv4*, ARMv5T*, ARMv6*, ARMv7
+        (0x0f000010, 0x0e000000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_cdp),
+
+        # CDP ARMv5T*, ARMv6*, ARMv7
+        (0xff000010, 0xfe000000, ARMv5TAll | ARMv6All | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_cdp),
         
         (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
     )
@@ -1178,6 +1568,10 @@ class ARMDisassembler(object):
         if self.__is_thumb32__(opcode):
             is_thumb32 = True
             opcode = ((opcode & 0xffff0000) >> 16) | ((opcode & 0x0000ffff) << 16)
+
+        elif opcode == 0xf3bf8f2f:
+            # Special case for CLREX
+            pass
 
         else:
             opcode &= 0x0000ffff
@@ -1295,6 +1689,7 @@ class ARMDisassembler(object):
         B9.3.15 SRS, Thumb
         Store Return State stores the LR and SPSR of the current mode to the stack of a specified mode.         
         """
+        props = {}
         ins_id = ARMInstruction.srs
         if encoding == eEncodingT1:
             W = get_bit(opcode, 21)
@@ -1333,6 +1728,7 @@ class ARMDisassembler(object):
         Syntax:
         SRS{<amode>}{<c>}{<q>} SP{!}, #<mode>
         """
+        props = {}
         ins_id = ARMInstruction.srs
         condition = self.decode_condition_field(opcode)
         
@@ -1376,6 +1772,7 @@ class ARMDisassembler(object):
         Syntax:
         RFE{<amode>}{<c>}{<q>} <Rn>{!}
         """
+        props = {}
         ins_id = ARMInstruction.rfe
         condition = self.decode_condition_field(opcode)
         
@@ -1455,42 +1852,7 @@ class ARMDisassembler(object):
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
                     
         return ins
-        
-    def decode_stc(self, opcode, encoding):
-        ins_id = ARMInstruction.stc
-        condition = self.decode_condition_field(opcode)        
-        raise InstructionNotImplementedException("decode_stc")
-    
-    def decode_ldc_immediate(self, opcode, encoding):
-        ins_id = ARMInstruction.ldc_immediate
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_ldc_immediate")
-    
-    def decode_ldc_literal(self, opcode, encoding):
-        ins_id = ARMInstruction.ldc_literal
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_ldc_literal")
-    
-    def decode_mcrr(self, opcode, encoding):
-        ins_id = ARMInstruction.mcrr
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_mcrr")
-    
-    def decode_mrrc(self, opcode, encoding):
-        ins_id = ARMInstruction.mrrc
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_mrrc")
-        
-    def decode_cdp(self, opcode, encoding):
-        ins_id = ARMInstruction.cdp
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_cdp")
-    
-    def decode_mcr(self, opcode, encoding):
-        ins_id = ARMInstruction.mcr
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_mcr")
-    
+            
     def decode_mrc(self, opcode, encoding):
         """
         A8.8.107
@@ -1499,6 +1861,7 @@ class ARMDisassembler(object):
         to the condition flags. If no coprocessor can execute the instruction, an Undefined Instruction exception is
         generated.        
         """
+        props = {}
         ins_id = ARMInstruction.mrc
         
         condition = self.decode_condition_field(opcode) if encoding == eEncodingA1 else None              
@@ -1549,6 +1912,7 @@ class ARMDisassembler(object):
         Syntax:
         SWP{B}{<c>}{<q>} <Rt>, <Rt2>, [<Rn>]
         """
+        props = {}
         ins_id = ARMInstruction.swp
         condition = self.decode_condition_field(opcode)
                 
@@ -1582,6 +1946,7 @@ class ARMDisassembler(object):
         Syntax:
         STREX{<c>}{<q>} <Rd>, <Rt>, [<Rn> {, #<imm>}]
         """
+        props = {}
         ins_id = ARMInstruction.strex
         condition = self.decode_condition_field(opcode)
         
@@ -1640,6 +2005,7 @@ class ARMDisassembler(object):
         Syntax:
         LDREX{<c>}{<q>} <Rt>, [<Rn> {, #<imm>}]
         """
+        props = {}
         ins_id = ARMInstruction.ldrex
         condition = self.decode_condition_field(opcode)
 
@@ -1680,6 +2046,7 @@ class ARMDisassembler(object):
         Syntax:
         STREXD{<c>}{<q>} <Rd>, <Rt>, <Rt2>, [<Rn>]
         """
+        props = {}
         ins_id = ARMInstruction.strexd
         condition = self.decode_condition_field(opcode)
         
@@ -1733,6 +2100,7 @@ class ARMDisassembler(object):
         Syntax:
         LDREXD{<c>}{<q>} <Rt>, <Rt2>, [<Rn>]
         """
+        props = {}
         ins_id = ARMInstruction.ldrexd
         condition = self.decode_condition_field(opcode)
         
@@ -1773,6 +2141,7 @@ class ARMDisassembler(object):
         Syntax:
         STREXB{<c>}{<q>} <Rd>, <Rt>, [<Rn>]
         """
+        props = {}
         ins_id = ARMInstruction.strexb
         condition = self.decode_condition_field(opcode)
         
@@ -1824,6 +2193,7 @@ class ARMDisassembler(object):
         Syntax:
         LDREXB{<c>}{<q>} <Rt>, [<Rn>]
         """
+        props = {}
         ins_id = ARMInstruction.ldrexb
         condition = self.decode_condition_field(opcode)
         
@@ -1862,6 +2232,7 @@ class ARMDisassembler(object):
         Syntax:
         STREXH{<c>}{<q>} <Rd>, <Rt>, [<Rn>]
         """
+        props = {}
         ins_id = ARMInstruction.strexh
         condition = self.decode_condition_field(opcode)
         
@@ -1913,6 +2284,7 @@ class ARMDisassembler(object):
         Syntax:
         LDREXH{<c>}{<q>} <Rt>, [<Rn>]
         """
+        props = {}
         ins_id = ARMInstruction.ldrexh
         condition = self.decode_condition_field(opcode)
         if encoding == eEncodingT1:
@@ -1951,6 +2323,7 @@ class ARMDisassembler(object):
         Syntax:
         MUL{S}{<c>}{<q>} <Rd>, <Rn>{, <Rm>}
         """
+        props = {}
         ins_id = ARMInstruction.mul
         condition = self.decode_condition_field(opcode)
         if encoding == eEncodingT1:
@@ -2013,6 +2386,7 @@ class ARMDisassembler(object):
         Syntax:
         MLA{S}{<c>}{<q>} <Rd>, <Rn>, <Rm>, <Ra>
         """
+        props = {}
         ins_id = ARMInstruction.mla
         condition = self.decode_condition_field(opcode)
         
@@ -2068,6 +2442,7 @@ class ARMDisassembler(object):
         Syntax:
         UMAAL{<c>}{<q>} <RdLo>, <RdHi>, <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.umaal
         condition = self.decode_condition_field(opcode)
         
@@ -2119,6 +2494,7 @@ class ARMDisassembler(object):
         Syntax:
         MLS{<c>}{<q>} <Rd>, <Rn>, <Rm>, <Ra>
         """
+        props = {}
         ins_id = ARMInstruction.mls
         condition = self.decode_condition_field(opcode)
         
@@ -2162,6 +2538,7 @@ class ARMDisassembler(object):
         Syntax:
         UMULL{S}{<c>}{<q>} <RdLo>, <RdHi>, <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.umull
         condition = self.decode_condition_field(opcode)
         
@@ -2226,6 +2603,7 @@ class ARMDisassembler(object):
         Syntax:
         UMLAL{S}{<c>}{<q>} <RdLo>, <RdHi>, <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.umlal
         condition = self.decode_condition_field(opcode)
         
@@ -2284,6 +2662,7 @@ class ARMDisassembler(object):
         Syntax:
         SMULL{S}{<c>}{<q>} <RdLo>, <RdHi>, <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.smull
         condition = self.decode_condition_field(opcode)
         
@@ -2344,7 +2723,8 @@ class ARMDisassembler(object):
         
         Syntax:
         SMLA<x><y>{<c>}{<q>} <Rd>, <Rn>, <Rm>, <Ra>
-        """        
+        """
+        props = {}        
         ins_id = ARMInstruction.smla
         condition = self.decode_condition_field(opcode)
         
@@ -2414,6 +2794,7 @@ class ARMDisassembler(object):
         Syntax:
         SMLAW<y>{<c>}{<q>} <Rd>, <Rn>, <Rm>, <Ra>
         """
+        props = {}
         ins_id = ARMInstruction.smlaw
         condition = self.decode_condition_field(opcode)
         
@@ -2470,6 +2851,7 @@ class ARMDisassembler(object):
         Syntax:
         SMULW<y>{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.smulw
         condition = self.decode_condition_field(opcode)
         
@@ -2509,11 +2891,6 @@ class ARMDisassembler(object):
         ins = Instruction(ins_id, opcode, name, False, condition, operands, encoding)
         return ins
 
-    def decode_smlal(self, opcode, encoding):
-        ins_id = ARMInstruction.smlal
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_smlal")
-
     def decode_smlalb(self, opcode, encoding):
         """
         A8.8.179
@@ -2526,6 +2903,7 @@ class ARMDisassembler(object):
         Syntax:
         SMLAL{S}{<c>}{<q>} <RdLo>, <RdHi>, <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.smlalb
         condition = self.decode_condition_field(opcode)
         
@@ -2587,6 +2965,7 @@ class ARMDisassembler(object):
         Syntax:
         SMUL<x><y>{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.smul
         condition = self.decode_condition_field(opcode)
         
@@ -2650,6 +3029,7 @@ class ARMDisassembler(object):
         Syntax:
         BX{<c>}{<q>} <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.bx
         condition = self.decode_condition_field(opcode)
         
@@ -2686,6 +3066,7 @@ class ARMDisassembler(object):
         Syntax:
         BXJ{<c>}{<q>} <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.bxj
         condition = self.decode_condition_field(opcode)
         
@@ -2729,6 +3110,7 @@ class ARMDisassembler(object):
         Syntax:
         CB{N}Z{<q>} <Rn>, <label>
         """
+        props = {}
         ins_id = ARMInstruction.cbz
         condition = self.decode_condition_field(opcode)
         
@@ -2768,6 +3150,7 @@ class ARMDisassembler(object):
         Syntax:
         CLZ{<c>}{<q>} <Rd>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.clz
         condition = self.decode_condition_field(opcode)
         
@@ -2799,22 +3182,7 @@ class ARMDisassembler(object):
         operands = [Register(Rd), Register(Rm)]
         ins = Instruction(ins_id, opcode, "CLZ", False, condition, operands, encoding)
         return ins
-    
-    def decode_eret(self, opcode, encoding):
-        ins_id = ARMInstruction.eret
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_eret")
-
-    def decode_msr(self, opcode, encoding):
-        ins_id = ARMInstruction.msr
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_msr")
-
-    def decode_mrs(self, opcode, encoding):
-        ins_id = ARMInstruction.mrs
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_mrs")
-    
+        
     def decode_bkpt(self, opcode, encoding):
         """
         A8.8.24
@@ -2826,7 +3194,8 @@ class ARMDisassembler(object):
         BKPT{<q>} {#}<imm>
         
         Unit-test: OK
-        """        
+        """
+        props = {}        
         ins_id = ARMInstruction.bkpt
         if encoding == eEncodingT1:
             imm = get_bits(opcode, 7, 0)
@@ -2850,17 +3219,7 @@ class ARMDisassembler(object):
         operands = [Immediate(imm)]
         ins = Instruction(ins_id, opcode, "BKPT", False, condition, operands, encoding)
         return ins
-        
-    def decode_smc(self, opcode, encoding):
-        ins_id = ARMInstruction.smc
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_smc")
-        
-    def decode_hvc(self, opcode, encoding):
-        ins_id = ARMInstruction.hvc
-        condition = self.decode_condition_field(opcode)
-        raise InstructionNotImplementedException("decode_hvc")
-    
+                    
     def decode_it(self, opcode, encoding):
         """
         A8.8.54
@@ -2872,6 +3231,7 @@ class ARMDisassembler(object):
         Syntax:
         IT{<x>{<y>{<z>}}}{<q>} <firstcond>
         """
+        props = {}
         ins_id = ARMInstruction.it
         if encoding == eEncodingT1:
             firstcond = get_bits(opcode, 7, 4)
@@ -2942,6 +3302,7 @@ class ARMDisassembler(object):
 
         Unit-test: OK
         """
+        props = {}
         ins_id = ARMInstruction.blx_register
         condition = self.decode_condition_field(opcode)
         
@@ -2985,6 +3346,7 @@ class ARMDisassembler(object):
         Syntax:
         AND{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.and_register
         condition = self.decode_condition_field(opcode)
         
@@ -3060,6 +3422,7 @@ class ARMDisassembler(object):
         Syntax:
         EOR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.eor_register
         condition = self.decode_condition_field(opcode)
         
@@ -3121,6 +3484,7 @@ class ARMDisassembler(object):
         SUB (SP minus immediate)
         This instruction subtracts an immediate value from the SP value, and writes the result to the destination register.        
         """
+        props = {}
         ins_id = ARMInstruction.sub_sp_minus_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -3196,6 +3560,7 @@ class ARMDisassembler(object):
         This instruction subtracts an optionally-shifted register value from the SP value, and writes the result to the
         destination register.        
         """
+        props = {}
         ins_id = ARMInstruction.sub_sp_minus_register
         condition = self.decode_condition_field(opcode)
         
@@ -3257,6 +3622,7 @@ class ARMDisassembler(object):
         Syntax:
         SUB{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.sub_register
         condition = self.decode_condition_field(opcode)
         
@@ -3332,6 +3698,7 @@ class ARMDisassembler(object):
         Syntax:
         RSB{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.rsb_register
         condition = self.decode_condition_field(opcode)
         
@@ -3380,6 +3747,7 @@ class ARMDisassembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.add_register
         condition = self.decode_condition_field(opcode)
         
@@ -3415,6 +3783,7 @@ class ARMDisassembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.add_register
         condition = self.decode_condition_field(opcode)
         
@@ -3499,6 +3868,7 @@ class ARMDisassembler(object):
         Syntax:
         ADC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.adc_register
         condition = self.decode_condition_field(opcode)
         
@@ -3562,6 +3932,7 @@ class ARMDisassembler(object):
         Syntax:
         SBC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.sbc_register
         condition = self.decode_condition_field(opcode)
         
@@ -3625,6 +3996,7 @@ class ARMDisassembler(object):
         Syntax:
         RSC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.rsc_register
         condition = self.decode_condition_field(opcode)
         
@@ -3659,6 +4031,7 @@ class ARMDisassembler(object):
         Syntax:
         TST{<c>}{<q>} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.tst_register
         condition = self.decode_condition_field(opcode)
         
@@ -3709,6 +4082,7 @@ class ARMDisassembler(object):
         Syntax:
         TEQ{<c>}{<q>} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.teq_register
         condition = self.decode_condition_field(opcode)
         
@@ -3746,6 +4120,7 @@ class ARMDisassembler(object):
         Syntax:
         CMP{<c>}{<q>} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.cmp_register
         condition = self.decode_condition_field(opcode)
         
@@ -3814,6 +4189,7 @@ class ARMDisassembler(object):
         Syntax:
         CMN{<c>}{<q>} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.cmn_register
         condition = self.decode_condition_field(opcode)
         
@@ -3864,6 +4240,7 @@ class ARMDisassembler(object):
         Syntax:
         ORR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.orr_register
         condition = self.decode_condition_field(opcode)
         
@@ -3955,6 +4332,7 @@ class ARMDisassembler(object):
         Syntax:
         MOV{S}{<c>}{<q>} <Rd>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.mov_register
         condition = self.decode_condition_field(opcode)
         
@@ -4017,6 +4395,7 @@ class ARMDisassembler(object):
         Syntax:
         MOV{S}{<c>}{<q>} <Rd>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.mov_register
         condition = self.decode_condition_field(opcode)
         
@@ -4049,6 +4428,7 @@ class ARMDisassembler(object):
         Syntax:
         LSL{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.lsl_register
         condition = self.decode_condition_field(opcode)
         
@@ -4104,6 +4484,7 @@ class ARMDisassembler(object):
         Syntax:
         LSR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.lsr_register
         condition = self.decode_condition_field(opcode)
         
@@ -4159,6 +4540,7 @@ class ARMDisassembler(object):
         Syntax:
         ASR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.asr_register
         condition = self.decode_condition_field(opcode)
         
@@ -4213,6 +4595,7 @@ class ARMDisassembler(object):
         Syntax:
         RRX{S}{<c>}{<q>} {<Rd>,} <Rm>
         """
+        props = {}
         ins_id = ARMInstruction.rrx
         condition = self.decode_condition_field(opcode)
         
@@ -4253,7 +4636,8 @@ class ARMDisassembler(object):
         
         Syntax:
         ROR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
-        """        
+        """
+        props = {}        
         ins_id = ARMInstruction.ror_register
         condition = self.decode_condition_field(opcode)
         
@@ -4309,6 +4693,7 @@ class ARMDisassembler(object):
         Syntax:
         BIC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.bic_register
         condition = self.decode_condition_field(opcode)
         
@@ -4375,6 +4760,7 @@ class ARMDisassembler(object):
         Syntax:
         MVN{S}{<c>}{<q>} <Rd>, <Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.mvn_register
         condition = self.decode_condition_field(opcode)
         
@@ -4429,6 +4815,7 @@ class ARMDisassembler(object):
     def decode_data_processing_xxx_reg_shift_reg(self, ins_id, opcode, encoding, opstr):
         """
         """
+        props = {}
         condition = self.decode_condition_field(opcode)
         
         # Generic routine to parse reg shift reg instructions
@@ -4454,6 +4841,7 @@ class ARMDisassembler(object):
     def decode_data_processing_xxx_reg_shift_reg_test(self, ins_id, opcode, encoding, opstr):
         """
         """
+        props = {}
         condition = self.decode_condition_field(opcode)
         if encoding == eEncodingA1:
             Rn = get_bits(opcode, 19, 16)
@@ -4481,6 +4869,7 @@ class ARMDisassembler(object):
         Syntax:
         AND{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.and_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "AND")
     
@@ -4495,6 +4884,7 @@ class ARMDisassembler(object):
         Syntax:
         OR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.eor_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "EOR")
             
@@ -4508,6 +4898,7 @@ class ARMDisassembler(object):
         Syntax:
         SUB{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.sub_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "SUB")
     
@@ -4520,7 +4911,8 @@ class ARMDisassembler(object):
         
         Syntax:
         RSB{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
-        """        
+        """
+        props = {}        
         ins_id = ARMInstruction.rsb_rsr
         condition = self.decode_condition_field(opcode)
 
@@ -4554,6 +4946,7 @@ class ARMDisassembler(object):
                 
         Syntax:
         """
+        props = {}
         ins_id = ARMInstruction.subs_pc_lr
         condition = self.decode_condition_field(opcode)
         
@@ -4640,6 +5033,7 @@ class ARMDisassembler(object):
         Syntax:
         SUBS{<c>}{<q>} PC, LR, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.subs_pc_lr
         imm8 = get_bits(opcode, 7, 0)
         
@@ -4669,6 +5063,7 @@ class ARMDisassembler(object):
         ADD{S}{<c>}{<q>} {<Rd>,} SP, #<const> All encodings permitted
         ADDW{<c>}{<q>} {<Rd>,} SP, #<const>   Only encoding T4 is permitted
         """
+        props = {}
         ins_id = ARMInstruction.add_sp_plus_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -4758,6 +5153,7 @@ class ARMDisassembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} SP, <Rm>{, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.add_sp_plus_register
         condition = self.decode_condition_field(opcode)
         
@@ -4852,6 +5248,7 @@ class ARMDisassembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} SP, <Rm>{, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.add_sp_plus_register
         condition = self.decode_condition_field(opcode)
         
@@ -4884,6 +5281,7 @@ class ARMDisassembler(object):
         Syntax: 
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.add_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "ADD")
     
@@ -4897,6 +5295,7 @@ class ARMDisassembler(object):
         Syntax:
         ADC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.adc_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "ADC")
     
@@ -4911,6 +5310,7 @@ class ARMDisassembler(object):
         Syntax:
         SBC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.sbc_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "SBC")
         
@@ -4925,6 +5325,7 @@ class ARMDisassembler(object):
         Syntax:
         RSC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.rsc_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "RSC")
     
@@ -4943,6 +5344,7 @@ class ARMDisassembler(object):
         TBB{<c>}{<q>} [<Rn>, <Rm>]
         TBH{<c>}{<q>} [<Rn>, <Rm>, LSL #1]        
         """
+        props = {}
         ins_id = ARMInstruction.tb
         Rn = get_bits(opcode, 19, 16)
         H = get_bit(opcode, 4)
@@ -4980,6 +5382,7 @@ class ARMDisassembler(object):
         Syntax:
         ST{<c>}{<q>} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.tst_rsr
         return self.decode_data_processing_xxx_reg_shift_reg_test(ins_id, opcode, encoding, "TST")
     
@@ -4993,6 +5396,7 @@ class ARMDisassembler(object):
         Syntax:
         TEQ{<c>}{<q>} <Rn>, <Rm>, <type> <Rs>   
         """
+        props = {}
         ins_id = ARMInstruction.teq_rsr
         return self.decode_data_processing_xxx_reg_shift_reg_test(ins_id, opcode, encoding, "TEQ")
     
@@ -5006,6 +5410,7 @@ class ARMDisassembler(object):
         Syntax:
         CMP{<c>}{<q>} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.cmp_rsr
         return self.decode_data_processing_xxx_reg_shift_reg_test(ins_id, opcode, encoding, "CMP")
     
@@ -5019,6 +5424,7 @@ class ARMDisassembler(object):
         Syntax:
         CMN{<c>}{<q>} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.cmn_rsr
 
         return self.decode_data_processing_xxx_reg_shift_reg_test(ins_id, opcode, encoding, "CMN")
@@ -5034,6 +5440,7 @@ class ARMDisassembler(object):
         Syntax:
         ORR{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.orr_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "ORR")
 
@@ -5052,6 +5459,7 @@ class ARMDisassembler(object):
         Syntax:
         BIC{S}{<c>}{<q>} {<Rd>,} <Rn>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.bic_rsr
         return self.decode_data_processing_xxx_reg_shift_reg(ins_id, opcode, encoding, "BIC")
 
@@ -5065,6 +5473,7 @@ class ARMDisassembler(object):
         Syntax:
         MVN{S}{<c>}{<q>} <Rd>, <Rm>, <type> <Rs>
         """
+        props = {}
         ins_id = ARMInstruction.mvn_rsr
         condition = self.decode_condition_field(opcode)
         
@@ -5097,6 +5506,7 @@ class ARMDisassembler(object):
         Syntax:
         AND{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.and_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5148,6 +5558,7 @@ class ARMDisassembler(object):
         Syntax:
         EOR{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.eor_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5201,6 +5612,7 @@ class ARMDisassembler(object):
         ADD{<c>}{<q>} <Rd>, PC, #<const>   Alternative for encodings T1, T3, A1
         SUB{<c>}{<q>} <Rd>, PC, #<const>   Alternative for encoding T2, A2
         """
+        props = {}
         ins_id = ARMInstruction.adr
         condition = self.decode_condition_field(opcode)
         
@@ -5277,6 +5689,7 @@ class ARMDisassembler(object):
         Syntax:
         SUB{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.sub_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5316,6 +5729,7 @@ class ARMDisassembler(object):
         SUB{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>    All encodings permitted
         SUBW{<c>}{<q>} {<Rd>,} <Rn>, #<const>      Only encoding T4 permitted
         """
+        props = {}
         ins_id = ARMInstruction.sub_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5397,6 +5811,7 @@ class ARMDisassembler(object):
         Syntax:
         RSB{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.rsb_immediate
         condition = self.decode_condition_field(opcode)
                 
@@ -5457,6 +5872,7 @@ class ARMDisassembler(object):
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>    All encodings permitted
         ADDW{<c>}{<q>} {<Rd>,} <Rn>, #<const>      Only encoding T4 permitted
         """
+        props = {}
         ins_id = ARMInstruction.add_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5548,6 +5964,7 @@ class ARMDisassembler(object):
         Syntax:
         ADD{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.add_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5589,6 +6006,7 @@ class ARMDisassembler(object):
         Syntax:
         ADC{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.adc_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5632,6 +6050,7 @@ class ARMDisassembler(object):
         Syntax:
         SBC{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.sbc_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5675,6 +6094,7 @@ class ARMDisassembler(object):
         Syntax:
         RSC{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.rsc_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5705,6 +6125,7 @@ class ARMDisassembler(object):
         Syntax:
         TST{<c>}{<q>} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.tst_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5741,6 +6162,7 @@ class ARMDisassembler(object):
         Syntax:
         TEQ{<c>}{<q>} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.teq_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5777,6 +6199,7 @@ class ARMDisassembler(object):
         Syntax:
         CMP{<c>}{<q>} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.cmp_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5822,6 +6245,7 @@ class ARMDisassembler(object):
         Syntax:
         CMN{<c>}{<q>} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.cmn_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5856,6 +6280,7 @@ class ARMDisassembler(object):
         Syntax:
         ORR{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.orr_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -5901,6 +6326,7 @@ class ARMDisassembler(object):
         Syntax:
         NOP{<c>}{<q>}   
         """
+        props = {}
         ins_id = ARMInstruction.nop
         condition = self.decode_condition_field(opcode)
         operands = []
@@ -5933,6 +6359,7 @@ class ARMDisassembler(object):
         Syntax:       
         YIELD{<c>}{<q>} 
         """
+        props = {}
         ins_id = ARMInstruction.yield_
         condition = self.decode_condition_field(opcode)
         
@@ -5964,6 +6391,7 @@ class ARMDisassembler(object):
         Syntax:
         WFE{<c>}{<q>}
         """
+        props = {}
         ins_id = ARMInstruction.wfe
         condition = self.decode_condition_field(opcode)
         
@@ -5994,6 +6422,7 @@ class ARMDisassembler(object):
         Syntax: 
         WFI{<c>}{<q>}
         """
+        props = {}
         ins_id = ARMInstruction.wfi
         condition = self.decode_condition_field(opcode)
         
@@ -6026,43 +6455,93 @@ class ARMDisassembler(object):
         of CP10 and CP11 functionality on page B1-1226 and Summary of access controls for Advanced 
         SIMD functionality on page B1-1228 summarize these controls.        
         """
+        props = {}        
+        name = "VLDR"
         ins_id = ARMInstruction.vldr
+        setsflags = False
+        condition = None
 
-        # This is the same for all the encodings.
-        U = get_bit(opcode, 23)
-        D = get_bit(opcode, 22)
-        Rn = get_bits(opcode, 19, 16)
-        Vd = get_bits(opcode, 15 ,12)
-        imm8 = get_bits(7, 0)
+        if encoding == eEncodingT1:
+            decode_mask = [I8, 1, 1, I2, 4, 4, I4, 8]
+            U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
 
-        add = U == 1
-        imm32 = imm8 << 2
-        
-        if encoding in [eEncodingT1, eEncodingA1]:            
             # single_reg = FALSE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
             single_reg = False
-            
-            # d = UInt(D:Vd); n = UInt(Rn);
-            d = (D << 4) | Vd
-            cond = None if encoding == eEncodingT1 else self.decode_condition_field(opcode)
-            
-            operands = []
-            ins = Instruction(ins_id, opcode, "VLDR", False, cond, operands, encoding)
-        
-        elif encoding in [eEncodingT2, eEncodingA2]:
-            # single_reg = TRUE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
-            single_reg = True
-            d = (Vd << 1) | D
-            cond = None if encoding == eEncodingT2 else self.decode_condition_field(opcode)
-            
-        
+            add = U == 1
+            imm32 = imm8 << 2
 
+            # d = UInt(D:Vd); n = UInt(Rn);
+            Dd = (D << 4) | Vd
+
+            if not add:
+                imm32 *= -1
+
+            operands = [DRegister(Dd), Memory(Register(Rn), Immediate(imm32))]
+        
+        elif encoding == eEncodingT2:
+            decode_mask = [I8, 1, 1, I2, 4, 4, I4, 8]
+            U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
+
+            # single_reg = FALSE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = False
+            add = U == 1
+            imm32 = imm8 << 2
+
+            # d = UInt(Vd:D); n = UInt(Rn);
+            Dd = (Vd << 1) | D
+
+            if not add:
+                imm32 *= -1
+
+            operands = [DRegister(Dd), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I4, 1, 1, I2, 4, 4, I4, 8]
+            cond, U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # single_reg = FALSE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = False
+            add = U == 1
+            imm32 = imm8 << 2
+
+            # d = UInt(D:Vd); n = UInt(Rn);
+            Dd = (D << 4) | Vd
+
+            if not add:
+                imm32 *= -1
+
+            operands = [DRegister(Dd), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I4, 1, 1, I2, 4, 4, I4, 8]
+            cond, U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # single_reg = FALSE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = False
+            add = U == 1
+            imm32 = imm8 << 2
+
+            # d = UInt(Vd:D); n = UInt(Rn);
+            Dd = (Vd << 1) | D
+
+            if not add:
+                imm32 *= -1
+
+            operands = [SRegister(Dd), Memory(Register(Rn), Immediate(imm32))]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
         return ins
 
     def decode_unknown(self, opcode, encoding):
         """
         Default value for instructions we do not know how to decode.
         """
+        props = {}
         ins_id = ARMInstruction.unknown
         ins = Instruction(ins_id, opcode, "UNK", False, None, [], encoding)
         return ins
@@ -6074,6 +6553,7 @@ class ARMDisassembler(object):
         Unsigned Extend Byte extracts an 8-bit value from a register, zero-extends it to 32 bits, and writes the result to the
         destination register. The instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the 8-bit value.        
         """
+        props = {}
         condition = None
         ins_id = ARMInstruction.uxtb
         if encoding == eEncodingT1:
@@ -6113,6 +6593,7 @@ class ARMDisassembler(object):
         Unsigned Bit Field Extract extracts any number of adjacent bits at any position from a register, zero-extends them
         to 32 bits, and writes the result to the destination register.        
         """
+        props = {}
         ins_id = ARMInstruction.ubfx
         
         if encoding == eEncodingT1:
@@ -6159,6 +6640,7 @@ class ARMDisassembler(object):
         Syntax: 
         SEV{<c>}{<q>}
         """
+        props = {}
         ins_id = ARMInstruction.sev
         condition = self.decode_condition_field(opcode)
                
@@ -6187,6 +6669,7 @@ class ARMDisassembler(object):
         Syntax:
         DBG{<c>}{<q>} #<option>
         """
+        props = {}
         ins_id = ARMInstruction.dbg
         condition = self.decode_condition_field(opcode)
         
@@ -6213,6 +6696,7 @@ class ARMDisassembler(object):
         Syntax:
         MOVT{<c>}{<q>} <Rd>, #<imm16>
         """
+        props = {}
         ins_id = ARMInstruction.movt
         condition = self.decode_condition_field(opcode)
         
@@ -6262,6 +6746,7 @@ class ARMDisassembler(object):
         MOV{S}{<c>}{<q>} <Rd>, #<const>  All encodings permitted
         MOVW{<c>}{<q>} <Rd>, #<const>    Only encoding T3 or A2 permitted
         """
+        props = {}
         ins_id = ARMInstruction.mov_immediate
         condition = self.decode_condition_field(opcode)
                 
@@ -6348,6 +6833,7 @@ class ARMDisassembler(object):
         Syntax:
         LSL{S}{<c>}{<q>} {<Rd>,} <Rm>, #<imm5>
         """
+        props = {}
         ins_id = ARMInstruction.lsl_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -6390,7 +6876,7 @@ class ARMDisassembler(object):
             setflags = get_bit(opcode, 20)
             
             imm5 = get_bits(opcode, 11, 7)
-            #t, imm5 = DecodeImmShift(0b00, imm5)
+            # t, imm5 = DecodeImmShift(0b00, imm5)
 
             # if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
             if Rd == 15 and setflags:
@@ -6418,6 +6904,7 @@ class ARMDisassembler(object):
         Syntax:
         LSR{S}{<c>}{<q>} {<Rd>,} <Rm>, #<imm>
         """
+        props = {}
         ins_id = ARMInstruction.lsr_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -6475,6 +6962,7 @@ class ARMDisassembler(object):
         Syntax:
         ASR{S}{<c>}{<q>} {<Rd>,} <Rm>, #<imm>
         """
+        props = {}
         ins_id = ARMInstruction.asr_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -6534,6 +7022,7 @@ class ARMDisassembler(object):
         Syntax:
         ROR{S}{<c>}{<q>} {<Rd>,} <Rm>, #<imm>
         """
+        props = {}
         ins_id = ARMInstruction.ror_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -6585,6 +7074,7 @@ class ARMDisassembler(object):
         Syntax:
         BIC{S}{<c>}{<q>} {<Rd>,} <Rn>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.bic_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -6630,6 +7120,7 @@ class ARMDisassembler(object):
         Syntax:
         MVN{S}{<c>}{<q>} <Rd>, #<const>
         """
+        props = {}
         ins_id = ARMInstruction.mvn_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -6669,6 +7160,7 @@ class ARMDisassembler(object):
         Store Register (immediate) calculates an address from a base register value and an immediate offset, and stores a
         word from a register to memory. It can use offset, post-indexed, or pre-indexed addressing.        
         """
+        props = {}
         ins_id = ARMInstruction.str_immediate
         if encoding == eEncodingT1:
             # imm32 = ZeroExtend(imm5:'00', 32);
@@ -6771,6 +7263,7 @@ class ARMDisassembler(object):
         STR{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!    Pre-indexed: index==TRUE, wback==TRUE
         STR{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>     Post-indexed: index==FALSE, wback==TRUE
         """
+        props = {}
         ins_id = ARMInstruction.str_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -6827,6 +7320,7 @@ class ARMDisassembler(object):
         STR{<c>}{<q>} <Rt>, [<Rn>, <Rm>{, <shift>}]!  Pre-indexed: index==TRUE, wback==TRUE
         STR{<c>}{<q>} <Rt>, [<Rn>], <Rm>{, <shift>}   Post-indexed: index==FALSE, wback==TRUE
         """
+        props = {}
         ins_id = ARMInstruction.str_reg
         condition = self.decode_condition_field(opcode)
         
@@ -6925,15 +7419,6 @@ class ARMDisassembler(object):
                 
         return ins
 
-    def decode_strh_immediate_thumb(self, opcode, encoding):
-        """
-        A8.8.216
-        STRH (immediate, Thumb)
-        Store Register Halfword (immediate) calculates an address from a base register value and an immediate offset, and
-        stores a halfword from a register to memory. It can use offset, post-indexed, or pre-indexed addressing        
-        """
-        pass
-
     def decode_strh_immediate_arm(self, opcode, encoding):
         """
         A8.8.217
@@ -6941,6 +7426,7 @@ class ARMDisassembler(object):
         Store Register Halfword (immediate) calculates an address from a base register value and an immediate offset, and
         stores a halfword from a register to memory. It can use offset, post-indexed, or pre-indexed addressing.         
         """
+        props = {}
         ins_id = ARMInstruction.strh_immediate_arm
         condition = self.decode_condition_field(opcode)
         
@@ -6984,17 +7470,6 @@ class ARMDisassembler(object):
             
         return Instruction(ins_id, opcode, "STRH", False, condition, operands, encoding)
     
-    def decode_strh_register(self, opcode, encoding):
-        """
-        A8.8.218
-        STRH (register)
-        Store Register Halfword (register) calculates an address from a base register value and an offset register value, and
-        stores a halfword from a register to memory. The offset register value can be shifted left by 0, 1, 2, or 3 bits.        
-        """
-        pass
-    
-    
-    
     def decode_strt(self, opcode, encoding):
         """
         A8.8.220
@@ -7006,6 +7481,7 @@ class ARMDisassembler(object):
         STRT{<c>}{<q>} <Rt>, [<Rn>] {, #+/-<imm>}        Post-indexed: ARM only
         STRT{<c>}{<q>} <Rt>, [<Rn>], +/-<Rm> {, <shift>} Post-indexed: ARM only         
         """
+        props = {}
         ins_id = ARMInstruction.strt
         condition = self.decode_condition_field(opcode)
         
@@ -7085,6 +7561,7 @@ class ARMDisassembler(object):
         Load Register (immediate) calculates an address from a base register value and an immediate offset, loads a word
         from memory, and writes it to a register. It can use offset, post-indexed, or pre-indexed addressing. 
         """
+        props = {}
         ins_id = ARMInstruction.ldr_immediate
         if encoding == eEncodingT1:
             # imm32 = ZeroExtend(imm5:'00', 32);
@@ -7192,6 +7669,7 @@ class ARMDisassembler(object):
         to form a 32-bit word, and writes it to a register. It can use offset,
         post-indexed, or pre-indexed addressing        
         """
+        props = {}
         ins_id = ARMInstruction.ldrh_immediate_thumb
         if encoding == eEncodingT1:
             # imm32 = ZeroExtend(imm5:'0', 32);
@@ -7296,6 +7774,7 @@ class ARMDisassembler(object):
         32-bit word, and writes it to a register. It can use offset, post-indexed, or pre-indexed
         addressing        
         """
+        props = {}
         ins_id = ARMInstruction.ldrh_immediate_arm
         if encoding == eEncodingA1:
             cond = self.decode_condition_field(opcode)
@@ -7357,7 +7836,8 @@ class ARMDisassembler(object):
         Load Register Halfword (literal) calculates an address from the PC value 
         and an immediate offset, loads a halfword from memory, zero-extends it to form a
         32-bit word, and writes it to a register.        
-        """        
+        """
+        props = {}        
         ins_id = ARMInstruction.ldrh_literal_thumb
         if encoding == eEncodingT1:
             U = get_bit(opcode, 23)
@@ -7391,6 +7871,7 @@ class ARMDisassembler(object):
         and an immediate offset, loads a halfword from memory, zero-extends it to form a
         32-bit word, and writes it to a register.        
         """
+        props = {}
         ins_id = ARMInstruction.ldrh_literal_arm
         if encoding == eEncodingA1:
             condition = self.decode_condition_field(opcode)
@@ -7425,6 +7906,7 @@ class ARMDisassembler(object):
         to form a 32-bit word, and writes it to a register. The offset register value
         can be shifted left by 0, 1, 2, or 3 bits.         
         """
+        props = {}
         ins_id = ARMInstruction.ldrh_register_thumb
         if encoding == eEncodingT1:
             # if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE";    
@@ -7474,6 +7956,7 @@ class ARMDisassembler(object):
         to form a 32-bit word, and writes it to a register. The offset register value
         can be shifted left by 0, 1, 2, or 3 bits.         
         """
+        props = {}
         ins_id = ARMInstruction.ldrh_register_arm
         if encoding == eEncodingA1:
             condition = self.decode_condition_field(opcode)
@@ -7535,6 +8018,7 @@ class ARMDisassembler(object):
         LDR{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!    Pre-indexed: index==TRUE, wback==TRUE
         LDR{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>     Post-indexed: index==FALSE, wback==TRUE
         """
+        props = {}
         ins_id = ARMInstruction.ldr_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -7595,6 +8079,7 @@ class ARMDisassembler(object):
         LDR{<c>}{<q>} <Rt>, <label>         Normal form
         LDR{<c>}{<q>} <Rt>, [PC, #+/-<imm>] Alternative form        
         """
+        props = {}
         ins_id = ARMInstruction.ldr_literal
         condition = self.decode_condition_field(opcode)
         
@@ -7648,6 +8133,7 @@ class ARMDisassembler(object):
         Load Register (register) calculates an address from a base register value and an offset register value, loads a word
         from memory, and writes it to a register. The offset register value can optionally be shifted.         
         """
+        props = {}
         ins_id = ARMInstruction.ldr_register
         if encoding == eEncodingT1:
             Rm = get_bits(opcode, 8, 6)
@@ -7700,6 +8186,7 @@ class ARMDisassembler(object):
         LDR{<c>}{<q>} <Rt>, [<Rn>, {+/-}<Rm>{, <shift>}]! Pre-indexed: index==TRUE, wback==TRUE
         LDR{<c>}{<q>} <Rt>, [<Rn>], {+/-}<Rm>{, <shift>}  Post-indexed: index==FALSE, wback==TRUE        
         """
+        props = {}
         ins_id = ARMInstruction.ldr_register
         condition = self.decode_condition_field(opcode)
         
@@ -7765,6 +8252,7 @@ class ARMDisassembler(object):
         LDRT{<c>}{<q>} <Rt>, [<Rn>] {, #+/-<imm>}         Post-indexed: ARM only
         LDRT{<c>}{<q>} <Rt>, [<Rn>], +/-<Rm> {, <shift>}  Post-indexed: ARM only
         """
+        props = {}
         ins_id = ARMInstruction.ldrt
         condition = self.decode_condition_field(opcode)
                 
@@ -7850,6 +8338,7 @@ class ARMDisassembler(object):
         STRB{<c>}{<q>} <Rt>, [<Rn>, <Rm>{, <shift>}]!  Pre-indexed: index==TRUE, wback==TRUE
         STRB{<c>}{<q>} <Rt>, [<Rn>], <Rm>{, <shift>}   Post-indexed: index==FALSE, wback==TRUE
         """
+        props = {}
         ins_id = ARMInstruction.strb_register
         condition = self.decode_condition_field(opcode)
         
@@ -7951,6 +8440,7 @@ class ARMDisassembler(object):
         Store Register Byte (immediate) calculates an address from a base register value and an immediate offset, and stores
         a byte from a register to memory. It can use offset, post-indexed, or pre-indexed addressing.
         """
+        props = {}
         ins_id = ARMInstruction.strb_immediate
         if encoding == eEncodingT1:
             imm32 = get_bits(opcode, 10, 6)
@@ -8039,6 +8529,7 @@ class ARMDisassembler(object):
         STRB{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!    Pre-indexed: index==TRUE, wback==TRUE
         STRB{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>     Post-indexed: index==FALSE, wback==TRUE            
         """
+        props = {}
         ins_id = ARMInstruction.strb_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -8093,6 +8584,7 @@ class ARMDisassembler(object):
         STRBT{<c>}{<q>} <Rt>, [<Rn>] {, #<imm>}             Post-indexed: ARM only
         STRBT{<c>}{<q>} <Rt>, [<Rn>], +/-<Rm> {, <shift>}   Post-indexed: ARM only
         """
+        props = {}
         ins_id = ARMInstruction.strbt
         condition = self.decode_condition_field(opcode)
         
@@ -8173,6 +8665,7 @@ class ARMDisassembler(object):
         byte from memory, zero-extends it to form a 32-bit word, and writes it to a register. It can use offset, post-indexed,
         or pre-indexed addressing. 
         """
+        props = {}
         ins_id = ARMInstruction.ldrb_immediate
         if encoding == eEncodingT1:
             imm32 = get_bits(opcode, 10, 6)
@@ -8270,6 +8763,7 @@ class ARMDisassembler(object):
         LDRB{<c>}{<q>} <Rt>, [<Rn>, #+/-<imm>]!    Pre-indexed: index==TRUE, wback==TRUE
         LDRB{<c>}{<q>} <Rt>, [<Rn>], #+/-<imm>     Post-indexed: index==FALSE, wback==TRUE
         """
+        props = {}
         ins_id = ARMInstruction.ldrb_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -8324,6 +8818,7 @@ class ARMDisassembler(object):
         LDRB{<c>}{<q>} <Rt>, <label>          Normal form
         LDRB{<c>}{<q>} <Rt>, [PC, #+/-<imm>]  Alternative form
         """
+        props = {}
         ins_id = ARMInstruction.ldrb_literal
         condition = self.decode_condition_field(opcode)
         
@@ -8376,6 +8871,7 @@ class ARMDisassembler(object):
         LDRB{<c>}{<q>} <Rt>, [<Rn>, +/-<Rm>{, <shift>}]!  Pre-indexed: index==TRUE, wback==TRUE
         LDRB{<c>}{<q>} <Rt>, [<Rn>], +/-<Rm>{, <shift>}   Post-indexed: index==FALSE, wback==TRUE
         """
+        props = {}
         ins_id = ARMInstruction.ldrb_register
         condition = self.decode_condition_field(opcode)
         
@@ -8486,6 +8982,7 @@ class ARMDisassembler(object):
         LDRBT{<c>}{<q>} <Rt>, [<Rn>] {, #+/-<imm>}
         LDRBT{<c>}{<q>} <Rt>, [<Rn>], +/-<Rm> {, <shift>}
         """
+        props = {}
         ins_id = ARMInstruction.ldrbt
         condition = self.decode_condition_field(opcode)
         
@@ -8569,6 +9066,7 @@ class ARMDisassembler(object):
         Syntax:   
         STMDA{<c>}{<q>} <Rn>{!}, <registers>
         """
+        props = {}
         ins_id = ARMInstruction.stmda
         condition = self.decode_condition_field(opcode)
         
@@ -8602,6 +9100,7 @@ class ARMDisassembler(object):
         
         Unit-test: OK
         """
+        props = {}
         ins_id = ARMInstruction.ldmda
         condition = self.decode_condition_field(opcode)
         
@@ -8636,6 +9135,7 @@ class ARMDisassembler(object):
         Syntax:
         STM{<c>}{<q>} <Rn>{!}, <registers>        
         """
+        props = {}
         ins_id = ARMInstruction.stmia
         condition = self.decode_condition_field(opcode)
         
@@ -8703,6 +9203,7 @@ class ARMDisassembler(object):
                 
         Unit-test: OK       
         """
+        props = {}
         ins_id = ARMInstruction.ldmia
         condition = self.decode_condition_field(opcode)
         
@@ -8736,10 +9237,7 @@ class ARMDisassembler(object):
             ins = Instruction(ins_id, opcode, "LDM", False, condition, operands, encoding)            
 
         return ins
-    
-    def decode_pld_literal(self, opcode, encoding):
-        raise NotImplementedError("PLD Literal")
-    
+        
     def decode_pld(self, opcode, encoding):
         """
         A8.8.126
@@ -8748,6 +9246,7 @@ class ARMDisassembler(object):
         future. The memory system can respond by taking actions that are expected to speed up the memory accesses when
         they do occur, such as pre-loading the cache line containing the specified address into the data cache
         """
+        props = {}
         ins_id = ARMInstruction.pld
         if encoding == eEncodingT1:
             # PLD{W}<c> [<Rn>, #<imm12>]
@@ -8809,6 +9308,7 @@ class ARMDisassembler(object):
         Pop Multiple Registers loads multiple registers from the stack, loading from consecutive memory locations starting
         at the address in SP, and updates SP to point just above the loaded data.        
         """
+        props = {}
         ins_id = ARMInstruction.pop
         if encoding == eEncodingT1:
             P = get_bit(opcode, 8)
@@ -8877,6 +9377,7 @@ class ARMDisassembler(object):
         POP{<c>}{<q>} <registers>       Standard syntax
         LDM{<c>}{<q>} SP!, <registers>  Equivalent LDM syntax
         """
+        props = {}
         ins_id = ARMInstruction.pop
         condition = self.decode_condition_field(opcode)
         
@@ -8918,6 +9419,7 @@ class ARMDisassembler(object):
         Syntax:
         STMDB{<c>}{<q>} <Rn>{!}, <registers>
         """
+        props = {}
         ins_id = ARMInstruction.stmdb
         condition = self.decode_condition_field(opcode)
         
@@ -8982,6 +9484,7 @@ class ARMDisassembler(object):
         PUSH{<c>}{<q>} <registers>        Standard syntax
         STMDB{<c>}{<q>} SP!, <registers>  Equivalent STM syntax
         """
+        props = {}
         ins_id = ARMInstruction.push
         condition = self.decode_condition_field(opcode)
         
@@ -9057,6 +9560,7 @@ class ARMDisassembler(object):
         address just above the highest of those locations can optionally be written back to the base register. The registers
         loaded can include the PC, causing a branch to a loaded address. 
         """
+        props = {}
         ins_id = ARMInstruction.ldmia
         if encoding == eEncodingT1:
             Rn = get_bits(opcode, 10, 8)
@@ -9122,6 +9626,7 @@ class ARMDisassembler(object):
         
         Unit-test: OK
         """
+        props = {}
         ins_id = ARMInstruction.ldmdb
         condition = self.decode_condition_field(opcode)
         
@@ -9177,6 +9682,7 @@ class ARMDisassembler(object):
         Syntax:
         STMIB{<c>}{<q>} <Rn>{!}, <registers>
         """
+        props = {}
         ins_id = ARMInstruction.stmib
         condition = self.decode_condition_field(opcode)
         
@@ -9210,6 +9716,7 @@ class ARMDisassembler(object):
 
         Unit-test: OK               
         """
+        props = {}
         ins_id = ARMInstruction.ldmib
         condition = self.decode_condition_field(opcode)
         
@@ -9244,6 +9751,7 @@ class ARMDisassembler(object):
         
         Syntax:
         """
+        props = {}
         ins_id = ARMInstruction.stm_user_registers
         condition = self.decode_condition_field(opcode)
                 
@@ -9283,6 +9791,7 @@ class ARMDisassembler(object):
         
         Unit-test: OK
         """
+        props = {}
         ins_id = ARMInstruction.ldm_user_registers
         condition = self.decode_condition_field(opcode)
                 
@@ -9322,6 +9831,7 @@ class ARMDisassembler(object):
         
         Unit-test: OK
         """
+        props = {}
         ins_id = ARMInstruction.ldm_exception_return
         condition = self.decode_condition_field(opcode)
         
@@ -9366,6 +9876,7 @@ class ARMDisassembler(object):
         Syntax:
         B{<c>}{<q>} <label>
         """
+        props = {}
         ins_id = ARMInstruction.b
         condition = self.decode_condition_field(opcode)
         
@@ -9471,6 +9982,7 @@ class ARMDisassembler(object):
 
         Unit-test: FAIL
         """
+        props = {}
         ins_id = ARMInstruction.bl_immediate
         condition = self.decode_condition_field(opcode)
         
@@ -9549,6 +10061,7 @@ class ARMDisassembler(object):
         Syntax:
         SVC{<c>}{<q>} {#}<imm>
         """
+        props = {}
         ins_id = ARMInstruction.svc
         condition = self.decode_condition_field(opcode)
         
@@ -9565,3 +10078,9447 @@ class ARMDisassembler(object):
         operands = [Immediate(imm)]
         ins = Instruction(ins_id, opcode, "SVC", False, condition, operands, encoding)
         return ins
+    
+    def decode_bfc(self, opcode, encoding):
+        """
+        A8.8.19
+        BFC
+        Bit Field Clear clears any number of adjacent bits at any position in a register, without affecting the other bits in the
+        register.        
+        """
+        props = {}        
+        name = "BFC"
+        ins_id = ARMInstruction.bfc
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(17), 3, 4, 2, I(1), 5]
+            imm3, Rd, imm2, msbit = decode_opcode(opcode, decode_mask)
+            
+            # d = UInt(Rd); msbit = UInt(msb); lsbit = UInt(imm3:imm2);
+            lsbit = (imm3 << 2) | imm2 
+            
+            # if d IN {13,15} then UNPREDICTABLE;
+            if BadReg(Rd):
+                raise UnpredictableInstructionException()
+            
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(7), 5, 4, 5, I(7)]
+            cond, msbit, Rd, lsbit = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+                        
+            if Rd == 15:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # The Immediate value must be positive otherwise we do not make sense.
+        if msbit < lsbit:
+            raise UnpredictableInstructionException()
+
+        # BFC<c> <Rd>, #<lsb>, #<width>
+        operands = [Register(Rd), Immediate(lsbit), Immediate(msbit - lsbit + 1)]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_bfi(self, opcode, encoding):
+        """
+        A8.8.20
+        BFI
+        Bit Field Insert copies any number of low order bits from a register into the same number of adjacent bits at any
+        position in the destination register.        
+        """
+        props = {}
+        name = "BFI"
+        ins_id = ARMInstruction.bfi
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I(1), 3, 4, 2, I(1), 5]
+            Rn, imm3, Rd, imm2, msbit = decode_opcode(opcode, decode_mask)
+
+            # if Rn == '1111' then SEE BFC;
+            if Rn == 0b1111:
+                return self.decode_bfc(opcode, encoding)
+            
+            # d = UInt(Rd); n = UInt(Rn); msbit = UInt(msb); lsbit = UInt(imm3:imm2);
+            lsbit = (imm3 << 2) | imm2 
+            
+            # if d IN {13,15} || n == 13 then UNPREDICTABLE;
+            if BadReg(Rd) or Rn == 13:
+                raise UnpredictableInstructionException()
+            
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(7), 5, 4, 5, I(3), 4]
+            cond, msbit, Rd, lsbit, Rn = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # if Rn == '1111' then SEE BFC;
+            if Rn == 0b1111:
+                return self.decode_bfc(opcode, encoding)
+                        
+            if Rd == 15:
+                raise UnpredictableInstructionException()
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # The Immediate value must be positive otherwise we do not make sense.
+        if msbit < lsbit:
+            raise UnpredictableInstructionException()
+
+        operands = [Register(Rd), Register(Rn), Immediate(lsbit), Immediate(msbit - lsbit + 1)]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_cdp(self, opcode, encoding):
+        """
+        A8.8.30
+        CDP, CDP2
+        Coprocessor Data Processing tells a coprocessor to perform an operation that is independent of ARM core registers
+        and memory. If no coprocessor can execute the instruction, an Undefined Instruction exception is generated.
+        """
+        props = {}
+        
+        ins_id = ARMInstruction.cdp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            name = "CDP"
+            decode_mask = [I(8), 4, 4, 4, 4, 3, I(1), 4]
+            opc1, CRn, CRd, coproc, opc2, CRm = decode_opcode(opcode, decode_mask)
+            
+            # if coproc IN "101x" then SEE "Floating-point instructions";
+            if coproc in [0b1010, 0b1011]:
+                raise RuntimeError("SEE Floating-point instructions")
+
+        elif encoding == eEncodingT2:
+            name = "CDP2"
+            decode_mask = [I(8), 4, 4, 4, 4, 3, I(1), 4]
+            opc1, CRn, CRd, coproc, opc2, CRm = decode_opcode(opcode, decode_mask)
+
+        elif encoding == eEncodingA1:
+            name = "CDP"
+            decode_mask = [4, I(4), 4, 4, 4, 4, 3, I(1), 4]
+            cond, opc1, CRn, CRd, coproc, opc2, CRm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+        elif encoding == eEncodingA2:
+            name = "CDP2"
+            decode_mask = [I(8), 4, 4, 4, 4, 3, I(1), 4]
+            opc1, CRn, CRd, coproc, opc2, CRm = decode_opcode(opcode, decode_mask)
+
+            # if coproc IN "101x" then SEE "Floating-point instructions";
+            if coproc in [0b1010, 0b1011]:
+                raise RuntimeError("SEE Floating-point instructions")
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        operands = [CoprocessorName(coproc), CoprocessorOpCode(opc1), CoprocessorRegister(CRd), CoprocessorRegister(CRn), CoprocessorRegister(CRm), CoprocessorOpCode(opc2)]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_clrex(self, opcode, encoding):
+        """
+        A8.8.32
+        CLREX
+        Clear-Exclusive clears the local record of the executing processor that an address has had a request for an exclusive
+        access.        
+        """
+        props = {}
+        name = "CLREX"
+        ins_id = ARMInstruction.clrex
+        setsflags = False
+        condition = None
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, [], encoding)
+        return ins
+
+    def decode_cps(self, opcode, encoding):
+        """
+        A8.8.40
+        CPS
+        Change Processor State is a system instruction, see CPS (Thumb) on page B9-1948 and CPS (ARM) on
+        page B9-1950.        
+        """
+        props = {}
+
+        ins_id = ARMInstruction.cps
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(27), 1, I(1), 1, 1 , 1]
+            im, a, i, f = decode_opcode(opcode, decode_mask)
+                        
+            if ((a << 2) | (i << 1) | f) == 0:
+                return UnpredictableInstructionException()
+            
+            enable = im == 0
+            disable = im == 1
+            changemode = False
+            affectA = a == 1
+            affectI = i == 0
+            affectF = f == 0
+            
+        elif encoding == eEncodingT2:
+            decode_mask = [I(21), 2, 1, 1, 1, 1, 5]
+            imod, m, a, i, f, mode = decode_opcode(opcode, decode_mask)
+
+            if imod == 0 and m == 0:
+                raise RuntimeError("SEE Hint instructions")
+            
+            if mode != 0 and m == 0:
+                raise UnpredictableInstructionException()
+            
+            if get_bit(imod, 1) == 1 and (((a << 2) | (i << 1) | f) == 0):
+                raise UnpredictableInstructionException() 
+
+            if get_bit(imod, 1) == 0 and (((a << 2) | (i << 1) | f) != 0):
+                raise UnpredictableInstructionException() 
+            
+            enable = imod == 0b10
+            disable = imod == 0b11
+            changemode = m == 1
+            affectA = a == 1
+            affectI = i == 1
+            affectF = f == 1
+            
+            if imod == 0b1 or self.InITBlock():
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(12), 2, 1, I(8), 1, 1, 1, I(1), 5]
+            imod, m, a, i, f, mode = decode_opcode(opcode, decode_mask)
+            
+            if mode != 0 and m == 0:
+                raise UnpredictableInstructionException()
+            
+            if get_bit(imod, 1) == 1 and (((a << 2) | (i << 1) | f) == 0):
+                raise UnpredictableInstructionException()
+            
+            if get_bit(imod, 1) == 0 and (((a << 2) | (i << 1) | f) != 0):
+                raise UnpredictableInstructionException()
+
+            enable = imod == 0b10
+            disable = imod == 0b11
+            changemode = m == 1
+            affectA = a == 1
+            affectI = i == 1
+            affectF = f == 1
+            
+            if (imod == 0 and m == 0) or imod == 1:
+                raise UnpredictableInstructionException() 
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # Custom instruction properties.
+        props = {}
+        props["enable"] = enable
+        props["disable"] = disable
+        props["changemode"] = changemode
+        props["affectA"] = affectA
+        props["affectI"] = affectI
+        props["affectF"] = affectF
+
+        name = "CPS"
+        if a != 0 or i != 0 or f != 0:
+            name += "IE" if enable else "ID"
+            name += " "
+            if a:
+                name += "A"
+                
+            if i:
+                name += "I"
+                
+            if f:
+                name += "F"
+
+        operands = [] if encoding == eEncodingT1 else [Immediate(mode)]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_dmb(self, opcode, encoding):
+        """
+        A8.8.43
+        DMB
+        Data Memory Barrier is a memory barrier that ensures the ordering of observations of memory accesses, see Data
+        Memory Barrier (DMB) on page A3-149.        
+        """
+        props = {}
+
+        name = "DMB"
+        ins_id = ARMInstruction.dmb
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(28), 4]
+            option = decode_opcode(opcode, decode_mask)[0]
+            operands = [MemoryBarrierOption(option)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(28), 4]
+            option = decode_opcode(opcode, decode_mask)[0]
+            operands = [MemoryBarrierOption(option)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+        
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_dsb(self, opcode, encoding):
+        """
+        A8.8.44
+        DSB
+        Data Synchronization Barrier is a memory barrier that ensures the completion of memory accesses, see Data
+        Synchronization Barrier (DSB) on page A3-150.        
+        """
+        props = {}
+        
+        name = "DSB"
+        ins_id = ARMInstruction.dsb
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(28), 4]
+            option = decode_opcode(opcode, decode_mask)[0]
+            operands = [MemoryBarrierOption(option)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(28), 4]
+            option = decode_opcode(opcode, decode_mask)[0]
+            operands = [MemoryBarrierOption(option)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_eret(self, opcode, encoding):
+        """
+        B9.3.3
+        ERET
+        When executed in Hyp mode, Exception Return loads the PC from ELR_hyp and loads the CPSR from SPSR_hyp.
+        """
+        props = {}
+        
+        name = "ERET"
+        ins_id = ARMInstruction.eret
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(24), 8]
+            imm8 = decode_opcode(opcode, decode_mask)[0]
+            operands = []
+            
+            # if imm8 != '00000000' then SEE SUBS PC, LR and related instructions;
+            if imm8 != 0:
+                return self.decode_subs_pc_lr_thumb(opcode, encoding)
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(28)]
+            cond = decode_opcode(opcode, decode_mask)[0]
+            condition = Condition(cond)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_hvc(self, opcode, encoding):
+        """
+        B9.3.4
+        HVC
+        Hypervisor Call causes a Hypervisor Call exception. For more information see Hypervisor Call (HVC) exception
+        on page B1-1209. Non-secure software executing at PL1 can use this instruction to call the hypervisor to request a
+        service. 
+        """
+        props = {}
+        
+        name = "HVC"
+        ins_id = ARMInstruction.hvc
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I(4), 12]
+            imm4, imm12 = decode_opcode(opcode, decode_mask)
+            
+            # if InITBlock() then UNPREDICTABLE;
+            if self.InITBlock():
+                raise UnpredictableInstructionException()
+            
+            # imm16 = imm4:1mm12;
+            imm16 = (imm4 << 12) | imm12
+            
+            operands = [Immediate(imm16)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(8), 12, I(4), 4]
+            cond, imm12, imm4 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            imm16 = (imm12 << 4) | imm4
+            operands = [Immediate(imm16)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_isb(self, opcode, encoding):
+        """
+        A8.8.53
+        ISB
+        Instruction Synchronization Barrier flushes the pipeline in the processor, so that all instructions following the ISB
+        are fetched from cache or memory, after the instruction has been completed.        
+        """
+        props = {}
+        
+        name = "ISB"
+        ins_id = ARMInstruction.isb
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(28), 4]
+            option = decode_opcode(opcode, decode_mask)[0]
+            operands = [ISBOption(option)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(28), 4]
+            option = decode_opcode(opcode, decode_mask)[0]
+            operands = [ISBOption(option)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+
+    def decode_ldc_immediate(self, opcode, encoding):
+        """
+        A8.8.55
+        LDC, LDC2 (immediate)
+        Load Coprocessor loads memory data from a sequence of consecutive memory addresses to a coprocessor. If no
+        coprocessor can execute the instruction, an Undefined Instruction exception is generated.        
+        """
+        props = {}
+        ins_id = ARMInstruction.ldc_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            name = "LDC"
+            decode_mask = [I(7), 1, 1, 1, 1, I(1), 4, 4, 4, 8]
+            p, u, d, w, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+            
+        elif encoding == eEncodingT2:
+            name = "LDC2"
+            decode_mask = [I(7), 1, 1, 1, 1, I(1), 4, 4, 4, 8]
+            p, u, d, w, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+                        
+        elif encoding == eEncodingA1:
+            name = "LDC"
+            decode_mask = [4, I(3), 1, 1, 1, 1, I(1), 4, 4, 4, 8]
+            cond, p, u, d, w, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            name = "LDC2"
+            decode_mask = [I(7), 1, 1, 1, 1, I(1), 4, 4, 4, 8]
+            p, u, d, w, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # if Rn == '1111' then SEE LDC (literal);
+        if Rn == 0b1111:
+            return self.decode_ldc_literal(opcode, encoding)
+        
+        # if P == '0' && U == '0' && D == '0' && W == '0' then UNDEFINED
+        if p == 0 and u == 0 and d == 0 and w == 0:
+            raise UndefinedOpcode()
+        
+        # if P == '0' && U == '0' && D == '1' && W == '0' then SEE MRRC, MRRC2;
+        if p == 0 and u == 0 and d == 1 and w == 0:
+            return self.decode_mrc(opcode, encoding)
+
+        # imm32 = ZeroExtend(imm8:'00', 32); index = (P == '1'); add = (U == '1'); wback = (W == '1');
+        imm32 = imm8 << 2
+        index = p == 1
+        add = u == 1
+        wback = w == 1
+
+        if not add:
+            imm32 *= -1
+
+        if encoding in [eEncodingA1, eEncodingT1]:
+            # if coproc IN "101x" then SEE "Advanced SIMD and Floating-point";
+            if coproc in [0b1010, 0b1011]:
+                raise RuntimeError("SEE Advanced SIMD and Floating-point")
+                    
+        else:
+            # if coproc IN "101x" then UNDEFINED;
+            if coproc in [0b1010, 0b1011]:
+                raise UndefinedOpcode()
+
+        if p == 1 and w == 0:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn), Immediate(imm32))]
+        
+        elif p == 1 and w == 1:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn), Immediate(imm32), wback=True)]
+        
+        elif p == 0 and w == 1:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn)), Immediate(imm32)]
+
+        elif p == 0 and w == 0 and u == 1:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn)), Immediate(imm8)]
+            
+        if d == 1:
+            name += "L"
+        
+        props["index"] = index
+        props["add"] = add
+        props["wback"] = wback
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldc_literal(self, opcode, encoding):
+        """
+        A8.8.56
+        LDC, LDC2 (literal)
+        Load Coprocessor loads memory data from a sequence of consecutive memory addresses to a coprocessor. If no
+        coprocessor can execute the instruction, an Undefined Instruction exception is generated.        
+        """
+        props = {}
+        
+        name = "LDC"
+        ins_id = ARMInstruction.ldc_literal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrd_immediate(self, opcode, encoding):
+        """
+        A8.8.72
+        LDRD (immediate)
+        Load Register Dual (immediate) calculates an address from a base register value and an immediate offset, loads two
+        words from memory, and writes them to two registers. It can use offset, post-indexed, or pre-indexed addressing.
+        For information about memory accesses see Memory accesses on page A8-291.        
+        """
+        props = {}
+        
+        name = "LDRD"
+        ins_id = ARMInstruction.ldrd_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(7), 1, 1, I(1), 1, I(1), 4, 4, 4, 8]
+            P, U, W, Rn, Rt, Rt2, imm8 = decode_opcode(opcode, decode_mask)
+            
+            # if P == '0' && W == '0' then SEE "Related encodings";
+            if P == 0 and W == 0:
+                raise RuntimeError("SEE Related encodings")
+            
+            # if Rn == '1111' then SEE LDRD (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrd_literal(opcode, encoding)
+            
+            # t = UInt(Rt); t2 = UInt(Rt2); n = UInt(Rn); imm32 = ZeroExtend(imm8:'00', 32);
+            imm32 = imm8 << 2
+            
+            # index = (P == '1'); add = (U == '1'); wback = (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+            
+            # if wback && (n == t || n == t2) then UNPREDICTABLE;
+            if wback and (Rn == Rt or Rn == Rt2):
+                raise UnpredictableInstructionException()
+            
+            # if t IN {13,15} || t2 IN {13,15} || t == t2 then UNPREDICTABLE;    
+            if BadReg(Rt) or BadReg(Rt2) or Rt == Rt2:
+                raise UnpredictableInstructionException()
+
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(3), 1, 1, I(1), 1, I(1), 4, 4, 4, I(4), 4]
+            cond, P, U, W, Rn, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # if Rn == '1111' then SEE LDRD (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrd_literal(opcode, encoding)
+            
+            # if Rt<0> == '1' then UNPREDICTABLE;
+            if get_bit(Rt, 0) == 1:
+                raise UnpredictableInstructionException()
+            
+            # t = UInt(Rt); t2 = t+1; n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            Rt2 = Rt + 1
+            imm32 = (imm4H << 4) | imm4L
+            
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            # if P == '0' && W == '1' then UNPREDICTABLE;
+            if P == 0 and W == 1:
+                raise UnpredictableInstructionException()
+            
+            # if wback && (n == t || n == t2) then UNPREDICTABLE;
+            if wback and (Rn == Rt or Rn == Rt2):
+                raise UnpredictableInstructionException()
+            
+            # if t2 == 15 then UNPREDICTABLE;
+            if Rt2 == 15:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if not add:
+            imm32 *= -1
+
+        if index == True and wback == False:
+            operands = [Register(Rt), Register(Rt2), Memory(Register(Rn), Immediate(imm32))]
+        
+        elif index == True and wback == True:
+            operands = [Register(Rt), Register(Rt2), Memory(Register(Rn), Immediate(imm32), wback=True)]
+        
+        elif index == False and wback == True:
+            operands = [Register(Rt), Register(Rt2), Memory(Register(Rn)), Immediate(imm32)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrd_literal(self, opcode, encoding):
+        """
+        A8.8.73
+        LDRD (literal)
+        Load Register Dual (literal) calculates an address from the PC value and an immediate offset, loads two words from
+        memory, and writes them to two registers. For information about memory accesses see Memory accesses on
+        page A8-291.        
+        """
+        props = {}
+        
+        name = "LDRD"
+        ins_id = ARMInstruction.ldrd_literal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(7), 1, 1, I(1), 1, I(5), 4, 4, 8]
+            P, U, W, Rt, Rt2, imm8 = decode_opcode(opcode, decode_mask)
+            
+            # if P == '0' && W == '0' then SEE "Related encodings";
+            if P == 0 and W == 0:
+                raise RuntimeError("SEE Related encodings")
+            
+            # t = UInt(Rt); t2 = UInt(Rt2);
+            # imm32 = ZeroExtend(imm8:'00', 32); add = (U == '1');
+            imm32 = imm8 << 2
+            add = U == 1
+            
+            # if t IN {13,15} || t2 IN {13,15} || t == t2 then UNPREDICTABLE;
+            if BadReg(Rt) or BadReg(Rt2) or Rt == Rt2:
+                raise UnpredictableInstructionException()
+            
+            # if W == '1' then UNPREDICTABLE;
+            if W == 1:
+                raise UnpredictableInstructionException()    
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(4), 1, I(1), I(6), 4, 4, I(4), 4]
+            cond, U, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # if Rt<0> == '1' then UNPREDICTABLE;
+            if get_bit(Rt, 0) == 1:
+                raise UnpredictableInstructionException()
+            
+            # t = UInt(Rt); t2 = t+1; imm32 = ZeroExtend(imm4H:imm4L, 32);
+            Rt2 = Rt + 1
+            imm32 = (imm4H << 4) | imm4L
+            
+            # if t2 == 15 then UNPREDICTABLE;
+            if Rt2 == 15:
+                raise UnpredictableInstructionException()
+            
+            add = U == 1
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if not add:
+            imm32 *= -1
+        
+        operands = [Register(Rt), Register(Rt2), Memory(Register(ARMRegister.PC), Immediate(imm32))]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrd_register(self, opcode, encoding):
+        """
+        A8.8.74
+        LDRD (register)
+        Load Register Dual (register) calculates an address from a base register value and a register offset, loads two words
+        from memory, and writes them to two registers. It can use offset, post-indexed, or pre-indexed addressing. For
+        information about memory accesses see Memory accesses on page A8-291.        
+        """
+        props = {}
+        
+        name = "LDRD"
+        ins_id = ARMInstruction.ldrd_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingA1:
+            decode_mask = [4, I(3), 1, 1, I(1), 1, I(1), 4, 4, I(8), 4]
+            cond, P, U, W, Rn, Rt, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # if Rt<0> == '1' then UNPREDICTABLE;
+            if get_bit(Rt, 0) == 1:
+                raise UnpredictableInstructionException()
+            
+            # t = UInt(Rt); t2 = t+1; n = UInt(Rn); m = UInt(Rm);
+            Rt2 = Rt + 1
+            
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            # if P == '0' && W == '1' then UNPREDICTABLE;
+            if P == 0 and W == 1:
+                raise UnpredictableInstructionException()
+            
+            # if t2 == 15 || m == 15 || m == t || m == t2 then UNPREDICTABLE;
+            if Rt2 == 15 or Rm == 15 or Rm == Rt or Rm == Rt2:
+                raise UnpredictableInstructionException()
+            
+            # if wback && (n == 15 || n == t || n == t2) then UNPREDICTABLE;
+            if wback and (Rn == 15 or Rn == Rt or Rn == Rt2):
+                raise UnpredictableInstructionException()
+            
+            # if ArchVersion() < 6 && wback && m == n then UNPREDICTABLE;
+            if self.ArchVersion() < 6 and wback and Rm == Rn:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if index and wback == False:
+            operands = [Register(Rt), Register(Rt2), Memory(Register(Rn), Register(Rm))]
+        
+        elif index and wback:
+            operands = [Register(Rt), Register(Rt2), Memory(Register(Rn), Register(Rm), wback=True)]
+        
+        elif index == False and wback == True:
+            operands = [Register(Rt), Register(Rt2), Memory(Register(Rn)), Register(Rm)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrh_literal(self, opcode, encoding):
+        """
+        A8.8.81
+        LDRH (literal)
+        Load Register Halfword (literal) calculates an address from the PC value and an immediate offset, loads a halfword
+        from memory, zero-extends it to form a 32-bit word, and writes it to a register. For information about memory
+        accesses see Memory accesses on page A8-291.        
+        """
+        props = {}
+        
+        name = "LDRH"
+        ins_id = ARMInstruction.ldrh_literal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(8), 1, I(7), 4, 12]
+            U, Rt, imm12 = decode_opcode(opcode, decode_mask)
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1');
+            imm32 = imm12
+            add = U == 1
+            
+            # if t == 13 then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(4), 1, I(7), 4, 4, I(4), 4]
+            cond, U, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            imm32 = (imm4H << 4) | imm4L
+            
+            # if t == 15 then UNPREDICTABLE;
+            if Rt == 15:
+                raise UnpredictableInstructionException()
+
+            add = U == 1
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+        
+        if not add:
+            imm32 *= -1
+
+        operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrh_register_DUP(self, opcode, encoding):
+        """
+        A8.8.82
+        LDRH (register)
+        Load Register Halfword (register) calculates an address from a base register value and an offset register value, loads
+        a halfword from memory, zero-extends it to form a 32-bit word, and writes it to a register. The offset register value
+        can be shifted left by 0, 1, 2, or 3 bits. 
+        """
+        props = {}
+        
+        name = "LDRH"
+        ins_id = ARMInstruction.ldrh_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(16), I(7), 3, 3, 3]
+            Rm, Rn, Rt = decode_opcode(opcode, decode_mask)
+
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # (shift_t, shift_n) = (SRType_LSL, 0);
+            shift_t, shift_n = SRType_LSL, 0
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(12), 4, 4, I(6), 2, 4]
+            Rn, Rt, imm2, Rm = decode_opcode(opcode, decode_mask)
+            
+            # if Rn == '1111' then SEE LDRH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrh_literal_thumb(opcode, encoding)
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
+            shift_t, shift_n = SRType_LSL, imm2
+            
+            # if t == 13 || m IN {13,15} then UNPREDICTABLE;
+            if Rt == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(3), 1, 1, I(1), 1, I(0), 4, 4, I(8), 4]
+            cond, P, U, W, Rn, Rt, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # if P == '0' && W == '1' then SEE LDRHT;
+            if P == 0 and W == 1:
+                return self.decode_ldrht(opcode, encoding)
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            # (shift_t, shift_n) = (SRType_LSL, 0);
+            shift_t, shift_n = SRType_LSL, 0
+            
+            # if t == 15 || m == 15 then UNPREDICTABLE;
+            if Rt == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+            
+            # if wback && (n == 15 || n == t) then UNPREDICTABLE;
+            if wback and (Rn == 15 or Rn == Rt):
+                raise UnpredictableInstructionException()
+            
+            # if ArchVersion() < 6 && wback && m == n then UNPREDICTABLE;
+            if self.ArchVersion() < 6 and wback and Rm == Rn:
+                raise UnpredictableInstructionException()
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if index and not wback:
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n))]
+        
+        elif index and wback:
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n), wback=True)]
+        
+        elif not index and wback:
+            operands = [Register(Rt), Memory(Register(Rn)), Register(Rm)]
+            
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrht(self, opcode, encoding):
+        """
+        A8.8.83
+        LDRHT
+        Load Register Halfword Unprivileged loads a halfword from memory, zero-extends it to form a 32-bit word, and
+        writes it to a register.
+        """
+        props = {}
+        
+        name = "LDRHT"
+        ins_id = ARMInstruction.ldrht
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, 4, I(4), 8]
+            Rn, Rt, imm8 = decode_opcode(opcode, decode_mask)
+            
+            # if Rn == '1111' then SEE LDRH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrh_literal(opcode, encoding)
+            
+            # t = UInt(Rt); n = UInt(Rn); postindex = FALSE; add = TRUE;
+            postindex = False
+            add = True
+            
+            # register_form = FALSE; imm32 = ZeroExtend(imm8, 32);
+            register_form = False
+            imm32 = imm8
+            
+            # if t IN {13,15} then UNPREDICTABLE;
+            if BadReg(Rt):
+                raise UnpredictableInstructionException()
+            
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(4), 1, I(3), 4, 4, 4, I(4), 4]
+            cond, U, Rn, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); n = UInt(Rn); postindex = TRUE; add = (U == '1');
+            postindex = True
+            add = U == 1
+            
+            # register_form = FALSE; imm32 = ZeroExtend(imm4H:imm4L, 32);
+            register_form = False
+            imm32 = (imm4H << 4) | imm4L
+            
+            # if t == 15 || n == 15 || n == t then UNPREDICTABLE;
+            if Rt == 15 or Rn == 15 or Rn == Rt:
+                raise UnpredictableInstructionException()
+            
+            if not add:
+                imm32 *= -1
+            
+            operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I(4), 1, I(3), 4, 4, I(8), 4]
+            cond, U, Rn, Rt, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); postindex = TRUE;
+            postindex = True
+            add = U == 1
+            
+            # register_form = True
+            register_form = False
+            
+            # if t == 15 || n == 15 || n == t then UNPREDICTABLE;
+            if Rt == 15 or Rn == 15 or Rn == Rt or Rm == 15:
+                raise UnpredictableInstructionException()
+            
+            operands = [Register(Rt), Memory(Register(Rn)), Register(Rm)]
+        
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsb_immediate(self, opcode, encoding):
+        """
+        props = {}
+        A8.8.84
+        LDRSB (immediate)
+        Load Register Signed Byte (immediate) calculates an address from a base register value and an immediate offset,
+        loads a byte from memory, sign-extends it to form a 32-bit word, and writes it to a register. It can use offset,
+        post-indexed, or pre-indexed addressing.        
+        """
+        
+        name = "LDRSB"
+        ins_id = ARMInstruction.ldrsb_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, 4, 12]
+            Rn, Rt, imm12 = decode_opcode(opcode, decode_mask)
+            
+            # if Rt == '1111' then SEE PLI;
+            if Rt == 0b1111:
+                return self.decode_pli_immediate_literal(opcode, encoding)
+            
+            # if Rn == '1111' then SEE LDRSB (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsb_literal(opcode, encoding)
+            
+            # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
+            imm32 = imm12
+            
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # if t == 13 then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(12), 4, 4, I(1), 1, 1, 1, 8]
+            Rn, Rt, P, U, W, imm8 = decode_opcode(opcode, decode_mask)
+
+            # if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE PLI;
+            if Rt == 0b1111 and P == 1 and U == 0 and W == 0:
+                return self.decode_pli_immediate_literal(opcode, encoding)
+            
+            # if Rn == '1111' then SEE LDRSB (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsb_literal(opcode, encoding)
+            
+            # if P == '1' && U == '1' && W == '0' then SEE LDRSBT;
+            if P == 1 and U == 1 and W == 0:
+                return self.decode_ldrsbt(opcode, encoding)
+            
+            # if P == '0' && W == '0' then UNDEFINED;
+            if P == 0 and W == 0:
+                return UndefinedOpcode()
+            
+            # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32);
+            imm32 = imm8
+            
+            # index = (P == '1'); add = (U == '1'); wback = (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+            
+            # if t == 13 || (t == 15 && W == '1') || (wback && n == t) then UNPREDICTABLE;
+            if Rt == 13 or (Rt == 15 and W == 1) or (wback and Rn == Rt):
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I3, 1, 1, I1, 1, I1, 4, 4, 4, I4, 4]
+            cond, P, U, W, Rn, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # if Rn == '1111' then SEE LDRSB (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsb_literal(opcode, encoding)
+            
+            # if P == '0' && W == '1' then SEE LDRSBT;
+            if P == 0 and W == 1:
+                return self.decode_ldrsbt(opcode, encoding)
+            
+            # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            imm32 = (imm4H << 4) | imm4L
+            
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            # if t == 15 || (wback && n == t) then UNPREDICTABLE;
+            if Rt == 15 or (wback and Rn == Rt):
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if not add:
+            imm32 *= -1
+
+        if index and not wback:
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+        
+        elif index and wback:
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32), wback=True)]
+        
+        elif not index and wback:
+            operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsb_literal(self, opcode, encoding):
+        """
+        props = {}
+        A8.8.85
+        LDRSB (literal)
+        Load Register Signed Byte (literal) calculates an address from the PC value and an immediate offset, loads a byte
+        from memory, sign-extends it to form a 32-bit word, and writes it to a register.         
+        """
+        props = {}
+        
+        name = "LDRSB"
+        ins_id = ARMInstruction.ldrsb_literal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I8, 1, I7, 4, 12]
+            U, Rt, imm12 = decode_opcode(opcode, decode_mask)
+            
+            # if Rt == '1111' then SEE PLI;
+            if Rt == 0b1111:
+                return self.decode_pli_immediate_literal(opcode, encoding)
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm12, 32);
+            imm32 = imm12
+            
+            # if t == 13 then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I4, 1, I7, 4, 4, I4, 4]
+            cond, U, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            imm32 = (imm4H << 4) | imm4L
+            
+            # if t == 15 then UNPREDICTABLE;
+            if Rt == 15:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        add = U == 1
+        if not add:
+            imm32 *= -1
+
+        operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsb_register(self, opcode, encoding):
+        """
+        A8.8.86
+        LDRSB (register)
+        Load Register Signed Byte (register) calculates an address from a base register value and an offset register value,
+        loads a byte from memory, sign-extends it to form a 32-bit word, and writes it to a register. The offset register value
+        can be shifted left by 0, 1, 2, or 3 bits.        
+        """
+        props = {}
+        
+        name = "LDRSB"
+        ins_id = ARMInstruction.ldrsb_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(23), 3, 3, 3]
+            Rm, Rn, Rt = decode_opcode(opcode, decode_mask)
+            
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # (shift_t, shift_n) = (SRType_LSL, 0);
+            shift_t, shift_n = SRType_LSL, 0
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(12), 4, 4, I6, 2, 4]
+            Rn, Rt, imm2, Rm = decode_opcode(opcode, decode_mask)
+            
+            # if Rt == '1111' then SEE PLI;
+            if Rt == 0b1111:
+                return self.decode_pli_register(opcode, encoding)
+            
+            # if Rn == '1111' then SEE LDRSB (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsb_literal(opcode, encoding)
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
+            shift_t, shift_n = SRType_LSL, imm2
+            
+            # if t == 13 || m IN {13,15} then UNPREDICTABLE;
+            if Rt == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I3, 1, 1, I1, 1, I1, 4, 4, I8, 4]
+            cond, P, U, W, Rn, Rt, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # if P == '0' && W == '1' then SEE LDRSBT;
+            if P == 0 and W == 1:
+                return self.decode_ldrsbt(opcode, eEncodingA2)
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            # (shift_t, shift_n) = (SRType_LSL, 0);
+            shift_t, shift_n = SRType_LSL, 0
+            
+            # if t == 15 || m == 15 then UNPREDICTABLE;
+            if Rt == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+            
+            # if wback && (n == 15 || n == t) then UNPREDICTABLE;
+            if wback and (Rn == 15 or Rn == Rt):
+                raise UnpredictableInstructionException()
+            
+            # if ArchVersion() < 6 && wback && m == n then UNPREDICTABLE;
+            if self.ArchVersion() < 6 and wback and Rm == Rn:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if index and not wback:
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n))]
+        
+        elif index and wback:
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm), wback=True)]
+        
+        elif not index and wback:
+            operands = [Register(Rt), Memory(Register(Rn)), Register(Rm)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsbt(self, opcode, encoding):
+        """
+        A8.8.87
+        LDRSBT
+        Load Register Signed Byte Unprivileged loads a byte from memory, sign-extends it to form a 32-bit word, and
+        writes it to a register.         
+        """
+        props = {}
+        
+        name = "LDRSBT"
+        ins_id = ARMInstruction.ldrsbt
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, 4, I4, 8]
+            Rn, Rt, imm8 = decode_opcode(opcode, decode_mask)
+            
+            # if Rn == '1111' then SEE LDRSB (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsb_literal(opcode, encoding)
+            
+            # t = UInt(Rt); n = UInt(Rn); postindex = FALSE; add = TRUE;
+            postindex = False
+            add = True
+            
+            # register_form = FALSE; imm32 = ZeroExtend(imm8, 32);
+            register_form = False
+            imm32 = imm8
+            
+            # if t IN {13,15} then UNPREDICTABLE;
+            if BadReg(Rt):
+                raise UnpredictableInstructionException()
+            
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I4, 1, I3, 4, 4, 4, I4, 4]
+            cond, U, Rn, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); n = UInt(Rn); postindex = TRUE; add = (U == '1');
+            postindex = True
+            add = U == 1
+            
+            # register_form = FALSE; imm32 = ZeroExtend(imm4H:imm4L, 32);
+            register_form = False
+            imm32 = (imm4H << 4) | imm4L
+            
+            # if t == 15 || n == 15 || n == t then UNPREDICTABLE;
+            if Rt == 15 or Rn == 15 or Rn == Rt:
+                raise UnpredictableInstructionException()
+
+            if not add:
+                imm32 *= -1
+
+            operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I4, 1, I3, 4, 4, I8, 4]
+            cond, U, Rn, Rt, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); postindex = TRUE;
+            postindex = True
+            
+            # register_form = TRUE;
+            register_form = True
+            
+            # if t == 15 || n == 15 || n == t || m == 15 then UNPREDICTABLE;
+            if Rt == 15 or Rn == 15 or Rn == Rt or Rm == 15:
+                raise UnpredictableInstructionException()
+            
+            operands = [Register(Rt), Memory(Register(Rn)), Register(Rm)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsh_immediate(self, opcode, encoding):
+        """
+        A8.8.88
+        LDRSH (immediate)
+        Load Register Signed Halfword (immediate) calculates an address from a base register value and an immediate
+        offset, loads a halfword from memory, sign-extends it to form a 32-bit word, and writes it to a register. It can use
+        offset, post-indexed, or pre-indexed addressing.         
+        """
+        props = {}
+        
+        name = "LDRSH"
+        ins_id = ARMInstruction.ldrsh_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, 4, 12]
+            Rn, Rt, imm12 = decode_opcode(opcode, decode_mask)
+            
+            # if Rn == '1111' then SEE LDRSH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsh_literal(opcode, encoding)
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
+            imm32 = imm12
+            
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # if t == 13 then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(12), 4, 4, I1, 1, 1, 1, 8]
+            Rn, Rt, P, U, W, imm8 = decode_opcode(opcode, decode_mask)
+            
+            # if Rn == '1111' then SEE LDRSH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsh_literal(opcode, encoding)
+            
+            # if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE "Related instructions";
+            if Rt == 0b1111 and P == 1 and U == 0 and W == 0:
+                raise RuntimeError("SEE Related instructions")
+            
+            # if P == '1' && U == '1' && W == '0' then SEE LDRSHT;
+            if P == 1 and U == 1 and W == 0:
+                return self.decode_ldrsht(opcode, encoding)
+            
+            # if P == '0' && W == '0' then UNDEFINED;
+            if P == 0 and W == 0:
+                raise UndefinedOpcode()
+            
+            # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32);
+            imm32 = imm8
+            
+            # index = (P == '1'); add = (U == '1'); wback = (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+            
+            # if t == 13 || (t == 15 && W == '1') || (wback && n == t) then UNPREDICTABLE;
+            if Rt == 13 or (Rt == 15 and W == 1) or (wback and Rn == Rt):
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I3, 1, 1, I1, 1, I1, 4, 4, 4, I4, 4]
+            cond, P, U, W, Rn, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # if Rn == '1111' then SEE LDRSH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsh_literal(opcode, encoding)
+            
+            # if P == '0' && W == '1' then SEE LDRSHT;
+            if P == 0 and W == 1:
+                return self.decode_ldrsht(opcode, encoding)
+            
+            # t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            imm32 = (imm4H << 4) | imm4L
+            
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            # if t == 15 || (wback && n == t) then UNPREDICTABLE;
+            if Rt == 15 or (wback and Rn == Rt):
+                raise UnpredictableInstructionException()            
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if not add:
+            imm32 *= -1
+
+        if index and not wback:
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+        
+        elif index and wback:
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32), wback=True)]
+        
+        elif not index and wback:
+            operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsh_literal(self, opcode, encoding):
+        """
+        A8.8.89
+        LDRSH (literal)
+        Load Register Signed Halfword (literal) calculates an address from the PC value and an immediate offset, loads a
+        halfword from memory, sign-extends it to form a 32-bit word, and writes it to a register.        
+        """
+        props = {}
+        
+        name = "LDRSH"
+        ins_id = ARMInstruction.ldrsh_literal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I8, 1, I7, 4, 12]
+            U, Rt, imm12 = decode_opcode(opcode, decode_mask)
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1');
+            imm32 = imm12
+            add = U == 1
+            
+            # if t == 13 then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I4, 1, I7, 4, 4, I4, 4]
+            cond, U, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); imm32 = ZeroExtend(imm4H:imm4L, 32);
+            imm32 = (imm4H << 4) | imm4L
+            add = U == 1
+            
+            # if t == 15 then UNPREDICTABLE;
+            if Rt == 15:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+    
+        if not add:
+            imm32 *= -1
+            
+        operands = [Register(Rt), Memory(Register(ARMRegister.PC), Immediate(imm32))]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsh_register(self, opcode, encoding):
+        """
+        A8.8.90
+        LDRSH (register)
+        Load Register Signed Halfword (register) calculates an address from a base register value and an offset register
+        value, loads a halfword from memory, sign-extends it to form a 32-bit word, and writes it to a register. The offset
+        register value can be shifted left by 0, 1, 2, or 3 bits.         
+        """
+        props = {}
+        
+        name = "LDRSH"
+        ins_id = ARMInstruction.ldrsh_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(23), 3, 3, 3]
+            Rm, Rn, Rt = decode_opcode(opcode, decode_mask)
+
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # (shift_t, shift_n) = (SRType_LSL, 0);
+            shift_t, shift_n = SRType_LSL, 0
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(12), 4, 4, I6, 2, 4]
+            Rn, Rt, imm2, Rm = decode_opcode(opcode, decode_mask)
+            
+            # if Rn == '1111' then SEE LDRSH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsh_literal(opcode, encoding)
+            
+            # if Rt == '1111' then SEE "Related instructions";
+            if Rt == 0b1111:
+                raise RuntimeError("SEE Related instructions")
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = TRUE; add = TRUE; wback = FALSE;
+            index = True
+            add = True
+            wback = False
+            
+            # (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
+            shift_t, shift_n = SRType_LSL, imm2
+            
+            # if t == 13 || m IN {13,15} then UNPREDICTABLE;
+            if Rt == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I3, 1, 1, I1, 1, I1, 4, 4, I8, 4]
+            cond, P, U, W, Rn, Rt, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # if P == '0' && W == '1' then SEE LDRSHT;
+            if P == 0 and W == 1:
+                return self.decode_ldrsht(opcode, eEncodingA2)
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+            # index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
+            index = P == 1 
+            add = U == 1
+            wback = P == 0 or W == 1
+            
+            # (shift_t, shift_n) = (SRType_LSL, 0);
+            shift_t, shift_n = SRType_LSL, 0
+            
+            # if t == 15 || m == 15 then UNPREDICTABLE;
+            if Rt == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+            
+            # if wback && (n == 15 || n == t) then UNPREDICTABLE;
+            if wback and (Rn == 15 or Rn == Rt):
+                raise UnpredictableInstructionException()
+            
+            # if ArchVersion() < 6 && wback && m == n then UNPREDICTABLE;
+            if self.ArchVersion() < 6 and wback and Rm == Rn:
+                raise UnpredictableInstructionException()
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if index and not wback:
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm))]
+        
+        elif index and wback:
+            operands = [Register(Rt), Memory(Register(Rn), Register(Rm), wback=True)]
+        
+        elif not index and wback:
+            operands = [Register(Rt), Memory(Register(Rn)), Register(Rm)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ldrsht(self, opcode, encoding):
+        """
+        A8.8.91
+        LDRSHT
+        Load Register Signed Halfword Unprivileged loads a halfword from memory, sign-extends it to form a 32-bit word,
+        and writes it to a register.         
+        """
+        props = {}
+        
+        name = "LDRSHT"
+        ins_id = ARMInstruction.ldrsht
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, 4, I4, 8]
+            Rn, Rt, imm8 = decode_opcode(opcode, decode_mask)
+            
+            # if Rn == '1111' then SEE LDRSH (literal);
+            if Rn == 0b1111:
+                return self.decode_ldrsh_literal(opcode, encoding)
+
+            # t = UInt(Rt); n = UInt(Rn); postindex = FALSE; add = TRUE;
+            postindex = False
+            add = True
+
+            # register_form = FALSE; imm32 = ZeroExtend(imm8, 32);
+            register_form = False
+            imm32 = imm8
+
+            # if t IN {13,15} then UNPREDICTABLE;
+            if BadReg(Rt):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rt), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I4, 1, I3, 4, 4, 4, I4, 4]
+            cond, U, Rn, Rt, imm4H, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); n = UInt(Rn); postindex = TRUE; add = (U == '1');
+            postindex = True
+            add = U == 1
+
+            # register_form = FALSE; imm32 = ZeroExtend(imm4H:imm4L, 32);
+            register_form = False
+            imm32 = (imm4H << 4) | imm4L
+
+            # if t == 15 || n == 15 || n == t then UNPREDICTABLE;
+            if Rt == 15 or Rn == 15 or Rn == Rt:
+                raise UnpredictableInstructionException()
+
+            if not add:
+                imm32 *= -1
+
+            operands = [Register(Rt), Memory(Register(Rn)), Immediate(imm32)]
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I4, 1, I3, 4, 4, I8, 4]
+            cond, U, Rn, Rt, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            
+            # t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); postindex = TRUE;
+            postindex = True
+
+            # register_form = TRUE;
+            register_form = True
+            
+            add = U == 1
+
+            # if t == 15 || n == 15 || n == t || m == 15 then UNPREDICTABLE;
+            if Rt == 15 or Rn == 15 or Rn == Rt or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rt), Memory(Register(Rn)), Register(Rm)]
+
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_enterx_leavex(self, opcode, encoding):
+        """
+        A8.8.93
+        LEAVEX
+        LEAVEX causes a change from ThumbEE to Thumb state, or has no effect in Thumb state. 
+        ENTERX causes a change from Thumb state to ThumbEE state, or has no effect in ThumbEE state.
+        """
+        props = {}
+        
+        ins_id = ARMInstruction.enterx_leavex
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(27), 1, 4]
+            J = decode_opcode(opcode, decode_mask)[0]
+
+            name = "ENTERX" if J == 1 else "LEAVEX"
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_mcr(self, opcode, encoding):
+        """
+        A8.8.98
+        MCR, MCR2
+        Move to Coprocessor from ARM core register passes the value of an ARM core register to a coprocessor. If no
+        coprocessor can execute the instruction, an Undefined Instruction exception is generated.        
+        """
+        props = {}
+        
+        name = "MCR"
+        ins_id = ARMInstruction.mcr
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_mcrr(self, opcode, encoding):
+        """
+        A8.8.99
+        MCRR, MCRR2
+        Move to Coprocessor from two ARM core registers passes the values of two ARM core registers to a coprocessor.
+        If no coprocessor can execute the instruction, an Undefined Instruction exception is generated.        
+        """
+        props = {}
+        
+        name = "MCRR"
+        ins_id = ARMInstruction.mcrr
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_mrs(self, opcode, encoding):
+        """
+        A8.8.109
+        MRS
+        Move to Register from Special register moves the value from the APSR into a general-purpose register.        
+        """
+        props = {}
+        
+        name = "MRS"
+        ins_id = ARMInstruction.mrs
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_mrs_banked_register(self, opcode, encoding):
+        """
+        A8.8.110
+        MRS (Banked register)
+        Move to Register from Banked or Special register is a system instruction, see MRS (Banked register) on
+        page B9-1960.        
+        """
+        props = {}
+        
+        name = "MRS"
+        ins_id = ARMInstruction.mrs_banked_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_msr_immediate(self, opcode, encoding):
+        """
+        A8.8.111
+        MSR (immediate)
+        Move immediate value to Special register moves selected bits of an immediate value to the corresponding bits in
+        the APSR.        
+        """
+        props = {}
+        
+        name = "MSR"
+        ins_id = ARMInstruction.msr_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+        
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_msr_register(self, opcode, encoding):
+        """
+        A8.8.112
+        MSR (register)
+        Move to Special register from ARM core register moves selected bits of an ARM core register to the APSR.        
+        """
+        props = {}
+        
+        name = "MSR"
+        ins_id = ARMInstruction.msr_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_msr_banked_register(self, opcode, encoding):
+        """
+        A8.8.113
+        MSR (Banked register)
+        Move to Banked or Special register from ARM core register is a system instruction, see MSR (Banked register) on
+        page B9-1964.        
+        """
+        props = {}
+        
+        name = "MSR"
+        ins_id = ARMInstruction.msr_banked_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_orn_immediate(self, opcode, encoding):
+        """
+        A8.8.120
+        ORN (immediate)
+        Bitwise OR NOT (immediate) performs a bitwise (inclusive) OR of a register value and the complement of an
+        immediate value, and writes the result to the destination register. It can optionally update the condition flags based
+        on the result.        
+        """
+        props = {}
+        
+        name = "ORN"
+        ins_id = ARMInstruction.orn_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I5, 1, I5, 1, 4, I1, 3, 4, 8]
+            i, S, Rn, imm3, Rd, imm8 = decode_opcode(opcode, decode_mask)
+            if Rn == 0b1111:
+                return self.decode_mvn_immediate(opcode, encoding)
+
+            setsflags = S == 1
+            imm32, _ = ThumbExpandImm_C(opcode, 0)
+
+            if BadReg(Rd) or Rn == 13:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Immediate(imm32)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_orn_register(self, opcode, encoding):
+        """
+        A8.8.121
+        ORN (register)
+        Bitwise OR NOT (register) performs a bitwise (inclusive) OR of a register value and the complement of an
+        optionally-shifted register value, and writes the result to the destination register. It can optionally update the
+        condition flags based on the result.        
+        """
+        props = {}
+        
+        name = "ORN"
+        ins_id = ARMInstruction.orn_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(11), 1, 4, I1, 3, 4, 2, 2, 4]
+            S, Rn, imm3, Rd, imm2, type_, Rm = decode_opcode(opcode, decode_mask)
+            if Rn == 0b1111:
+                return self.decode_mvn_register(opcode, encoding)
+
+            setsflags = S == 1
+            shift_t, shift_n = DecodeImmShiftThumb(opcode)
+            if BadReg(Rd) or Rn == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(shift_t, shift_n)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_pkh(self, opcode, encoding):
+        """
+        A8.8.125
+        PKH
+        Pack Halfword combines one halfword of its first operand with the other halfword of its shifted second operand.        
+        """
+        props = {}
+        
+        name = "PKH"
+        ins_id = ARMInstruction.pkh
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+        
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_pld_immediate(self, opcode, encoding):
+        """
+        A8.8.126
+        PLD, PLDW (immediate)
+        Preload Data signals the memory system that data memory accesses from a specified address are likely in the near
+        future. The memory system can respond by taking actions that are expected to speed up the memory accesses when
+        they do occur, such as pre-loading the cache line containing the specified address into the data cache.         
+        """
+        props = {}
+        
+        name = "PLD"
+        ins_id = ARMInstruction.pld_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_pld_literal(self, opcode, encoding):
+        """
+        A8.8.127
+        PLD (literal)
+        Preload Data signals the memory system that data memory accesses from a specified address are likely in the near
+        future. The memory system can respond by taking actions that are expected to speed up the memory accesses when
+        they do occur, such as pre-loading the cache line containing the specified address into the data cache        
+        """
+        props = {}
+        
+        name = "PLD"
+        ins_id = ARMInstruction.pld_literal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_pld_register(self, opcode, encoding):
+        """
+        A8.8.128
+        PLD, PLDW (register)
+        Preload Data signals the memory system that data memory accesses from a specified address are likely in the near
+        future. The memory system can respond by taking actions that are expected to speed up the memory accesses when
+        they do occur, such as pre-loading the cache line containing the specified address into the data cache.        
+        """
+        props = {}
+        
+        name = "PLD"
+        ins_id = ARMInstruction.pld_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_pli_immediate_literal(self, opcode, encoding):
+        """
+        A8.8.129
+        PLI (immediate, literal)
+        Preload Instruction signals the memory system that instruction memory accesses from a specified address are likely
+        in the near future. The memory system can respond by taking actions that are expected to speed up the memory
+        accesses when they do occur, such as pre-loading the cache line containing the specified address into the instruction
+        cache.         
+        """
+        props = {}
+        
+        name = "PLI"
+        ins_id = ARMInstruction.pli_immediate_literal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT3:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_pli_register(self, opcode, encoding):
+        """
+        A8.8.130
+        PLI (register)
+        Preload Instruction signals the memory system that instruction memory accesses from a specified address are likely
+        in the near future. The memory system can respond by taking actions that are expected to speed up the memory
+        accesses when they do occur, such as pre-loading the cache line containing the specified address into the instruction
+        cache.         
+        """
+        props = {}
+        
+        name = "PLI"
+        ins_id = ARMInstruction.pli_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qadd(self, opcode, encoding):
+        """
+        A8.8.134
+        QADD
+        Saturating Add adds two register values, saturates the result to the 32-bit signed integer range, and
+        writes the result to the destination register. If saturation occurs, it sets the Q flag in the APSR.        
+        """
+        props = {}
+        
+        name = "QADD"
+        ins_id = ARMInstruction.qadd
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qadd16(self, opcode, encoding):
+        """
+        A8.8.135
+        QADD16
+        Saturating Add 16 performs two 16-bit integer additions, saturates the results to the 16-bit signed integer range
+        and writes the results to the destination register.
+        """
+        props = {}
+        
+        name = "QADD16"
+        ins_id = ARMInstruction.qadd16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qadd8(self, opcode, encoding):
+        """
+        A8.8.136
+        QADD8
+        Saturating Add 8 performs four 8-bit integer additions, saturates the results to the 8-bit signed integer range
+        and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "QADD8"
+        ins_id = ARMInstruction.qadd8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qasx(self, opcode, encoding):
+        """
+        A8.8.137
+        QASX
+        Saturating Add and Subtract with Exchange exchanges the two halfwords of the second operand, performs one
+        16-bit integer addition and one 16-bit subtraction, saturates the results to the 16-bit signed integer range
+        215 x 215  1 and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "QASX"
+        ins_id = ARMInstruction.qasx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qdadd(self, opcode, encoding):
+        """
+        A8.8.138
+        QDADD
+        Saturating Double and Add adds a doubled register value to another register value, and writes the result to the
+        destination register. Both the doubling and the addition have their results saturated to the 32-bit signed integer range
+        If saturation occurs in either operation, it sets the Q flag in the APSR.        
+        """
+        props = {}
+        
+        name = "QDADD"
+        ins_id = ARMInstruction.qdadd
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qdsub(self, opcode, encoding):
+        """
+        A8.8.139
+        QDSUB
+        Saturating Double and Subtract subtracts a doubled register value from another register value, and writes the result
+        to the destination register. Both the doubling and the subtraction have their results saturated to the 32-bit signed
+        integer range. If saturation occurs in either operation, it sets the Q flag in the APSR.        
+        """
+        props = {}
+        
+        name = "QDSUB"
+        ins_id = ARMInstruction.qdsub
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qsax(self, opcode, encoding):
+        """
+        A8.8.140
+        QSAX
+        Saturating Subtract and Add with Exchange exchanges the two halfwords of the second operand, performs one
+        16-bit integer subtraction and one 16-bit addition, saturates the results to the 16-bit signed integer range,
+        and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "QSAX"
+        ins_id = ARMInstruction.qsax
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qsub(self, opcode, encoding):
+        """
+        A8.8.141
+        QSUB
+        Saturating Subtract subtracts one register value from another register value, saturates the result to the 32-bit signed
+        integer range, and writes the result to the destination register. If saturation occurs, it sets the Q
+        flag in the APSR.        
+        """
+        props = {}
+        
+        name = "QSUB"
+        ins_id = ARMInstruction.qsub
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qsub16(self, opcode, encoding):
+        """
+        A8.8.142
+        QSUB16
+        Saturating Subtract 16 performs two 16-bit integer subtractions, saturates the results to the 16-bit signed integer
+        range, and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "QSUB16"
+        ins_id = ARMInstruction.qsub16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_qsub8(self, opcode, encoding):
+        """
+        A8.8.143
+        QSUB8
+        Saturating Subtract 8 performs four 8-bit integer subtractions, saturates the results to the 8-bit signed integer range
+        and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "QSUB8"
+        ins_id = ARMInstruction.qsub8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_rbit(self, opcode, encoding):
+        """
+        A8.8.144
+        RBIT
+        Reverse Bits reverses the bit order in a 32-bit register.
+        """
+        props = {}
+        
+        name = "RBIT"
+        ins_id = ARMInstruction.rbit
+        setsflags = False
+        condition = None
+        
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I4, 4, I4, 4]
+            Rm1, Rd, Rm2 = decode_opcode(opcode, decode_mask)
+            if Rm1 != Rm2:
+                raise UnpredictableInstructionException()
+
+            if BadReg(Rd) or BadReg(Rm1):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rm1)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(12), 4, I8, 4]
+            cond, Rd, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rm)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_rev(self, opcode, encoding):
+        """
+        A8.8.145
+        REV
+        Byte-Reverse Word reverses the byte order in a 32-bit register.        
+        """
+        props = {}
+        
+        name = "REV"
+        ins_id = ARMInstruction.rev
+        setsflags = False
+        condition = None
+        qualifier = ""
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(26), 3, 3]
+            Rm, Rd = decode_opcode(opcode, decode_mask)
+            operands = [Register(Rd), Register(Rm)]
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(12), 4, I4, 4, I4, 4]
+            Rm1, Rd, Rm2 = decode_opcode(opcode, decode_mask)
+            qualifier = ".W"
+
+            if Rm1 != Rm2:
+                raise UnpredictableInstructionException()
+
+            if BadReg(Rd) or BadReg(Rm1):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rm1)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(12), 4, I8, 4]
+            cond, Rd, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rm)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_rev16(self, opcode, encoding):
+        """
+        A8.8.146
+        REV16
+        Byte-Reverse Packed Halfword reverses the byte order in each16-bit halfword of a 32-bit register.        
+        """
+        props = {}
+        
+        name = "REV16"
+        ins_id = ARMInstruction.rev16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_revsh(self, opcode, encoding):
+        """
+        A8.8.147
+        REVSH
+        Byte-Reverse Signed Halfword reverses the byte order in the lower 16-bit halfword of a 32-bit register, and
+        sign-extends the result to 32 bits.        
+        """
+        props = {}
+        
+        name = "REVSH"
+        ins_id = ARMInstruction.revsh
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sadd16(self, opcode, encoding):
+        """
+        A8.8.158
+        SADD16
+        Signed Add 16 performs two 16-bit signed integer additions, and writes the results to the destination register. It sets
+        the APSR.GE bits according to the results of the additions.        
+        """
+        props = {}
+        
+        name = "SADD16"
+        ins_id = ARMInstruction.sadd16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sadd8(self, opcode, encoding):
+        """
+        A8.8.159
+        SADD8
+        Signed Add 8 performs four 8-bit signed integer additions, and writes the results to the destination register. It sets
+        the APSR.GE bits according to the results of the additions.        
+        """
+        props = {}
+        
+        name = "SADD8"
+        ins_id = ARMInstruction.sadd8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sasx(self, opcode, encoding):
+        """
+        A8.8.160
+        SASX
+        Signed Add and Subtract with Exchange exchanges the two halfwords of the second operand, performs one 16-bit
+        integer addition and one 16-bit subtraction, and writes the results to the destination register. It sets the APSR.GE
+        bits according to the results.        
+        """
+        props = {}
+        
+        name = "SASX"
+        ins_id = ARMInstruction.sasx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sbfx(self, opcode, encoding):
+        """
+        A8.8.164
+        SBFX
+        Signed Bit Field Extract extracts any number of adjacent bits at any position from a register, sign-extends them to
+        32 bits, and writes the result to the destination register.        
+        """
+        props = {}
+        
+        name = "SBFX"
+        ins_id = ARMInstruction.sbfx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I1, 3, 4, 2, I1, 5]
+            Rn, imm3, Rd, imm2, widthm1 = decode_opcode(opcode, decode_mask)
+            lsbit = (imm3 << 2) | imm2
+            widthminus1 = widthm1
+
+            if BadReg(Rd) or BadReg(Rn):
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I7, 5, 4, 5, I3, 4]
+            widthm1, Rd, lsb, Rn = decode_opcode(opcode, decode_mask)
+            lsbit = lsb
+            widthminus1 = widthm1
+
+            if Rd == 15 or Rn == 15:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        operands = [Register(Rd), Register(Rn), Immediate(lsb), Immediate(widthminus1 + 1)]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sdiv(self, opcode, encoding):
+        """
+        A8.8.165
+        SDIV
+        Signed Divide divides a 32-bit signed integer register value by a 32-bit signed integer register value, and writes the
+        result to the destination register. The condition flags are not affected.        
+        """
+        props = {}
+        
+        name = "SDIV"
+        ins_id = ARMInstruction.sdiv
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sel(self, opcode, encoding):
+        """
+        A8.8.166
+        SEL
+        Select Bytes selects each byte of its result from either its first operand or its second operand, according to the values
+        of the GE flags.        
+        """
+        props = {}
+        
+        name = "SEL"
+        ins_id = ARMInstruction.sel
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_setend(self, opcode, encoding):
+        """
+        A8.8.167
+        SETEND
+        Set Endianness writes a new value to ENDIANSTATE.        
+        """
+        props = {}
+        
+        name = "SETEND"
+        ins_id = ARMInstruction.setend
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_shadd16(self, opcode, encoding):
+        """
+        A8.8.169
+        SHADD16
+        Signed Halving Add 16 performs two signed 16-bit integer additions, halves the results, and writes the results to the
+        destination register.        
+        """
+        props = {}
+        
+        name = "SHADD16"
+        ins_id = ARMInstruction.shadd16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_shadd8(self, opcode, encoding):
+        """
+        A8.8.170
+        SHADD8
+        Signed Halving Add 8 performs four signed 8-bit integer additions, halves the results, and writes the results to the
+        destination register.        
+        """
+        props = {}
+        
+        name = "SHADD8"
+        ins_id = ARMInstruction.shadd8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_shasx(self, opcode, encoding):
+        """
+        A8.8.171
+        SHASX
+        Signed Halving Add and Subtract with Exchange exchanges the two halfwords of the second operand, performs one
+        signed 16-bit integer addition and one signed 16-bit subtraction, halves the results, and writes the results to the
+        destination register.        
+        """
+        props = {}
+        
+        name = "SHASX"
+        ins_id = ARMInstruction.shasx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_shsax(self, opcode, encoding):
+        """
+        A8.8.172
+        SHSAX
+        Signed Halving Subtract and Add with Exchange exchanges the two halfwords of the second operand, performs one
+        signed 16-bit integer subtraction and one signed 16-bit addition, halves the results, and writes the results to the
+        destination register.        
+        """
+        props = {}
+        
+        name = "SHSAX"
+        ins_id = ARMInstruction.shsax
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_shsub16(self, opcode, encoding):
+        """
+        A8.8.173
+        SHSUB16
+        Signed Halving Subtract 16 performs two signed 16-bit integer subtractions, halves the results, and writes the results
+        to the destination register.        
+        """
+        props = {}
+        
+        name = "SHSUB16"
+        ins_id = ARMInstruction.shsub16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_shsub8(self, opcode, encoding):
+        """
+        A8.8.174
+        SHSUB8
+        Signed Halving Subtract 8 performs four signed 8-bit integer subtractions, halves the results, and writes the results
+        to the destination register.        
+        """
+        props = {}
+        
+        name = "SHSUB8"
+        ins_id = ARMInstruction.shsub8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smlad(self, opcode, encoding):
+        """
+        A8.8.177
+        SMLAD
+        Signed Multiply Accumulate Dual performs two signed 16x16-bit multiplications. It adds the products to a 32bit
+        accumulate operand.        
+        """
+        props = {}
+        
+        name = "SMLAD"
+        ins_id = ARMInstruction.smlad
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smlal(self, opcode, encoding):
+        """
+        A8.8.178
+        SMLAL
+        Signed Multiply Accumulate Long multiplies two signed 32-bit values to produce a 64-bit value, and accumulates
+        this with a 64-bit value.        
+        """
+        props = {}
+        name = "SMLAL"
+        ins_id = ARMInstruction.smlal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smlald(self, opcode, encoding):
+        """
+        A8.8.180
+        SMLALD
+        Signed Multiply Accumulate Long Dual performs two signed 16 x 16-bit multiplications. It adds the products to a
+        64-bit accumulate operand.        
+        """
+        props = {}
+        
+        name = "SMLALD"
+        ins_id = ARMInstruction.smlald
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smlsd(self, opcode, encoding):
+        """
+        A8.8.182
+        SMLSD
+        Signed Multiply Subtract Dual performs two signed 16 x 16-bit multiplications. It adds the difference of the
+        products to a 32-bit accumulate operand.    
+        """
+        props = {}
+        
+        name = "SMLSD"
+        ins_id = ARMInstruction.smlsd
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smlsld(self, opcode, encoding):
+        """
+        A8.8.183
+        SMLSLD
+        Signed Multiply Subtract Long Dual performs two signed 16 x 16-bit multiplications. It adds the difference of the
+        products to a 64-bit accumulate operand.        
+        """
+        props = {}
+        
+        name = "SMLSLD"
+        ins_id = ARMInstruction.smlsld
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smmla(self, opcode, encoding):
+        """
+        A8.8.184
+        SMMLA
+        Signed Most Significant Word Multiply Accumulate multiplies two signed 32-bit values, extracts the most
+        significant 32 bits of the result, and adds an accumulate value.        
+        """
+        props = {}
+        
+        name = "SMMLA"
+        ins_id = ARMInstruction.smmla
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smmls(self, opcode, encoding):
+        """
+        A8.8.185
+        SMMLS
+        Signed Most Significant Word Multiply Subtract multiplies two signed 32-bit values, subtracts the result from a
+        32-bit accumulate value that is shifted left by 32 bits, and extracts the most significant 32 bits of the result of that
+        subtraction.        
+        """
+        props = {}
+        
+        name = "SMMLS"
+        ins_id = ARMInstruction.smmls
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smmul(self, opcode, encoding):
+        """
+        A8.8.186
+        SMMUL
+        Signed Most Significant Word Multiply multiplies two signed 32-bit values, extracts the most significant 32 bits of
+        the result, and writes those bits to the destination register.        
+        """
+        props = {}
+        
+        name = "SMMUL"
+        ins_id = ARMInstruction.smmul
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smuad(self, opcode, encoding):
+        """
+        A8.8.187
+        SMUAD
+        Signed Dual Multiply Add performs two signed 16 x 16-bit multiplications. It adds the products together, and writes
+        the result to the destination register.        
+        """
+        props = {}
+        
+        name = "SMUAD"
+        ins_id = ARMInstruction.smuad
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_smusd(self, opcode, encoding):
+        """
+        A8.8.191
+        SMUSD
+        Signed Multiply Subtract Dual performs two signed 16 x 16-bit multiplications. It subtracts one of the products from
+        the other, and writes the result to the destination register.        
+        """
+        props = {}
+        
+        name = "SMUSD"
+        ins_id = ARMInstruction.smusd
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ssat(self, opcode, encoding):
+        """
+        A8.8.193
+        SSAT
+        Signed Saturate saturates an optionally-shifted signed value to a selectable signed range.        
+        """
+        props = {}
+        
+        name = "SSAT"
+        ins_id = ARMInstruction.ssat
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(10), 1, I1, 4, I1, 3, 4, 2, I1, 5]
+            sh, Rn, imm3, Rd, imm2, sat_imm = decode_opcode(opcode, decode_mask)
+            if sh == 1 and ((imm3 << 2) | imm2) == 0:
+                return self.decode_ssat16(opcode, encoding)
+
+            saturate_to = sat_imm + 1
+            shift_t, shift_n = DecodeImmShift(sh << 1, (imm3 << 2) | imm2)
+
+            if BadReg(Rd) or BadReg(Rn):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Immediate(saturate_to), Register(Rn), RegisterShift(shift_t, shift_n)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I7, 5, 4, 5, 1, I2, 4]
+            cond, sat_imm, Rd, imm5, sh, Rn = decode_opcode(opcode, decode_mask)
+            saturate_to = sat_imm + 1
+            shift_t, shift_n = DecodeImmShift(sh << 1, imm5)
+            if Rd == 15 or Rn == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Immediate(saturate_to), Register(Rn), RegisterShift(shift_t, shift_n)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ssat16(self, opcode, encoding):
+        """
+        A8.8.194
+        SSAT16
+        Signed Saturate 16 saturates two signed 16-bit values to a selected signed range.        
+        """
+        props = {}
+        
+        name = "SSAT16"
+        ins_id = ARMInstruction.ssat16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ssax(self, opcode, encoding):
+        """
+        A8.8.195
+        SSAX
+        Signed Subtract and Add with Exchange exchanges the two halfwords of the second operand, performs one 16-bit
+        integer subtraction and one 16-bit addition, and writes the results to the destination register. It sets the APSR.GE
+        bits according to the results.        
+        """
+        props = {}
+        
+        name = "SSAX"
+        ins_id = ARMInstruction.ssax
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ssub16(self, opcode, encoding):
+        """
+        A8.8.196
+        SSUB16
+        Signed Subtract 16 performs two 16-bit signed integer subtractions, and writes the results to the destination register.
+        It sets the APSR.GE bits according to the results of the subtractions.        
+        """
+        props = {}
+        
+        name = "SSUB16"
+        ins_id = ARMInstruction.ssub16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_ssub8(self, opcode, encoding):
+        """
+        A8.8.197
+        SSUB8
+        Signed Subtract 8 performs four 8-bit signed integer subtractions, and writes the results to the destination register.
+        It sets the APSR.GE bits according to the results of the subtractions.        
+        """
+        props = {}
+        
+        name = "SSUB8"
+        ins_id = ARMInstruction.ssub8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_stc(self, opcode, encoding):
+        """
+        A8.8.198
+        STC, STC2
+        Store Coprocessor stores data from a coprocessor to a sequence of consecutive memory addresses. If no coprocessor
+        can execute the instruction, an Undefined Instruction exception is generated.        
+        """
+        props = {}
+        
+        name = "STC"
+        ins_id = ARMInstruction.stc
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I7, 1, 1, 1, 1, I1, 4, 4, 4, 8]
+            P, U, D, W, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+            if P == 0 and U == 0 and D == 0 and W == 0:
+                raise UndefinedOpcode()
+
+            if P == 0 and U == 0 and D == 1 and W == 0:
+                return self.decode_mcrr(opcode, encoding)
+
+            if coproc in [0b1010, 0b1011]:
+                raise RuntimeError("SEE Advanced SIMD and Floating-point")
+
+            cp = coproc
+            imm32 = imm8 << 2
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+
+            # if n == 15 && (wback || CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;
+            if Rn == 15:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I7, 1, 1, 1, 1, I1, 4, 4, 4, 8]
+            P, U, D, W, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+
+            if P == 0 and U == 0 and D == 0 and W == 0:
+                raise UndefinedOpcode()
+
+            if P == 0 and U == 0 and D == 1 and W == 0:
+                return self.decode_mcrr(opcode, encoding)
+
+            if coproc in [0b1010, 0b1011]:
+                raise UndefinedOpcode()
+
+            cp = coproc
+            imm32 = imm8 << 2
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+
+            # if n == 15 && (wback || CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;
+            if Rn == 15:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I3, 1, 1, 1, 1, I1, 4, 4, 4, 8]
+            cond, P, U, D, W, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+
+            if P == 0 and U == 0 and D == 0 and W == 0:
+                raise UndefinedOpcode()
+
+            if P == 0 and U == 0 and D == 1 and W == 0:
+                return self.decode_mcrr(opcode, encoding)
+
+            if coproc in [0b1010, 0b1011]:
+                raise RuntimeError("SEE Advanced SIMD and Floating-point")
+
+            cp = coproc
+            imm32 = imm8 << 2
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+
+            # if n == 15 && (wback || CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;
+            if Rn == 15 and wback:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I7, 1, 1, 1, 1, I1, 4, 4, 4, 8]
+            P, U, D, W, Rn, CRd, coproc, imm8 = decode_opcode(opcode, decode_mask)
+
+            if P == 0 and U == 0 and D == 0 and W == 0:
+                raise UndefinedOpcode()
+
+            if P == 0 and U == 0 and D == 1 and W == 0:
+                return self.decode_mcrr(opcode, encoding)
+
+            if coproc in [0b1010, 0b1011]:
+                raise UndefinedOpcode()
+
+            cp = coproc
+            imm32 = imm8 << 2
+            index = P == 1
+            add = U == 1
+            wback = W == 1
+
+            # if n == 15 && (wback || CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;
+            if Rn == 15 and wback:
+                raise UnpredictableInstructionException()
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if not add:
+            imm32 *= -1
+
+        if P == 1 and W == 0:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn), Immediate(imm32))]
+
+        elif P == 1 and W == 1:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn), Immediate(imm32), wback=True)]
+
+        elif P == 0 and W == 1:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn)), Immediate(imm32)]
+
+        elif P == 0 and W == 0 and U == 1:
+            operands = [CoprocessorName(coproc), CoprocessorRegister(CRd), Memory(Register(Rn)), Immediate(imm8)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_strd_immediate(self, opcode, encoding):
+        """
+        A8.8.210
+        STRD (immediate)
+        Store Register Dual (immediate) calculates an address from a base register value and an immediate offset, and stores
+        two words from two registers to memory. It can use offset, post-indexed, or pre-indexed addressing.         
+        """
+        props = {}
+        
+        name = "STRD"
+        ins_id = ARMInstruction.strd_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+            
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_strd_register(self, opcode, encoding):
+        """
+        A8.8.211
+        STRD (register)
+        Store Register Dual (register) calculates an address from a base register value and a register offset, and stores two
+        words from two registers to memory. It can use offset, post-indexed, or pre-indexed addressing.        
+        """
+        props = {}
+        
+        name = "STRD"
+        ins_id = ARMInstruction.strd_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_strh_immediate_thumb(self, opcode, encoding):
+        """
+        A8.8.216
+        STRH (immediate, Thumb)
+        Store Register Halfword (immediate) calculates an address from a base register value and an immediate offset, and
+        stores a halfword from a register to memory. It can use offset, post-indexed, or pre-indexed addressing                
+        """
+        props = {}
+        
+        name = "STRH"
+        ins_id = ARMInstruction.strh_immediate_thumb
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT3:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+
+    def decode_strh_register(self, opcode, encoding):
+        """
+        A8.8.218
+        STRH (register)
+        Store Register Halfword (register) calculates an address from a base register value and an offset register value, and
+        stores a halfword from a register to memory. The offset register value can be shifted left by 0, 1, 2, or 3 bits.         
+        """
+        props = {}
+        
+        name = "STRH"
+        ins_id = ARMInstruction.strh_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_strht(self, opcode, encoding):
+        """
+        A8.8.219
+        STRHT
+        Store Register Halfword Unprivileged stores a halfword from a register to memory.
+        """
+        props = {}
+        
+        name = "STRHT"
+        ins_id = ARMInstruction.strht
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sxtab(self, opcode, encoding):
+        """
+        A8.8.230
+        SXTAB
+        Signed Extend and Add Byte extracts an 8-bit value from a register, sign-extends it to 32 bits, adds the result to the
+        value in another register, and writes the final result to the destination register. The instruction can specify a rotation
+        by 0, 8, 16, or 24 bits before extracting the 8-bit value.        
+        """
+        props = {}
+        
+        name = "SXTAB"
+        ins_id = ARMInstruction.sxtab
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I4, 4, I2, 2, 4]
+            Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            
+            if Rn == 0b1111:
+                return self.decode_sxtb(opcode, encoding)
+            
+            rotation = rotate << 3
+            
+            if BadReg(Rd) or Rn == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I8, 4, 4, 2, I6, 4]
+            cond, Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            if Rn == 0b1111:
+                return self.decode_sxtb(opcode, encoding)
+
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sxtab16(self, opcode, encoding):
+        """
+        A8.8.231
+        SXTAB16
+        Signed Extend and Add Byte 16 extracts two 8-bit values from a register, sign-extends them to 16 bits each, adds
+        the results to two 16-bit values from another register, and writes the final results to the destination register. The
+        instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the 8-bit values.        
+        """
+        props = {}
+        
+        name = "SXTAB16"
+        ins_id = ARMInstruction.sxtab16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I4, 4, I2, 2, 4]
+            Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            
+            if Rn == 0b1111:
+                return self.decode_sxtb16(opcode, encoding)
+            
+            rotation = rotate << 3
+            
+            if BadReg(Rd) or Rn == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I8, 4, 4, 2, I6, 4]
+            cond, Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            if Rn == 0b1111:
+                return self.decode_sxtb16(opcode, encoding)
+
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sxtah(self, opcode, encoding):
+        """
+        A8.8.232
+        SXTAH
+        Signed Extend and Add Halfword extracts a 16-bit value from a register, sign-extends it to 32 bits, adds the result
+        to a value from another register, and writes the final result to the destination register. The instruction can specify a
+        rotation by 0, 8, 16, or 24 bits before extracting the 16-bit value.        
+        """
+        props = {}
+        
+        name = "SXTAH"
+        ins_id = ARMInstruction.sxtah
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I4, 4, I2, 2, 4]
+            Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            
+            if Rn == 0b1111:
+                return self.decode_sxth(opcode, encoding)
+            
+            rotation = rotate << 3
+            
+            if BadReg(Rd) or Rn == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I8, 4, 4, 2, I6, 4]
+            cond, Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            if Rn == 0b1111:
+                return self.decode_sxth(opcode, encoding)
+
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sxtb(self, opcode, encoding):
+        """
+        A8.8.233
+        SXTB
+        Signed Extend Byte extracts an 8-bit value from a register, sign-extends it to 32 bits, and writes the result to the
+        destination register. The instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the 8-bit value.        
+        """
+        props = {}
+        
+        name = "SXTB"
+        ins_id = ARMInstruction.sxtb
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(26), 3, 3]
+            Rm, Rd = decode_opcode(opcode, decode_mask)
+            rotation = 0
+            operands = [Register(Rd), Register(Rm)]
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(20), 4, I2, 2, 4]
+            Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            rotation = rotate << 3
+            if BadReg(Rd) or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(12), 4, 2, I6, 4]
+            cond, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            rotation = rotate << 3
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sxtb16(self, opcode, encoding):
+        """
+        A8.8.234
+        SXTB16
+        Signed Extend Byte 16 extracts two 8-bit values from a register, sign-extends them to 16 bits each, and writes the
+        results to the destination register. The instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the
+        8-bit values.        
+        """
+        props = {}
+        
+        name = "SXTB16"
+        ins_id = ARMInstruction.sxtb16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_sxth(self, opcode, encoding):
+        """
+        A8.8.235
+        SXTH
+        Signed Extend Halfword extracts a 16-bit value from a register, sign-extends it to 32 bits, and writes the result to
+        the destination register. The instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the 16-bit
+        value.        
+        """
+        props = {}
+        
+        name = "SXTH"
+        ins_id = ARMInstruction.sxth
+        setsflags = False
+        condition = None
+        qualifier = ""
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(26), 3, 3]
+            rotation = 0
+            Rm, Rd = decode_opcode(opcode, decode_mask)
+            operands = [Register(Rd), Register(Rm)]
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(20), 4, I2, 2, 4]
+            Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            rotation = rotate << 3
+            if BadReg(Rd) or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            qualifier = ".W"
+            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(12), 4, 2, I6, 4]
+            cond, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            rotation = rotate << 3
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_uadd16(self, opcode, encoding):
+        """
+        A8.8.243
+        UADD16
+        Unsigned Add 16 performs two 16-bit unsigned integer additions, and writes the results to the destination register.
+        It sets the APSR.GE bits according to the results of the additions.        
+        """
+        props = {}
+        
+        name = "UADD16"
+        ins_id = ARMInstruction.uadd16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uadd8(self, opcode, encoding):
+        """
+        A8.8.244
+        UADD8
+        Unsigned Add 8 performs four unsigned 8-bit integer additions, and writes the results to the destination register. It
+        sets the APSR.GE bits according to the results of the additions.        
+        """
+        props = {}
+        
+        name = "UADD8"
+        ins_id = ARMInstruction.uadd8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uasx(self, opcode, encoding):
+        """
+        A8.8.245
+        UASX
+        Unsigned Add and Subtract with Exchange exchanges the two halfwords of the second operand, performs one
+        unsigned 16-bit integer addition and one unsigned 16-bit subtraction, and writes the results to the destination
+        register. It sets the APSR.GE bits according to the results        
+        """
+        props = {}
+        
+        name = "UASX"
+        ins_id = ARMInstruction.uasx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_udf(self, opcode, encoding):
+        """
+        A8.8.247
+        UDF
+        Permanently Undefined generates an Undefined Instruction exception.        
+        """
+        props = {}
+        
+        name = "UDF"
+        ins_id = ARMInstruction.udf
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_udiv(self, opcode, encoding):
+        """
+        A8.8.248
+        UDIV
+        Unsigned Divide divides a 32-bit unsigned integer register value by a 32-bit unsigned integer register value, and
+        writes the result to the destination register. The condition flags are not affected.                
+        """
+        props = {}
+        
+        name = "UDIV"
+        ins_id = ARMInstruction.udiv
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uhadd16(self, opcode, encoding):
+        """
+        A8.8.249
+        UHADD16
+        Unsigned Halving Add 16 performs two unsigned 16-bit integer additions, halves the results, and writes the results
+        to the destination register.        
+        """
+        props = {}
+        
+        name = "UHADD16"
+        ins_id = ARMInstruction.uhadd16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uhadd8(self, opcode, encoding):
+        """
+        A8.8.250
+        UHADD8
+        Unsigned Halving Add 8 performs four unsigned 8-bit integer additions, halves the results, and writes the results to
+        the destination register        
+        """
+        props = {}
+        
+        name = "UHADD8"
+        ins_id = ARMInstruction.uhadd8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uhasx(self, opcode, encoding):
+        """
+        A8.8.251
+        UHASX
+        Unsigned Halving Add and Subtract with Exchange exchanges the two halfwords of the second operand, performs
+        one unsigned 16-bit integer addition and one unsigned 16-bit subtraction, halves the results, and writes the results
+        to the destination register.        
+        """
+        props = {}
+        
+        name = "UHASX"
+        ins_id = ARMInstruction.uhasx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uhsax(self, opcode, encoding):
+        """
+        A8.8.252
+        UHSAX
+        Unsigned Halving Subtract and Add with Exchange exchanges the two halfwords of the second operand, performs
+        one unsigned 16-bit integer subtraction and one unsigned 16-bit addition, halves the results, and writes the results
+        to the destination register.        
+        """
+        props = {}
+        
+        name = "UHSAX"
+        ins_id = ARMInstruction.uhsax
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uhsub16(self, opcode, encoding):
+        """
+        A8.8.253
+        UHSUB16
+        Unsigned Halving Subtract 16 performs two unsigned 16-bit integer subtractions, halves the results, and writes the
+        results to the destination register                
+        """
+        props = {}
+        
+        name = "UHSUB16"
+        ins_id = ARMInstruction.uhsub16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uhsub8(self, opcode, encoding):
+        """
+        A8.8.254
+        UHSUB8
+        Unsigned Halving Subtract 8 performs four unsigned 8-bit integer subtractions, halves the results, and writes the
+        results to the destination register.        
+        """
+        props = {}
+        
+        name = "UHSUB8"
+        ins_id = ARMInstruction.uhsub8
+        setsflags = False
+        condition = None
+        
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uqadd16(self, opcode, encoding):
+        """
+        A8.8.258
+        UQADD16
+        Unsigned Saturating Add 16 performs two unsigned 16-bit integer additions, saturates the results to the 16-bit
+        unsigned integer range 0 x 216 - 1, and writes the results to the destination register.
+        """
+        props = {}
+        
+        name = "UQADD16"
+        ins_id = ARMInstruction.uqadd16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uqadd8(self, opcode, encoding):
+        """
+        A8.8.259
+        UQADD8
+        Unsigned Saturating Add 8 performs four unsigned 8-bit integer additions, saturates the results to the 8-bit unsigned
+        integer range 0 x 28 - 1, and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "UQADD8"
+        ins_id = ARMInstruction.uqadd8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uqasx(self, opcode, encoding):
+        """
+        A8.8.260
+        UQASX
+        Unsigned Saturating Add and Subtract with Exchange exchanges the two halfwords of the second operand,
+        performs one unsigned 16-bit integer addition and one unsigned 16-bit subtraction, saturates the results to the 16-bit
+        unsigned integer range 0 x 216 - 1, and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "UQASX"
+        ins_id = ARMInstruction.uqasx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uqsax(self, opcode, encoding):
+        """
+        A8.8.261
+        UQSAX
+        Unsigned Saturating Subtract and Add with Exchange exchanges the two halfwords of the second operand,
+        performs one unsigned 16-bit integer subtraction and one unsigned 16-bit addition, saturates the results to the 16-bit
+        unsigned integer range 0 x 216 - 1, and writes the results to the destination register.
+        """
+        props = {}
+        
+        name = "UQSAX"
+        ins_id = ARMInstruction.uqsax
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uqsub16(self, opcode, encoding):
+        """
+        A8.8.262
+        UQSUB16
+        Unsigned Saturating Subtract 16 performs two unsigned 16-bit integer subtractions, saturates the results to the
+        16-bit unsigned integer range 0 x 216 - 1, and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "UQSUB16"
+        ins_id = ARMInstruction.uqsub16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uqsub8(self, opcode, encoding):
+        """
+        A8.8.263
+        UQSUB8
+        Unsigned Saturating Subtract 8 performs four unsigned 8-bit integer subtractions, saturates the results to the 8-bit
+        unsigned integer range 0 x 28 - 1, and writes the results to the destination register.        
+        """
+        props = {}
+        
+        name = "UQSUB8"
+        ins_id = ARMInstruction.uqsub8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_usad8(self, opcode, encoding):
+        """
+        A8.8.264
+        USAD8
+        Unsigned Sum of Absolute Differences performs four unsigned 8-bit subtractions, and adds the absolute values of
+        the differences together.        
+        """
+        props = {}
+        
+        name = "USAD8"
+        ins_id = ARMInstruction.usad8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_usada8(self, opcode, encoding):
+        """
+        A8.8.265
+        USADA8
+        Unsigned Sum of Absolute Differences and Accumulate performs four unsigned 8-bit subtractions, and adds the
+        absolute values of the differences to a 32-bit accumulate operand.        
+        """
+        props = {}
+        
+        name = "USADA8"
+        ins_id = ARMInstruction.usada8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_usat(self, opcode, encoding):
+        """
+        A8.8.266
+        USAT
+        Unsigned Saturate saturates an optionally-shifted signed value to a selected unsigned range.        
+        """
+        props = {}
+        
+        name = "USAT"
+        ins_id = ARMInstruction.usat
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_usat16(self, opcode, encoding):
+        """
+        A8.8.267
+        USAT16
+        Unsigned Saturate 16 saturates two signed 16-bit values to a selected unsigned range.        
+        """
+        props = {}
+        
+        name = "USAT16"
+        ins_id = ARMInstruction.usat16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_usax(self, opcode, encoding):
+        """
+        A8.8.268
+        USAX
+        Unsigned Subtract and Add with Exchange exchanges the two halfwords of the second operand, performs one
+        unsigned 16-bit integer subtraction and one unsigned 16-bit addition, and writes the results to the destination
+        register. It sets the APSR.GE bits according to the results.        
+        """
+        props = {}
+        
+        name = "USAX"
+        ins_id = ARMInstruction.usax
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_usub16(self, opcode, encoding):
+        """
+        A8.8.269
+        USUB16
+        Unsigned Subtract 16 performs two 16-bit unsigned integer subtractions, and writes the results to the destination
+        register. It sets the APSR.GE bits according to the results of the subtractions.        
+        """
+        props = {}
+        
+        name = "USUB16"
+        ins_id = ARMInstruction.usub16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_usub8(self, opcode, encoding):
+        """
+        A8.8.270
+        USUB8
+        Unsigned Subtract 8 performs four 8-bit unsigned integer subtractions, and writes the results to the destination
+        register. It sets the APSR.GE bits according to the results of the subtractions.        
+        """
+        props = {}
+        
+        name = "USUB8"
+        ins_id = ARMInstruction.usub8
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uxtab(self, opcode, encoding):
+        """
+        A8.8.271
+        UXTAB
+        Unsigned Extend and Add Byte extracts an 8-bit value from a register, zero-extends it to 32 bits, adds the result to
+        the value in another register, and writes the final result to the destination register. The instruction can specify a
+        rotation by 0, 8, 16, or 24 bits before extracting the 8-bit value.        
+        """
+        props = {}
+        
+        name = "UXTAB"
+        ins_id = ARMInstruction.uxtab
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I4, 4, I2, 2, 4]
+            Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            if Rn == 0b1111:
+                return self.decode_uxtb(opcode, encoding)
+
+            rotation = rotate << 3
+            if BadReg(Rd) or Rn == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I8, 4, 4, 2, I6, 4]
+            cond, Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            if Rn == 0b1111:
+                return self.decode_uxtb(opcode, encoding)
+
+            rotation = rotate << 3
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uxtab16(self, opcode, encoding):
+        """
+        A8.8.272
+        UXTAB16
+        Unsigned Extend and Add Byte 16 extracts two 8-bit values from a register, zero-extends them to 16 bits each, adds
+        the results to two 16-bit values from another register, and writes the final results to the destination register. The
+        instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the 8-bit values.        
+        """
+        props = {}
+        
+        name = "UXTAB16"
+        ins_id = ARMInstruction.uxtab16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I4, 4, I2, 2, 4]
+            Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            if Rn == 0b1111:
+                return self.decode_uxtb16(opcode, encoding)
+
+            rotation = rotate << 3
+            if BadReg(Rd) or Rn == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I8, 4, 4, 2, I6, 4]
+            cond, Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            if Rn == 0b1111:
+                return self.decode_uxtb16(opcode, encoding)
+
+            rotation = rotate << 3
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uxtah(self, opcode, encoding):
+        """
+        A8.8.273
+        UXTAH
+        Unsigned Extend and Add Halfword extracts a 16-bit value from a register, zero-extends it to 32 bits, adds the result
+        to a value from another register, and writes the final result to the destination register. The instruction can specify a
+        rotation by 0, 8, 16, or 24 bits before extracting the 16-bit value.        
+        """
+        props = {}
+        
+        name = "UXTAH"
+        ins_id = ARMInstruction.uxtah
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(12), 4, I4, 4, I2, 2, 4]
+            Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            if Rn == 0b1111:
+                return self.decode_uxtb(opcode, encoding)
+
+            rotation = rotate << 3
+            if BadReg(Rd) or Rn == 13 or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I8, 4, 4, 2, I6, 4]
+            cond, Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            if Rn == 0b1111:
+                return self.decode_uxtb(opcode, encoding)
+
+            rotation = rotate << 3
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uxtb16(self, opcode, encoding):
+        """
+        A8.8.275
+        UXTB16
+        Unsigned Extend Byte 16 extracts two 8-bit values from a register, zero-extends them to 16 bits each, and writes
+        the results to the destination register. The instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting
+        the 8-bit values.        
+        """
+        props = {}
+        
+        name = "UXTB16"
+        ins_id = ARMInstruction.uxtb16
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_uxth(self, opcode, encoding):
+        """
+        A8.8.276
+        UXTH
+        Unsigned Extend Halfword extracts a 16-bit value from a register, zero-extends it to 32 bits, and writes the result to
+        the destination register. The instruction can specify a rotation by 0, 8, 16, or 24 bits before extracting the 16-bit
+        value.        
+        """
+        props = {}
+        
+        name = "UXTH"
+        ins_id = ARMInstruction.uxth
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(26), 3, 3]
+            Rm, Rd = decode_opcode(opcode, decode_mask)
+            rotation = 0
+            operands = [Register(Rm), Register(Rd)]
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(20), 4, I2, 2, 4]
+            Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            rotation = rotate << 3
+
+            if BadReg(Rd) or BadReg(Rm):
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rm), Register(Rd), Immediate(rotation)]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(12), 4, 2, I6, 4]
+            cond, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            rotation = rotate << 3            
+
+            if Rd == 15 or Rm == 15:
+                raise UnpredictableInstructionException()
+
+            operands = [Register(Rm), Register(Rd), Immediate(rotation)]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vaba(self, opcode, encoding):
+        """
+        A8.8.277
+        VABA, VABAL
+        Vector Absolute Difference and Accumulate {Long} subtracts the elements of one vector from the corresponding
+        elements of another vector, and accumulates the absolute values of the results into the elements of the destination
+        vector.        
+        """
+        props = {}
+        
+        name = "VABA"
+        ins_id = ARMInstruction.vaba
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vabd_int(self, opcode, encoding):
+        """
+        A8.8.278
+        VABD, VABDL (integer)
+        Vector Absolute Difference {Long} (integer) subtracts the elements of one vector from the corresponding elements
+        of another vector, and places the absolute values of the results in the elements of the destination vector.        
+        """
+        props = {}
+        
+        name = "VABD"
+        ins_id = ARMInstruction.vabd_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vabd_fp(self, opcode, encoding):
+        """
+        A8.8.279
+        VABD (floating-point)
+        Vector Absolute Difference (floating-point) subtracts the elements of one vector from the corresponding elements
+        of another vector, and places the absolute values of the results in the elements of the destination vector.        
+        """
+        props = {}
+        
+        name = "VABD"
+        ins_id = ARMInstruction.vabd_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vabs(self, opcode, encoding):
+        """
+        A8.8.280
+        VABS
+        Vector Absolute takes the absolute value of each element in a vector, and places the results in a second vector. The
+        floating-point version only clears the sign bit.        
+        """
+        props = {}
+        
+        name = "VABS"
+        ins_id = ARMInstruction.vabs
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vac(self, opcode, encoding):
+        """
+        A8.8.281
+        VACGE, VACGT, VACLE, VACLT
+        VACGE (Vector Absolute Compare Greater Than or Equal) and VACGT (Vector Absolute Compare Greater Than) take
+        the absolute value of each element in a vector, and compare it with the absolute value of the corresponding element
+        of a second vector. If the condition is true, the corresponding element in the destination vector is set to all ones.
+        Otherwise, it is set to all zeros.        
+        """
+        props = {}
+        
+        name = "VACGE"
+        ins_id = ARMInstruction.vac
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vadd_int(self, opcode, encoding):
+        """
+        A8.8.282
+        VADD (integer)
+        Vector Add adds corresponding elements in two vectors, and places the results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VADD"
+        ins_id = ARMInstruction.vadd_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vadd_fp(self, opcode, encoding):
+        """
+        A8.8.283
+        VADD (floating-point)
+        Vector Add adds corresponding elements in two vectors, and places the results in the destination vecto        
+        """
+        props = {}
+        
+        name = "VADD"
+        ins_id = ARMInstruction.vadd_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vaddhn(self, opcode, encoding):
+        """
+        A8.8.284
+        VADDHN
+        Vector Add and Narrow, returning High Half adds corresponding elements in two quadword vectors, and places the
+        most significant half of each result in a doubleword vector. The results are truncated.         
+        """
+        props = {}
+        
+        name = "VADDHN"
+        ins_id = ARMInstruction.vaddhn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vadd(self, opcode, encoding):
+        """
+        A8.8.285
+        VADDL, VADDW
+        VADDL (Vector Add Long) adds corresponding elements in two doubleword vectors, and places the results in a
+        quadword vector. Before adding, it sign-extends or zero-extends the elements of both operands.        
+        """
+        props = {}
+        
+        name = "VADD"
+        ins_id = ARMInstruction.vadd
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vand_register(self, opcode, encoding):
+        """
+        A8.8.287
+        VAND (register)
+        This instruction performs a bitwise AND operation between two registers, and places the result in the destination
+        register.        
+        """
+        props = {}
+        
+        name = "VAND"
+        ins_id = ARMInstruction.vand_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vn, Vd, N, Q, M, Vm = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vn, Vd, N, Q, M, Vm = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+        # d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;
+        if Q == 1 and (get_bit(Vd, 0) == 1 or get_bit(Vn, 0) == 1 or get_bit(Vm, 0) == 1):
+            raise UndefinedOpcode()
+
+        d = (D << 4) | Vd
+        n = (N << 4) | Vn
+        m = (M << 4) | Vm
+        regs = 1 if Q == 0 else 2
+
+        if Q == 1:
+            qualifier = ".64"
+            if regs == 1:
+                operands = [QRegister(n), QRegister(m)]
+            else:
+                operands = [QRegister(d), QRegister(n), QRegister(m)]
+        else:
+            qualifier = ".32"
+            if regs == 1:
+                operands = [DRegister(n), DRegister(m)]
+            else:
+                operands = [DRegister(d), DRegister(n), DRegister(m)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vbic_immediate(self, opcode, encoding):
+        """
+        A8.8.288
+        VBIC (immediate)
+        Vector Bitwise Bit Clear (immediate) performs a bitwise AND between a register value and the complement of an
+        immediate value, and returns the result into the destination vector.         
+        """
+        props = {}
+        
+        name = "VBIC"
+        ins_id = ARMInstruction.vbic_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vbic_register(self, opcode, encoding):
+        """
+        A8.8.289
+        VBIC (register)
+        Vector Bitwise Bit Clear (register) performs a bitwise AND between a register value and the complement of a
+        register value, and places the result in the destination register.        
+        """
+        props = {}
+        
+        name = "VBIC"
+        ins_id = ARMInstruction.vbic_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vb(self, opcode, encoding):
+        """
+        A8.8.290
+        VBIF, VBIT, VBSL
+        VBIF (Vector Bitwise Insert if False), VBIT (Vector Bitwise Insert if True), and VBSL (Vector Bitwise Select) perform
+        bitwise selection under the control of a mask, and place the results in the destination register. The registers can be
+        either quadword or doubleword, and must all be the same size.        
+        """
+        props = {}
+        
+        name = "VB"
+        ins_id = ARMInstruction.vb
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vceq_register(self, opcode, encoding):
+        """
+        A8.8.291
+        VCEQ (register)
+        VCEQ (Vector Compare Equal) takes each element in a vector, and compares it with the corresponding element of a
+        second vector. If they are equal, the corresponding element in the destination vector is set to all ones. Otherwise, it
+        is set to all zeros        
+        """
+        props = {}
+        
+        name = "VCEQ"
+        ins_id = ARMInstruction.vceq_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vceq_immediate(self, opcode, encoding):
+        """
+        A8.8.292
+        VCEQ (immediate #0)
+        VCEQ #0 (Vector Compare Equal to zero) takes each element in a vector, and compares it with zero. If it is equal to
+        zero, the corresponding element in the destination vector is set to all ones. Otherwise, it is set to all zeros.        
+        """
+        props = {}
+        
+        name = "VCEQ"
+        ins_id = ARMInstruction.vceq_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcge_register(self, opcode, encoding):
+        """
+        A8.8.293
+        VCGE (register)
+        VCGE (Vector Compare Greater Than or Equal) takes each element in a vector, and compares it with the
+        corresponding element of a second vector. If the first is greater than or equal to the second, the corresponding
+        element in the destination vector is set to all ones. Otherwise, it is set to all zeros.        
+        """
+        props = {}
+        
+        name = "VCGE"
+        ins_id = ARMInstruction.vcge_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcge_immediate(self, opcode, encoding):
+        """
+        A8.8.294
+        VCGE (immediate #0)
+        VCGE #0 (Vector Compare Greater Than or Equal to Zero) take each element in a vector, and compares it with zero.
+        If it is greater than or equal to zero, the corresponding element in the destination vector is set to all ones. Otherwise,
+        it is set to all zeros.        
+        """
+        props = {}
+        
+        name = "VCGE"
+        ins_id = ARMInstruction.vcge_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcgt_register(self, opcode, encoding):
+        """
+        A8.8.295
+        VCGT (register)
+        VCGT (Vector Compare Greater Than) takes each element in a vector, and compares it with the corresponding element
+        of a second vector. If the first is greater than the second, the corresponding element in the destination vector is set
+        to all ones. Otherwise, it is set to all zeros.        
+        """
+        props = {}
+        
+        name = "VCGT"
+        ins_id = ARMInstruction.vcgt_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcgt_immediate(self, opcode, encoding):
+        """
+        A8.8.296
+        VCGT (immediate #0)
+        VCGT #0 (Vector Compare Greater Than Zero) take each element in a vector, and compares it with zero. If it is greater
+        than zero, the corresponding element in the destination vector is set to all ones. Otherwise, it is set to all zeros.        
+        """
+        props = {}
+        
+        name = "VCGT"
+        ins_id = ARMInstruction.vcgt_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcle_immediate(self, opcode, encoding):
+        """
+        A8.8.298
+        VCLE (immediate #0)
+        VCLE #0 (Vector Compare Less Than or Equal to Zero) take each element in a vector, and compares it with zero. If
+        it is less than or equal to zero, the corresponding element in the destination vector is set to all ones. Otherwise, it is
+        set to all zeros.        
+        """
+        props = {}
+        
+        name = "VCLE"
+        ins_id = ARMInstruction.vcle_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcls(self, opcode, encoding):
+        """
+        A8.8.299
+        VCLS
+        Vector Count Leading Sign Bits counts the number of consecutive bits following the topmost bit, that are the same
+        as the topmost bit, in each element in a vector, and places the results in a second vector. The count does not include
+        the topmost bit itself.        
+        """
+        props = {}
+        
+        name = "VCLS"
+        ins_id = ARMInstruction.vcls
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vclt_immediate(self, opcode, encoding):
+        """
+        A8.8.301
+        VCLT (immediate #0)
+        VCLT #0 (Vector Compare Less Than Zero) take each element in a vector, and compares it with zero. If it is less than
+        zero, the corresponding element in the destination vector is set to all ones. Otherwise, it is set to all zeros.        
+        """
+        props = {}
+        
+        name = "VCLT"
+        ins_id = ARMInstruction.vclt_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vclz(self, opcode, encoding):
+        """
+        A8.8.302
+        VCLZ
+        Vector Count Leading Zeros counts the number of consecutive zeros, starting from the most significant bit, in each
+        element in a vector, and places the results in a second vector.        
+        """
+        props = {}
+        
+        name = "VCLZ"
+        ins_id = ARMInstruction.vclz
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcmp(self, opcode, encoding):
+        """
+        A8.8.303
+        VCMP, VCMPE
+        This instruction compares two floating-point registers, or one floating-point register and zero. It writes the result to
+        the FPSCR flags. These are normally transferred to the ARM flags by a subsequent VMRS instruction.        
+        """
+        props = {}
+        
+        name = "VCMP"
+        ins_id = ARMInstruction.vcmp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcnt(self, opcode, encoding):
+        """
+        A8.8.304
+        VCNT
+        This instruction counts the number of bits that are one in each element in a vector, and places the results in a second
+        vector.        
+        """
+        props = {}
+        
+        name = "VCNT"
+        ins_id = ARMInstruction.vcnt
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vcv(self, opcode, encoding):
+        """
+        A8.8.311
+        VCVTB, VCVTT
+        """
+        props = {}
+        
+        name = "VCVT"
+        ins_id = ARMInstruction.vcv
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I5, 1, 4, I4, 1, I1, 1, I1, 4]
+            D, op, Vd, T, M, Vm = decode_opcode(opcode, decode_mask)
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I5, 1, I5, 1, 4, I4, 1, I1, 1, I1, 4]
+            D, op, Vd, T, M, Vm = decode_opcode(opcode, decode_mask)
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # half_to_single = (op == '0');
+        half_to_single = op == 0
+
+        # lowbit = if T == '1' then 16 else 0;
+        lowbit = 16 if T == 1 else 0
+
+        # m = UInt(Vm:M); d = UInt(Vd:D);
+        Sm = (Vm << 1) | M
+        Sd = (Vd << 1) | D
+
+        name += "B" if T == 0 else "T"
+        name += ".F32.F16" if op == 0 else ".F16.F32"
+        
+        # TODO: I think these registers are not general purpose.
+        operands = [Register(Sd), Register(Sm)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vdiv(self, opcode, encoding):
+        """
+        A8.8.312
+        VDIV
+        This instruction divides one floating-point value by another floating-point value and writes the result to a third
+        floating-point register.        
+        """
+        props = {}
+        
+        name = "VDIV"
+        ins_id = ARMInstruction.vdiv
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vdup_scalar(self, opcode, encoding):
+        """
+        A8.8.313
+        VDUP (scalar)
+        Vector Duplicate duplicates a scalar into every element of the destination vector.        
+        """
+        props = {}
+        
+        name = "VDUP"
+        ins_id = ARMInstruction.vdup_scalar
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vdup_arm(self, opcode, encoding):
+        """
+        A8.8.314
+        VDUP (ARM core register)
+        This instruction duplicates an element from an ARM core register into every element of the destination vector.        
+        """
+        props = {}
+        
+        name = "VDUP"
+        ins_id = ARMInstruction.vdup_arm
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_veor(self, opcode, encoding):
+        """
+        A8.8.315
+        VEOR
+        Vector Bitwise Exclusive OR performs a bitwise Exclusive OR operation between two registers, and places the
+        result in the destination register. The operand and result registers can be quadword or doubleword. They must all be
+        the same size.        
+        """
+        props = {}
+        
+        name = "VEOR"
+        ins_id = ARMInstruction.veor
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vn, Vd, N, Q, M, Vm = decode_opcode(opcode, decode_mask)
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vn, Vd, N, Q, M, Vm = decode_opcode(opcode, decode_mask)
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if Q == 1 and (get_bit(Vd, 0) == 1 or get_bit(Vn, 0) == 1 or get_bit(Vm, 0) == 1):
+            raise UndefinedOpcode()
+
+        d = (D << 4) | Vd
+        n = (N << 4) | Vn
+        m = (M << 4) | Vm
+
+        regs = 1 if Q == 0 else 2
+
+        if Q == 1:
+            qualifier = ".64"
+            if regs == 1:
+                operands = [QRegister(n), QRegister(m)]
+            else:
+                operands = [QRegister(d), QRegister(n), QRegister(m)]
+        else:
+            qualifier = ".32"
+            if regs == 1:
+                operands = [DRegister(n), DRegister(m)]
+            else:
+                operands = [DRegister(d), DRegister(n), DRegister(m)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vext(self, opcode, encoding):
+        """
+        A8.8.316
+        VEXT
+        Vector Extract extracts elements from the bottom end of the second operand vector and the top end of the first,
+        concatenates them and places the result in the destination vector.         
+        """
+        props = {}
+        
+        name = "VEXT"
+        ins_id = ARMInstruction.vext
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vfm(self, opcode, encoding):
+        """
+        A8.8.317
+        VFMA, VFMS
+        Vector Fused Multiply Accumulate multiplies corresponding elements of two vectors, and accumulates the results
+        into the elements of the destination vector. The instruction does not round the result of the multiply before the
+        accumulation        
+        """
+        props = {}
+        
+        name = "VFMA"
+        ins_id = ARMInstruction.vfm
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vfnm(self, opcode, encoding):
+        """
+        A8.8.318
+        VFNMA, VFNMS
+        Vector Fused Negate Multiply Accumulate negates one floating-point register value and multiplies it by another
+        floating-point register value, adds the negation of the floating-point value in the destination register to the product,
+        and writes the result back to the destination register. The instruction does not round the result of the multiply before
+        the addition.        
+        """
+        props = {}
+        
+        name = "VFNMA"
+        ins_id = ARMInstruction.vfnm
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vh(self, opcode, encoding):
+        """
+        A8.8.319
+        VHADD, VHSUB
+        Vector Halving Add adds corresponding elements in two vectors of integers, shifts each result right one bit, and
+        places the final results in the destination vector. The results of the halving operations are truncated (for rounded
+        results see VRHADD on page A8-1028).        
+        """
+        props = {}
+        
+        name = "VHADD"
+        ins_id = ARMInstruction.vh
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vldm(self, opcode, encoding):
+        """
+        A8.8.332
+        VLDM
+        Vector Load Multiple loads multiple extension registers from consecutive memory locations using an address from
+        an ARM core register.        
+        """
+        props = {}
+        
+        name = "VLDM"
+        ins_id = ARMInstruction.vldm
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmax_vmin_int(self, opcode, encoding):
+        """
+        A8.8.334
+        VMAX, VMIN (integer)
+        Vector Maximum compares corresponding elements in two vectors, and copies the larger of each pair into the
+        corresponding element in the destination vector.        
+        """
+        props = {}
+        
+        name = "VMAX"
+        ins_id = ARMInstruction.vmax_vmin_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmax_vmin_fp(self, opcode, encoding):
+        """
+        A8.8.335
+        VMAX, VMIN (floating-point)
+        Vector Maximum compares corresponding elements in two vectors, and copies the larger of each pair into the
+        corresponding element in the destination vector.        
+        """
+        props = {}
+        
+        name = "VMAX"
+        ins_id = ARMInstruction.vmax_vmin_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmla_vmlal_vmls_vmlsl_int(self, opcode, encoding):
+        """
+        A8.8.336
+        VMLA, VMLAL, VMLS, VMLSL (integer)
+        Vector Multiply Accumulate and Vector Multiply Subtract multiply corresponding elements in two vectors, and
+        either add the products to, or subtract them from, the corresponding elements of the destination vector. Vector
+        Multiply Accumulate Long and Vector Multiply Subtract Long do the same thing, but with destination vector
+        elements that are twice as long as the elements that are multiplied.        
+        """
+        props = {}
+        
+        name = "VMLA"
+        ins_id = ARMInstruction.vmla_vmlal_vmls_vmlsl_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmla_vmls_fp(self, opcode, encoding):
+        """
+        A8.8.337
+        VMLA, VMLS (floating-point)
+        Vector Multiply Accumulate multiplies corresponding elements in two vectors, and accumulates the results into the
+        elements of the destination vector.        
+        """
+        props = {}
+        
+        name = "VMLA"
+        ins_id = ARMInstruction.vmla_vmls_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmla_vmlal_vmls_vmlsl_by_scalar(self, opcode, encoding):
+        """
+        A8.8.338
+        VMLA, VMLAL, VMLS, VMLSL (by scalar)
+        Vector Multiply Accumulate and Vector Multiply Subtract multiply elements of a vector by a scalar, and either add
+        the products to, or subtract them from, corresponding elements of the destination vector.         
+        """
+        props = {}
+        
+        name = "VMLA"
+        ins_id = ARMInstruction.vmla_vmlal_vmls_vmlsl_by_scalar
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmov_immediate(self, opcode, encoding):
+        """
+        A8.8.339
+        VMOV (immediate)
+        This instruction places an immediate constant into every element of the destination register.        
+        """
+        props = {}
+        
+        name = "VMOV"
+        ins_id = ARMInstruction.vmov_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I3, 1, I5, 1, I3, 3, 4, 4, I1, 1, 1, I1, 4]
+            i, D, imm3, Vd, cmode, Q, op, imm4 = decode_opcode(opcode, decode_mask)
+
+            # if op == '0' && cmode<0> == '1' && cmode<3:2> != '11' then SEE VORR (immediate);
+            if op == 0 and get_bit(cmode, 0) == 1 and get_bits(cmode, 3, 2) != 0b11:
+                return self.decode_vorr_immediate(opcode, encoding)
+
+            # if op == '1' && cmode != '1110' then SEE "Related encodings";
+            if op == 1 and cmode != 0b1110:
+                raise RuntimeError("SEE Related encodings")
+
+            # if Q == '1' && Vd<0> == '1' then UNDEFINED;
+            if Q == 1 and get_bit(Vd, 0) == 1:
+                raise UndefinedOpcode()
+
+            # i:imm3:imm4
+            imm32 = (i << (3 + 4)) | (imm3 << 4) | imm4
+
+            # single_register = FALSE; advsimd = TRUE; imm64 = AdvSIMDExpandImm(op, cmode, i:imm3:imm4);
+            single_register = False
+            advsimd = True
+            immediate = AdvSIMDExpandImm(op, cmode, imm32)
+
+            # d = UInt(D:Vd); regs = if Q == '0' then 1 else 2;
+            d = (D << 4) | Vd
+            regs = 1 if Q == 0 else 2
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I9, 1, I2, 4, 4, I3, 1, I4, 4]
+            D, imm4H, Vd, sz, imm4L = decode_opcode(opcode, decode_mask)
+
+            # single_register = (sz == '0'); advsimd = FALSE;
+            # if single_register then
+            #     d = UInt(Vd:D); imm32 = VFPExpandImm(imm4H:imm4L, 32);
+            # else
+            #     d = UInt(D:Vd); imm64 = VFPExpandImm(imm4H:imm4L, 64); regs = 1;            
+            single_register = sz == 0
+            advsimd = False
+            imm8 = (imm4H << 4) | imm4L
+            if single_register:
+                d = (Vd << 1) | D
+                immediate = VFPExpandImm(imm8, 32)
+            
+            else:
+                d = (D << 4) | Vd
+                immediate = VFPExpandImm(imm8, 64)
+                immediate = imm8
+                regs = 1
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I7, 1, I1, 1, I3, 3, 4, 4, I1, 1, 1, I1, 4]
+            i, D, imm3, Vd, cmode, Q, op, imm4 = decode_opcode(opcode, decode_mask)
+
+            # if op == '0' && cmode<0> == '1' && cmode<3:2> != '11' then SEE VORR (immediate);
+            if op == 0 and get_bit(cmode, 0) == 1 and get_bits(cmode, 3, 2) != 0b11:
+                return self.decode_vorr_immediate(opcode, encoding)
+
+            # if op == '1' && cmode != '1110' then SEE "Related encodings";
+            if op == 1 and cmode != 0b1110:
+                raise RuntimeError("SEE Related encodings")
+
+            # if Q == '1' && Vd<0> == '1' then UNDEFINED;
+            if Q == 1 and get_bit(Vd, 0) == 1:
+                raise UndefinedOpcode()
+
+            # i:imm3:imm4
+            imm32 = (i << (3 + 4)) | (imm3 << 4) | imm4
+
+            # single_register = FALSE; advsimd = TRUE; imm64 = AdvSIMDExpandImm(op, cmode, i:imm3:imm4);
+            single_register = False
+            advsimd = True
+            immediate = AdvSIMDExpandImm(op, cmode, imm32)
+
+            # d = UInt(D:Vd); regs = if Q == '0' then 1 else 2;
+            d = (D << 4) | Vd
+            regs = 1 if Q == 0 else 2
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I5, 1, I2, 4, 4, I3, 1, I4, 4]
+            cond, D, imm4H, Vd, sz, imm4L = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # single_register = (sz == '0'); advsimd = FALSE;
+            # if single_register then
+            #     d = UInt(Vd:D); imm32 = VFPExpandImm(imm4H:imm4L, 32);
+            # else
+            #     d = UInt(D:Vd); imm64 = VFPExpandImm(imm4H:imm4L, 64); regs = 1;            
+            single_register = sz == 0
+            advsimd = False
+            imm8 = (imm4H << 4) | imm4L
+            if single_register:
+                d = (Vd << 1) | D
+                immediate = VFPExpandImm(imm8, 32)
+            
+            else:
+                d = (D << 4) | Vd
+                immediate = VFPExpandImm(imm8, 64)
+                regs = 1
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if encoding in [eEncodingT1, eEncodingA1]:
+            if Q == 1:
+                # VMOV{<c>}{<q>}.<dt> <Qd>, #<imm> Encoding T1/A1, Q = 1
+                qualifier = ".I64"
+                operands = [QRegister(d), Immediate(immediate)]
+            
+            else:
+                # VMOV{<c>}{<q>}.<dt> <Dd>, #<imm> Encoding T1/A1, Q = 0
+                qualifier = ".I32"
+                operands = [DRegister(d), Immediate(immediate)]
+        
+        else:
+            if sz == 1:
+                # VMOV{<c>}{<q>}.F64 <Dd>, #<imm> Encoding T2/A2, sz = 1
+                qualifier = ".F64"
+                operands = [DRegister(d), Immediate(immediate)]
+            
+            else:
+                # VMOV{<c>}{<q>}.F32 <Sd>, #<imm> Encoding T2/A2, sz = 0
+                qualifier = ".F32"
+                operands = [SRegister(d), Immediate(immediate)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vmov_register(self, opcode, encoding):
+        """
+        A8.8.340
+        VMOV (register)
+        This instruction copies the contents of one register to another.        
+        """
+        props = {}
+        
+        name = "VMOV"
+        ins_id = ARMInstruction.vmov_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vm1, Vd, M1, Q, M2, Vm2 = decode_opcode(opcode, decode_mask)
+            
+            # if !Consistent(M) || !Consistent(Vm) then SEE VORR (register);
+            # if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+            # single_register = FALSE; advsimd = TRUE;
+            # d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;
+            if M1 != M2 or Vm1 != Vm2:
+                return self.decode_vorr_register(opcode, encoding)
+            
+            if Q == 1 and (get_bit(Vd, 0) == 1 or get_bit(Vm1, 0) == 1):
+                raise UndefinedOpcode()
+            
+            single_register = False
+            advsimd = True
+            
+            d = (D << 4) | Vd
+            m = (M1 << 4) | Vm1
+            regs = 1 if Q == 0 else 2
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I9, 1, I6, 4, I3, 1, I2, 1, I1, 4]
+            D, Vd, sz, M, Vm = decode_opcode(opcode, decode_mask)
+            operands = []
+
+            # single_register = (sz == '0'); advsimd = FALSE;
+            # if single_register then
+            #     d = UInt(Vd:D); m = UInt(Vm:M);
+            # else
+            #     d = UInt(D:Vd); m = UInt(M:Vm); regs = 1;
+            single_register = sz == 0
+            advsimd = False
+            if single_register:
+                d = (Vd << 1) | D
+                m = (Vm << 1) | M
+            else:
+                d = (D << 4) | Vd
+                m = (M << 4) | Vm
+                regs = 1
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vm1, Vd, M1, Q, M2, Vm2 = decode_opcode(opcode, decode_mask)
+
+            # if !Consistent(M) || !Consistent(Vm) then SEE VORR (register);
+            # if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+            # single_register = FALSE; advsimd = TRUE;
+            # d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;
+            if M1 != M2 or Vm1 != Vm2:
+                return self.decode_vorr_register(opcode, encoding)
+            
+            if Q == 1 and (get_bit(Vd, 0) == 1 or get_bit(Vm1, 0) == 1):
+                raise UndefinedOpcode()
+            
+            single_register = False
+            advsimd = True
+            
+            d = (D << 4) | Vd
+            m = (M1 << 4) | Vm1
+            regs = 1 if Q == 0 else 2
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I5, 1, I6, 4, I3, 1, I2, 1, I1, 4]
+            cond, D, Vd, sz, M, Vm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # single_register = (sz == '0'); advsimd = FALSE;
+            # if single_register then
+            #     d = UInt(Vd:D); m = UInt(Vm:M);
+            # else
+            #     d = UInt(D:Vd); m = UInt(M:Vm); regs = 1;
+            single_register = sz == 0
+            advsimd = False
+            if single_register:
+                d = (Vd << 1) | D
+                m = (Vm << 1) | M
+            else:
+                d = (D << 4) | Vd
+                m = (M << 4) | Vm
+                regs = 1
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if encoding in [eEncodingT1, eEncodingA1]:
+            if Q == 1:
+                # VMOV{<c>}{<q>}{.<dt>} <Qd>, <Qm>    Encoding T1/A1, Q = 1
+                qualifier = ".I64"
+                operands = [QRegister(d), QRegister(m)]
+            
+            else:
+                # VMOV{<c>}{<q>}{.<dt>} <Dd>, <Dm>    Encoding T1/A1, Q = 0
+                qualifier = ".I32"
+                operands = [DRegister(d), DRegister(m)]
+        
+        else:
+            if sz == 1:
+                # VMOV{<c>}{<q>}.F64 <Dd>, <Dm>       Encoding T2/A2, sz = 1
+                qualifier = ".F64"
+                operands = [DRegister(d), DRegister(m)]
+            
+            else:
+                # VMOV{<c>}{<q>}.F32 <Sd>, <Sm>       Encoding T2/A2, sz = 0
+                qualifier = ".F32"
+                operands = [SRegister(d), SRegister(m)]
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vmov_arm_core_register_to_scalar(self, opcode, encoding):
+        """
+        A8.8.341
+        VMOV (ARM core register to scalar)
+        This instruction copies a byte, halfword, or word from an ARM core register into an Advanced SIMD scalar.        
+        """
+        props = {}
+        
+        name = "VMOV"
+        ins_id = ARMInstruction.vmov_arm_core_register_to_scalar
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 2, I1, 4, 4, I4, 1, 2, I5]
+            opc1, Vd, Rt, D, opc2 = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I5, 2, I1, 4, 4, I4, 1, 2, I5]
+            cond, opc1, Vd, Rt, D, opc2 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        opc = (opc1 << 2) | opc2
+        
+        if get_bit(opc, 3) == 1:
+            advsimd = True
+            esize = 8
+            index = (get_bit(opc1, 0) << 2) | opc2
+            qualifier = ".8"
+
+        elif get_bit(opc, 3) == 0 and get_bit(opc, 0) == 1:
+            advsimd = True
+            esize = 16
+            index = (get_bit(opc1, 0) << 1) | get_bit(opc2, 1)
+            qualifier = ".16"
+        
+        elif get_bit(opc, 3) == 0 and get_bit(opc, 1) == 0 and get_bit(opc, 0) == 0:
+            advsimd = False
+            esize = 32
+            index = get_bit(opc1, 0)
+            qualifier = ".32"
+        
+        elif get_bit(opc, 3) == 0 and get_bit(opc, 1) == 1 and get_bit(opc, 0) == 0:
+            raise UndefinedOpcode()
+        
+        d = (D << 4) | Vd
+        
+        # if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;
+        if Rt == 15 or (encoding in [eEncodingT1] and Rt == 13):
+            raise UnpredictableInstructionException()
+        
+        operands = [DRegister(d, index), Register(Rt)]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vmov_scalar_to_arm_core_register(self, opcode, encoding):
+        """
+        A8.8.342
+        VMOV (scalar to ARM core register)
+        This instruction copies a byte, halfword, or word from an Advanced SIMD scalar to an ARM core register. Bytes
+        and halfwords can be either zero-extended or sign-extended.        
+        """
+        props = {}
+        
+        name = "VMOV"
+        ins_id = ARMInstruction.vmov_scalar_to_arm_core_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I8, 1, 2, I1, 4, 4, I4, 1, 2, I5]
+            U, opc1, Vn, Rt, N, opc2 = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I4, 1, 2, I1, 4, 4, I4, 1, 2, I5]
+            cond, U, opc1, Vn, Rt, N, opc2 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+        
+        U_opc1_opc2 = (U << 4) | (opc1 << 2) | opc2
+        
+        if get_bit(U_opc1_opc2, 3) == 1:
+            advsimd = True
+            esize = 8
+            index = (get_bit(opc1, 0) << 2) | opc2
+        
+        elif get_bit(U_opc1_opc2, 3) == 0 and get_bit(U_opc1_opc2, 0) == 1:
+            advsimd = True
+            esize = 16
+            index = (get_bit(opc1, 0) << 1) | get_bit(opc2, 1)
+        
+        elif (U_opc1_opc2 & 0b11011) == 0b00000:
+            advsimd = False
+            esize = 32
+            index = get_bit(opc1, 0)
+        
+        elif (U_opc1_opc2 & 0b11011) == 0b10000:
+            raise UndefinedOpcode()
+        
+        elif (U_opc1_opc2 & 0b01011) == 0b00010:
+            raise UndefinedOpcode()
+        
+        # t = UInt(Rt); n = UInt(N:Vn); unsigned = (U == '1');
+        n = (N << 4) | Vn
+        unsigned = U == 1
+        
+        qualifier = ".%s%d" % ("U" if unsigned else "S", esize)
+        operands = [Register(Rt), DRegister(n, index)]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vmov_between_arm_core_register_and_single_precision_register(self, opcode, encoding):
+        """
+        A8.8.343
+        VMOV (between ARM core register and single-precision register)
+        This instruction transfers the contents of a single-precision Floating-point register to an ARM core register, or the
+        contents of an ARM core register to a single-precision Floating-point register.        
+        """
+        props = {}
+        
+        name = "VMOV"
+        ins_id = ARMInstruction.vmov_between_arm_core_register_and_single_precision_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(11), 1, 4, 4, I4, 1, I7]
+            op, Vn, Rt, N = decode_opcode(opcode, decode_mask)
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I7, 1, 4, 4, I4, 1, I7]
+            cond, op, Vn, Rt, N = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # to_arm_register = (op == '1'); t = UInt(Rt); n = UInt(Vn:N);
+        # if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;
+        to_arm_register = op == 1
+        n = (Vn << 1) | N
+        if Rt == 15 or (encoding == eEncodingT1 and Rt == 13):
+            raise UnpredictableInstructionException()
+
+        if op == 0:
+            operands = [SRegister(n), Register(Rt)]
+        
+        else:
+            operands = [Register(Rt), SRegister(n)]
+        
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmov_between_two_arm_core_registers_and_two_single_precision_registers(self, opcode, encoding):
+        """
+        A8.8.344
+        VMOV (between two ARM core registers and two single-precision registers)
+        This instruction transfers the contents of two consecutively numbered single-precision Floating-point registers to
+        two ARM core registers, or the contents of two ARM core registers to a pair of single-precision Floating-point
+        registers. The ARM core registers do not have to be contiguous.        
+        """
+        props = {}
+        
+        name = "VMOV"
+        ins_id = ARMInstruction.vmov_between_two_arm_core_registers_and_two_single_precision_registers
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(11), 1, 4, 4, I6, 1, I1, 4]
+            op, Rt2, Rt, M, Vm = decode_opcode(opcode, decode_mask)
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I7, 1, 4, 4, I6, 1, I1, 4]
+            cond, op, Rt2, Rt, M, Vm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+        
+        # to_arm_registers = (op == '1'); t = UInt(Rt); t2 = UInt(Rt2); m = UInt(Vm:M);
+        # if t == 15 || t2 == 15 || m == 31 then UNPREDICTABLE;
+        # if CurrentInstrSet() != InstrSet_ARM && (t == 13 || t2 == 13) then UNPREDICTABLE;
+        # if to_arm_registers && t == t2 then UNPREDICTABLE;
+        
+        to_arm_registers = op == 1
+        m = (Vm << 1) | M
+        if Rt == 15 or Rt2 == 15 or m == 31:
+            raise UnpredictableInstructionException()
+        
+        if encoding == eEncodingT1 and (Rt == 13 or Rt2 == 13):
+            raise UnpredictableInstructionException()
+        
+        if to_arm_registers and Rt == Rt2:
+            raise UnpredictableInstructionException()
+        
+        if op == 0:
+            operands = [SRegister(m), SRegister(m + 1), Register(Rt), Register(Rt2)]
+        
+        else:
+            operands = [Register(Rt), Register(Rt2), SRegister(m), SRegister(m + 1)]
+        
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmov_between_two_arm_core_registers_and_a_double_word_extension_register(self, opcode, encoding):
+        """
+        A8.8.345
+        VMOV (between two ARM core registers and a doubleword extension register)
+        This instruction copies two words from two ARM core registers into a doubleword extension register, or from a
+        doubleword extension register to two ARM core registers.        
+        """
+        props = {}
+        
+        name = "VMOV"
+        ins_id = ARMInstruction.vmov_between_two_arm_core_registers_and_a_double_word_extension_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(11), 1, 4, 4, I6, 1, I1, 4]
+            op, Rt2, Rt, M, Vm = decode_opcode(opcode, decode_mask)
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I7, 1, 4, 4, I6, 1, I1, 4]
+            cond, op, Rt2, Rt, M, Vm = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        # to_arm_registers = (op == '1'); t = UInt(Rt); t2 = UInt(Rt2); m = UInt(M:Vm);
+        # if t == 15 || t2 == 15 then UNPREDICTABLE;
+        # if CurrentInstrSet() != InstrSet_ARM && (t == 13 || t2 == 13) then UNPREDICTABLE;
+        # if to_arm_registers && t == t2 then UNPREDICTABLE;
+        to_arm_registers = op == 1
+        m = (M << 4) | Vm
+        if Rt == 15 or Rt2 == 15:
+            raise UnpredictableInstructionException()
+        
+        if encoding == eEncodingT1 and (Rt == 13 or Rt2 == 13):
+            raise UnpredictableInstructionException()
+        
+        if to_arm_registers and Rt == Rt2:
+            raise UnpredictableInstructionException()
+        
+        if op == 0:
+            operands = [DRegister(m), Register(Rt), Register(Rt2)]
+        
+        else:
+            operands = [Register(Rt), Register(Rt2), DRegister(m)]
+
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmovl(self, opcode, encoding):
+        """
+        A8.8.346
+        VMOVL
+        Vector Move Long takes each element in a doubleword vector, sign or zero-extends them to twice their original
+        length, and places the results in a quadword vector.        
+        """
+        props = {}
+        
+        name = "VMOVL"
+        ins_id = ARMInstruction.vmovl
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmovn(self, opcode, encoding):
+        """
+        A8.8.347
+        VMOVN
+        Vector Move and Narrow copies the least significant half of each element of a quadword vector into the
+        corresponding elements of a doubleword vector.        
+        """
+        props = {}
+        
+        name = "VMOVN"
+        ins_id = ARMInstruction.vmovn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmrs(self, opcode, encoding):
+        """
+        A8.8.348
+        VMRS
+        Move to ARM core register from Advanced SIMD and Floating-point Extension System Register moves the value
+        of the FPSCR to an ARM core register.        
+        """
+        props = {}
+        
+        name = "VMRS"
+        ins_id = ARMInstruction.vmrs
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(16), 4, I(12)]
+            Rt = decode_opcode(opcode, decode_mask)
+
+            # t = UInt(Rt);
+            # if t == 13 && CurrentInstrSet() != InstrSet_ARM then UNPREDICTABLE;
+            if Rt == 13:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I(12), 4, I(12)]
+            cond, Rt = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        operands = [Register(Rt), FPSCR()]
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmsr(self, opcode, encoding):
+        """
+        A8.8.349
+        VMSR
+        Move to Advanced SIMD and Floating-point Extension System Register from ARM core register moves the value
+        of an ARM core register to the FPSCR.        
+        """
+        props = {}
+        
+        name = "VMSR"
+        ins_id = ARMInstruction.vmsr
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmul_int(self, opcode, encoding):
+        """
+        A8.8.350
+        VMUL, VMULL (integer and polynomial)
+        Vector Multiply multiplies corresponding elements in two vectors. Vector Multiply Long does the same thing, but
+        with destination vector elements that are twice as long as the elements that are multiplied.        
+        """
+        props = {}
+        
+        name = "VMUL"
+        ins_id = ARMInstruction.vmul_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmul_fp(self, opcode, encoding):
+        """
+        A8.8.351
+        VMUL (floating-point)
+        Vector Multiply multiplies corresponding elements in two vectors, and places the results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VMUL"
+        ins_id = ARMInstruction.vmul_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmul_scalar(self, opcode, encoding):
+        """
+        A8.8.352
+        VMUL, VMULL (by scalar)
+        Vector Multiply multiplies each element in a vector by a scalar, and places the results in a second vector. Vector
+        Multiply Long does the same thing, but with destination vector elements that are twice as long as the elements that
+        are multiplied.        
+        """
+        props = {}
+        
+        name = "VMUL"
+        ins_id = ARMInstruction.vmul_scalar
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vmvn_immediate(self, opcode, encoding):
+        """
+        A8.8.353
+        VMVN (immediate)
+        Vector Bitwise NOT (immediate) places the bitwise inverse of an immediate integer constant into every element of
+        the destination register.         
+        """
+        props = {}
+        
+        name = "VMVN"
+        ins_id = ARMInstruction.vmvn_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I3, 1, I5, 1, I3, 3, 4, 4, I1, 1, I2, 4]
+            i, D, imm3, Vd, cmode, Q, imm4 = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I7, 1, I1, 1, I3, 3, 4, 4, I1, 1, I2, 4]
+            i, D, imm3, Vd, cmode, Q, imm4 = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if (get_bit(cmode, 0) == 1 and get_bits(cmode, 3, 2) != 0b11) or get_bits(cmode, 3, 2) == 0b111:
+            raise RuntimeError("SEE Related encodings")
+
+        if Q == 1 and get_bit(Vd, 0) == 1:
+            raise UndefinedOpcode()
+
+        imm64 = AdvSIMDExpandImm(1, cmode, (i << 7) | (imm3 << 4) | imm4)
+        d = (D << 4) | Vd
+        regs = 1 if Q == 0 else 2
+
+        if Q == 1:
+            operands = [QRegister(d), Immediate(imm64)]
+            qualifier = ".I64"
+
+        else:
+            operands = [DRegister(d), Immediate(imm64)]
+            qualifier = ".I32"
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vmvn_register(self, opcode, encoding):
+        """
+        A8.8.354
+        VMVN (register)
+        Vector Bitwise NOT (register) takes a value from a register, inverts the value of each bit, and places the result in the
+        destination register. The registers can be either doubleword or quadword.        
+        """
+        props = {}
+        
+        name = "VMVN"
+        ins_id = ARMInstruction.vmvn_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vneg(self, opcode, encoding):
+        """
+        A8.8.355
+        VNEG
+        Vector Negate negates each element in a vector, and places the results in a second vector. The floating-point version
+        only inverts the sign bit.        
+        """
+        props = {}
+        
+        name = "VNEG"
+        ins_id = ARMInstruction.vneg
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vnmla_vnmls_vnmul(self, opcode, encoding):
+        """
+        A8.8.356
+        VNMLA, VNMLS, VNMUL
+        VNMLA multiplies together two floating-point register values, adds the negation of the floating-point value in the
+        destination register to the negation of the product, and writes the result back to the destination register.        
+        """
+        props = {}
+        
+        name = "VNMLA"
+        ins_id = ARMInstruction.vnmla_vnmls_vnmul
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vorn_register(self, opcode, encoding):
+        """
+        A8.8.358
+        VORN (register)
+        This instruction performs a bitwise OR NOT operation between two registers, and places the result in the destination
+        register. The operand and result registers can be quadword or doubleword. They must all be the same size.        
+        """
+        props = {}
+        
+        name = "VORN"
+        ins_id = ARMInstruction.vorn_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vorr_immediate(self, opcode, encoding):
+        """
+        A8.8.359
+        VORR (immediate)
+        This instruction takes the contents of the destination vector, performs a bitwise OR with an immediate constant, and
+        returns the result into the destination vector. For the range of constants available, see One register and a modified
+        immediate value on page A7-267.        
+        """
+        props = {}
+        
+        name = "VORR"
+        ins_id = ARMInstruction.vorr_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I3, 1, I5, 1, I3, 3, 4, 4, I1, 1, I2, 4]
+            i, D, imm3, Vd, cmode, Q, imm4 = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I7, 1, I1, 1, I3, 3, 4, 4, I1, 1, I2, 4]
+            i, D, imm3, Vd, cmode, Q, imm4 = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if get_bit(cmode, 0) == 0 or get_bits(cmode, 3, 2) == 0b11:
+            return self.decode_vmov_immediate(opcode, encoding)
+
+        if Q == 1 and get_bit(Vd, 0) == 1:
+            raise UndefinedOpcode()
+
+        imm64 = AdvSIMDExpandImm(0, cmode, ((i << 7) | (imm3 << 4) | imm4))
+        d = (D << 4) | Vd
+        regs = 1 if Q == 0 else 2
+
+        if Q == 1:
+            qualifier = ".64"
+            if regs == 1:
+                operands = [QRegister(d), Immediate(imm64)]
+            else:
+                operands = [QRegister(d), QRegister(d), Immediate(imm64)]
+        else:
+            qualifier = ".32"
+            if regs == 1:
+                operands = [DRegister(d), Immediate(imm64)]
+            else:
+                operands = [DRegister(d), DRegister(d), Immediate(imm64)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vorr_register(self, opcode, encoding):
+        """
+        A8.8.360
+        VORR (register)
+        This instruction performs a bitwise OR operation between two registers, and places the result in the destination
+        register. The operand and result registers can be quadword or doubleword. They must all be the same size      
+        """
+        props = {}
+        
+        name = "VORR"
+        ins_id = ARMInstruction.vorr_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vn, Vd, N, Q, M, Vm = decode_opcode(opcode, decode_mask)
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I9, 1, I2, 4, 4, I4, 1, 1, 1, I1, 4]
+            D, Vn, Vd, N, Q, M, Vm = decode_opcode(opcode, decode_mask)
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if N == M and Vn == Vm:
+            return self.decode_vmov_register(opcode, encoding)
+
+        if Q == 1 and (get_bit(Vd, 0) == 1 or get_bit(Vn, 0) == 1 or get_bit(Vm, 0) == 1):
+            raise UndefinedOpcode()
+
+        d = (D << 4) | Vd
+        n = (N << 4) | Vn
+        m = (M << 4) | Vm
+        regs = 1 if Q == 0 else 2
+
+        if Q == 1:
+            qualifier = ".64"
+            if regs == 1:
+                operands = [QRegister(n), QRegister(m)]
+            else:
+                operands = [QRegister(d), QRegister(n), QRegister(m)]
+        else:
+            qualifier = ".32"
+            if regs == 1:
+                operands = [DRegister(n), DRegister(m)]
+            else:
+                operands = [DRegister(d), DRegister(n), DRegister(m)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vpadal(self, opcode, encoding):
+        """
+        A8.8.361
+        VPADAL
+        Vector Pairwise Add and Accumulate Long adds adjacent pairs of elements of a vector, and accumulates the results
+        into the elements of the destination vector.        
+        """
+        props = {}
+        
+        name = "VPADAL"
+        ins_id = ARMInstruction.vpadal
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vpadd_int(self, opcode, encoding):
+        """
+        A8.8.362
+        VPADD (integer)
+        Vector Pairwise Add (integer) adds adjacent pairs of elements of two vectors, and places the results in the destination
+        vector.        
+        """
+        props = {}
+        
+        name = "VPADD"
+        ins_id = ARMInstruction.vpadd_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vpadd_fp(self, opcode, encoding):
+        """
+        A8.8.363
+        VPADD (floating-point)
+        Vector Pairwise Add (floating-point) adds adjacent pairs of elements of two vectors, and places the results in the
+        destination vector.        
+        """
+        props = {}
+        
+        name = "VPADD"
+        ins_id = ARMInstruction.vpadd_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vpaddl(self, opcode, encoding):
+        """
+        A8.8.364
+        VPADDL
+        Vector Pairwise Add Long adds adjacent pairs of elements of two vectors, and places the results in the destination
+        vector.        
+        """
+        props = {}
+        
+        name = "VPADDL"
+        ins_id = ARMInstruction.vpaddl
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vpmax_vpmin_int(self, opcode, encoding):
+        """
+        A8.8.365
+        VPMAX, VPMIN (integer)
+        Vector Pairwise Maximum compares adjacent pairs of elements in two doubleword vectors, and copies the larger
+        of each pair into the corresponding element in the destination doubleword vector.        
+        """
+        props = {}
+        
+        name = "VPMAX"
+        ins_id = ARMInstruction.vpmax_vpmin_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vpmax_vpmin_fp(self, opcode, encoding):
+        """
+        A8.8.366
+        VPMAX, VPMIN (floating-point)
+        Vector Pairwise Maximum compares adjacent pairs of elements in two doubleword vectors, and copies the larger
+        of each pair into the corresponding element in the destination doubleword vector.        
+        """
+        props = {}
+        
+        name = "VPMAX"
+        ins_id = ARMInstruction.vpmax_vpmin_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vpop(self, opcode, encoding):
+        """
+        A8.8.367
+        VPOP
+        Vector Pop loads multiple consecutive extension registers from the stack.        
+        """
+        props = {}
+        
+        name = "VPOP"
+        ins_id = ARMInstruction.vpop
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I6, 4, I4, 8]
+            D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            single_regs = False
+            d = (D << 4) | Vd
+            imm32 = imm8 << 2
+            regs = imm8 / 2
+
+            if imm8 % 2:
+                raise RuntimeError("SEE FLDMX")
+
+            if regs == 0 or regs > 16 or (d + regs) > 32:
+                raise UnpredictableInstructionException()
+
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I9, 1, I6, 4, I4, 8]
+            D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            single_regs = True
+            d = (Vd << 1) | D
+            imm32 = imm8 << 2
+            regs = imm8
+
+            if regs == 0 or (d + regs) > 32:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I5, 1, I6, 4, I4, 8]
+            cond, D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            single_regs = False
+            d = (D << 4) | Vd
+            imm32 = imm8 << 2
+            regs = imm8 / 2
+            if imm8 % 2:
+                raise RuntimeError("SEE FLDMX")
+
+            if regs == 0 or regs > 16 or (d + regs) > 32:
+                raise UnpredictableInstructionException()
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I5, 1, I6, 4, I4, 8]
+            cond, D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            single_regs = True
+            d = (Vd << 1) | D
+            imm32 = imm8 << 2
+            regs = imm8
+
+            if regs == 0 or (d + regs) > 32:
+                raise UnpredictableInstructionException()
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        qualifier = ".32" if single_regs else ".64"
+
+        operands = []
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vpush(self, opcode, encoding):
+        """
+        A8.8.368
+        VPUSH
+        Vector Push stores multiple consecutive extension registers to the stack.        
+        """
+        props = {}
+        
+        name = "VPUSH"
+        ins_id = ARMInstruction.vpush
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I6, 4, I4, 8]
+            D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            single_regs = False
+            d = (D << 4) | Vd
+            imm32 = imm8 << 2
+            regs = imm8 / 2
+            if imm8 % 2:
+                raise RuntimeError("SEE FSTMX")
+
+            if regs == 0 or regs > 16 or (d + regs) > 32:
+                raise UnpredictableInstructionException()                
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I9, 1, I6, 4, I4, 8]
+            D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            single_regs = True
+            d = (Vd << 1) | D
+            imm32 = imm8 << 2
+            regs = imm8
+            if regs == 0 or (d + regs) > 32:
+                raise UnpredictableInstructionException()            
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I5, 1, I6, 4, I4, 8]
+            cond, D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            single_regs = False
+            d = (D << 4) | Vd
+            imm32 = imm8 << 2
+            regs = imm8 / 2
+            if imm8 % 2:
+                raise RuntimeError("SEE FSTMX")
+
+            if regs == 0 or regs > 16 or (d + regs) > 32:
+                raise UnpredictableInstructionException()                
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I5, 1, I6, 4, I4, 8]
+            cond, D, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+            single_regs = True
+            d = (Vd << 1) | D
+            imm32 = imm8 << 2
+            regs = imm8
+            if regs == 0 or (d + regs) > 32:
+                raise UnpredictableInstructionException()            
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        qualifier = ".32" if single_regs else ".64"
+        operands = []
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
+        return ins
+
+    def decode_vqabs(self, opcode, encoding):
+        """
+        A8.8.369
+        VQABS
+        Vector Saturating Absolute takes the absolute value of each element in a vector, and places the results in the
+        destination vector.        
+        """
+        props = {}
+        
+        name = "VQABS"
+        ins_id = ARMInstruction.vqabs
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqadd(self, opcode, encoding):
+        """
+        A8.8.370
+        VQADD
+        Vector Saturating Add adds the values of corresponding elements of two vectors, and places the results in the
+        destination vector.        
+        """
+        props = {}
+        
+        name = "VQADD"
+        ins_id = ARMInstruction.vqadd
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqdmlal_vqdmlsl(self, opcode, encoding):
+        """
+        A8.8.371
+        VQDMLAL, VQDMLSL
+        Vector Saturating Doubling Multiply Accumulate Long multiplies corresponding elements in two doubleword
+        vectors, doubles the products, and accumulates the results into the elements of a quadword vector.        
+        """
+        props = {}
+        
+        name = "VQDMLAL"
+        ins_id = ARMInstruction.vqdmlal_vqdmlsl
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqdmulh(self, opcode, encoding):
+        """
+        A8.8.372
+        VQDMULH
+        Vector Saturating Doubling Multiply Returning High Half multiplies corresponding elements in two vectors,
+        doubles the results, and places the most significant half of the final results in the destination vector. The results are
+        truncated (for rounded results see VQRDMULH on page A8-1006).        
+        """
+        props = {}
+        
+        name = "VQDMULH"
+        ins_id = ARMInstruction.vqdmulh
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqdmull(self, opcode, encoding):
+        """
+        A8.8.373
+        VQDMULL
+        Vector Saturating Doubling Multiply Long multiplies corresponding elements in two doubleword vectors, doubles
+        the products, and places the results in a quadword vector.        
+        """
+        props = {}
+        name = "VQDMULL"
+        ins_id = ARMInstruction.vqdmull
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqmovn_vqmovun(self, opcode, encoding):
+        """
+        A8.8.374
+        VQMOVN, VQMOVUN
+        Vector Saturating Move and Narrow copies each element of the operand vector to the corresponding element of the
+        destination vector.        
+        """
+        props = {}
+        
+        name = "VQMOVN"
+        ins_id = ARMInstruction.vqmovn_vqmovun
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqneg(self, opcode, encoding):
+        """
+        A8.8.375
+        VQNEG
+        Vector Saturating Negate negates each element in a vector, and places the results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VQNEG"
+        ins_id = ARMInstruction.vqneg
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqrdmulh(self, opcode, encoding):
+        """
+        A8.8.376
+        VQRDMULH
+        Vector Saturating Rounding Doubling Multiply Returning High Half multiplies corresponding elements in two
+        vectors, doubles the results, and places the most significant half of the final results in the destination vector.         
+        """
+        props = {}
+        
+        name = "VQRDMULH"
+        ins_id = ARMInstruction.vqrdmulh
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqrshl(self, opcode, encoding):
+        """
+        A8.8.377
+        VQRSHL
+        Vector Saturating Rounding Shift Left takes each element in a vector, shifts them by a value from the least
+        significant byte of the corresponding element of a second vector, and places the results in the destination vector. If
+        the shift value is positive, the operation is a left shift. Otherwise, it is a right shift.        
+        """
+        props = {}
+        
+        name = "VQRSHL"
+        ins_id = ARMInstruction.vqrshl
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqrshrn_vqrshrun(self, opcode, encoding):
+        """
+        A8.8.378
+        VQRSHRN, VQRSHRUN
+        Vector Saturating Rounding Shift Right, Narrow takes each element in a quadword vector of integers, right shifts
+        them by an immediate value, and places the rounded results in a doubleword vector.        
+        """
+        props = {}
+        
+        name = "VQRSHRN"
+        ins_id = ARMInstruction.vqrshrn_vqrshrun
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqshl_register(self, opcode, encoding):
+        """
+        A8.8.379
+        VQSHL (register)
+        Vector Saturating Shift Left (register) takes each element in a vector, shifts them by a value from the least significant
+        byte of the corresponding element of a second vector, and places the results in the destination vector. If the shift
+        value is positive, the operation is a left shift. Otherwise, it is a right shift        
+        """
+        props = {}
+        
+        name = "VQSHL"
+        ins_id = ARMInstruction.vqshl_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqshl_vqshlu_immediate(self, opcode, encoding):
+        """
+        A8.8.380
+        VQSHL, VQSHLU (immediate)
+        Vector Saturating Shift Left (immediate) takes each element in a vector of integers, left shifts them by an immediate
+        value, and places the results in a second vector.        
+        """
+        props = {}
+        
+        name = "VQSHL"
+        ins_id = ARMInstruction.vqshl_vqshlu_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqshrn_vqshrun(self, opcode, encoding):
+        """
+        A8.8.381
+        VQSHRN, VQSHRUN
+        Vector Saturating Shift Right, Narrow takes each element in a quadword vector of integers, right shifts them by an
+        immediate value, and places the truncated results in a doubleword vector.        
+        """
+        props = {}
+        
+        name = "VQSHRN"
+        ins_id = ARMInstruction.vqshrn_vqshrun
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vqsub(self, opcode, encoding):
+        """
+        A8.8.382
+        VQSUB
+        Vector Saturating Subtract subtracts the elements of the second operand vector from the corresponding elements of
+        the first operand vector, and places the results in the destination vector. Signed and unsigned operations are distinct.
+        """
+        props = {}
+        
+        name = "VQSUB"
+        ins_id = ARMInstruction.vqsub
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vraddhn(self, opcode, encoding):
+        """
+        A8.8.383
+        VRADDHN
+        Vector Rounding Add and Narrow, returning High Half adds corresponding elements in two quadword vectors, and
+        places the most significant half of each result in a doubleword vector. The results are rounded. (For truncated results,
+        see VADDHN on page A8-830.)        
+        """
+        props = {}
+        
+        name = "VRADDHN"
+        ins_id = ARMInstruction.vraddhn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrecpe(self, opcode, encoding):
+        """
+        A8.8.384
+        VRECPE
+        Vector Reciprocal Estimate finds an approximate reciprocal of each element in the operand vector, and places the
+        results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VRECPE"
+        ins_id = ARMInstruction.vrecpe
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrecps(self, opcode, encoding):
+        """
+        A8.8.385
+        VRECPS
+        Vector Reciprocal Step multiplies the elements of one vector by the corresponding elements of another vector,
+        subtracts each of the products from 2.0, and places the results into the elements of the destination vector.        
+        """
+        props = {}
+        
+        name = "VRECPS"
+        ins_id = ARMInstruction.vrecps
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrev(self, opcode, encoding):
+        """
+        A8.8.386
+        VREV16, VREV32, VREV64
+        VREV16 (Vector Reverse in halfwords) reverses the order of 8-bit elements in each halfword of the vector, and places
+        the result in the corresponding destination vector.        
+        """
+        props = {}
+        
+        name = "VREV16"
+        ins_id = ARMInstruction.vrev
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrhadd(self, opcode, encoding):
+        """
+        A8.8.387
+        VRHADD
+        Vector Rounding Halving Add adds corresponding elements in two vectors of integers, shifts each result right one
+        bit, and places the final results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VRHADD"
+        ins_id = ARMInstruction.vrhadd
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrshl(self, opcode, encoding):
+        """
+        A8.8.388
+        VRSHL
+        Vector Rounding Shift Left takes each element in a vector, shifts them by a value from the least significant byte of
+        the corresponding element of a second vector, and places the results in the destination vector. If the shift value is
+        positive, the operation is a left shift. If the shift value is negative, it is a rounding right shift.        
+        """
+        props = {}
+        
+        name = "VRSHL"
+        ins_id = ARMInstruction.vrshl
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrshr(self, opcode, encoding):
+        """
+        A8.8.389
+        VRSHR
+        Vector Rounding Shift Right takes each element in a vector, right shifts them by an immediate value, and places the
+        rounded results in the destination vector. For truncated results, see VSHR on page A8-1050.        
+        """
+        props = {}
+        
+        name = "VRSHR"
+        ins_id = ARMInstruction.vrshr
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrshrn(self, opcode, encoding):
+        """
+        A8.8.390
+        VRSHRN
+        Vector Rounding Shift Right and Narrow takes each element in a vector, right shifts them by an immediate value,
+        and places the rounded results in the destination vector. For truncated results, see VSHRN on page A8-1052.        
+        """
+        props = {}
+        
+        name = "VRSHRN"
+        ins_id = ARMInstruction.vrshrn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrsqrte(self, opcode, encoding):
+        """
+        A8.8.391
+        VRSQRTE
+        Vector Reciprocal Square Root Estimate finds an approximate reciprocal square root of each element in a vector,
+        and places the results in a second vector.        
+        """
+        props = {}
+        
+        name = "VRSQRTE"
+        ins_id = ARMInstruction.vrsqrte
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrsqrts(self, opcode, encoding):
+        """
+        A8.8.392
+        VRSQRTS
+        Vector Reciprocal Square Root Step multiplies the elements of one vector by the corresponding elements of another
+        vector, subtracts each of the products from 3.0, divides these results by 2.0, and places the results into the elements
+        of the destination vector.        
+        """
+        props = {}
+        
+        name = "VRSQRTS"
+        ins_id = ARMInstruction.vrsqrts
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrsra(self, opcode, encoding):
+        """
+        A8.8.393
+        VRSRA
+        Vector Rounding Shift Right and Accumulate takes each element in a vector, right shifts them by an immediate
+        value, and accumulates the rounded results into the destination vector. (For truncated results, see VSRA on
+        page A8-1058.)        
+        """
+        props = {}
+        
+        name = "VRSRA"
+        ins_id = ARMInstruction.vrsra
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vrsubhn(self, opcode, encoding):
+        """
+        A8.8.394
+        VRSUBHN
+        Vector Rounding Subtract and Narrow, returning High Half subtracts the elements of one quadword vector from the
+        corresponding elements of another quadword vector takes the most significant half of each result, and places the
+        final results in a doubleword vector. The results are rounded. (For truncated results, see VSUBHN on
+        page A8-1086.)        
+        """
+        props = {}
+        
+        name = "VRSUBHN"
+        ins_id = ARMInstruction.vrsubhn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vshl_immediate(self, opcode, encoding):
+        """
+        A8.8.395
+        VSHL (immediate)
+        Vector Shift Left (immediate) takes each element in a vector of integers, left shifts them by an immediate value, and
+        places the results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VSHL"
+        ins_id = ARMInstruction.vshl_immediate
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vshl_register(self, opcode, encoding):
+        """
+        A8.8.396
+        VSHL (register)
+        Vector Shift Left (register) takes each element in a vector, shifts them by a value from the least significant byte of
+        the corresponding element of a second vector, and places the results in the destination vector. If the shift value is
+        positive, the operation is a left shift. If the shift value is negative, it is a truncating right shift.        
+        """
+        props = {}
+        
+        name = "VSHL"
+        ins_id = ARMInstruction.vshl_register
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vshll(self, opcode, encoding):
+        """
+        A8.8.397
+        VSHLL
+        Vector Shift Left Long takes each element in a doubleword vector, left shifts them by an immediate value, and places
+        the results in a quadword vector.        
+        """
+        props = {}
+        
+        name = "VSHLL"
+        ins_id = ARMInstruction.vshll
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vshr(self, opcode, encoding):
+        """
+        A8.8.398
+        VSHR
+        Vector Shift Right takes each element in a vector, right shifts them by an immediate value, and places the truncated
+        results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VSHR"
+        ins_id = ARMInstruction.vshr
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vshrn(self, opcode, encoding):
+        """
+        A8.8.399
+        VSHRN
+        Vector Shift Right Narrow takes each element in a vector, right shifts them by an immediate value, and places the
+        truncated results in the destination vector.         
+        """
+        props = {}
+        
+        name = "VSHRN"
+        ins_id = ARMInstruction.vshrn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsli(self, opcode, encoding):
+        """
+        A8.8.400
+        VSLI
+        Vector Shift Left and Insert takes each element in the operand vector, left shifts them by an immediate value, and
+        inserts the results in the destination vector. Bits shifted out of the left of each element are lost.        
+        """
+        props = {}
+        
+        name = "VSLI"
+        ins_id = ARMInstruction.vsli
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsqrt(self, opcode, encoding):
+        """
+        A8.8.401
+        VSQRT
+        This instruction calculates the square root of the value in a floating-point register and writes the result to another
+        floating-point register.        
+        """
+        props = {}
+        
+        name = "VSQRT"
+        ins_id = ARMInstruction.vsqrt
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsra(self, opcode, encoding):
+        """
+        A8.8.402
+        VSRA
+        Vector Shift Right and Accumulate takes each element in a vector, right shifts them by an immediate value, and
+        accumulates the truncated results into the destination vector.
+        """
+        props = {}
+        
+        name = "VSRA"
+        ins_id = ARMInstruction.vsra
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsri(self, opcode, encoding):
+        """
+        A8.8.403
+        VSRI
+        Vector Shift Right and Insert takes each element in the operand vector, right shifts them by an immediate value, and
+        inserts the results in the destination vector. Bits shifted out of the right of each element are lost.        
+        """
+        props = {}
+        
+        name = "VSRI"
+        ins_id = ARMInstruction.vsri
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vstm(self, opcode, encoding):
+        """
+        A8.8.412
+        VSTM
+        Vector Store Multiple stores multiple extension registers to consecutive memory locations using an address from an
+        ARM core register.        
+        """
+        props = {}
+        
+        name = "VSTM"
+        ins_id = ARMInstruction.vstm
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vstr(self, opcode, encoding):
+        """
+        A8.8.413
+        VSTR
+        This instruction stores a single extension register to memory, using an address from an ARM core register, with an
+        optional offset.
+        """
+        props = {}
+        
+        name = "VSTR"
+        ins_id = ARMInstruction.vstr
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I8, 1, 1, I2, 4, 4, I4, 8]
+            U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
+
+            # single_reg = FALSE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = False
+            add = U == 1
+            imm32 = imm8 << 2
+
+            # d = UInt(D:Vd); n = UInt(Rn);
+            Sd = (D << 4) | Vd
+            Sn = Rn
+
+            # if n == 15 && CurrentInstrSet() != InstrSet_ARM then UNPREDICTABLE;
+            if Rn == 15:
+                raise UnpredictableInstructionException()
+            
+            operands = [DRegister(Sd), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I8, 1, 1, I2, 4, 4, I4, 8]
+            U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
+
+            # single_reg = TRUE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = True
+            add = U == 1
+            imm32 = imm8 << 2
+
+            # d = UInt(Vd:D); n = UInt(Rn);
+            Sd = (Vd << 1) | D
+            Sn = Rn
+
+            # if n == 15 && CurrentInstrSet() != InstrSet_ARM then UNPREDICTABLE;
+            if Rn == 15:
+                raise UnpredictableInstructionException()        
+            
+            operands = [SRegister(Sd), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingA1:
+            decode_mask = [4, I4, 1, 1, I2, 4, 4, I4, 8]
+            cond, U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # single_reg = FALSE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = False
+            add = U == 1
+            imm32 = imm8 << 2
+
+            # d = UInt(D:Vd); n = UInt(Rn);
+            Sd = (D << 4) | Vd
+            Sn = Rn
+
+            # if n == 15 && CurrentInstrSet() != InstrSet_ARM then UNPREDICTABLE;
+            if Rn == 15:
+                raise UnpredictableInstructionException()
+            
+            operands = [DRegister(Sd), Memory(Register(Rn), Immediate(imm32))]
+
+        elif encoding == eEncodingA2:
+            decode_mask = [4, I4, 1, 1, I2, 4, 4, I4, 8]
+            cond, U, D, Rn, Vd, imm8 = decode_opcode(opcode, decode_mask)
+            condition = Condition(cond)
+
+            # single_reg = TRUE; add = (U == '1'); imm32 = ZeroExtend(imm8:'00', 32);
+            single_reg = True
+            add = U == 1
+            imm32 = imm8 << 2
+
+            # d = UInt(Vd:D); n = UInt(Rn);
+            Sd = (Vd << 1) | D
+            Sn = Rn
+
+            # if n == 15 && CurrentInstrSet() != InstrSet_ARM then UNPREDICTABLE;
+            if Rn == 15:
+                raise UnpredictableInstructionException()            
+
+            operands = [SRegister(Sd), Memory(Register(Rn), Immediate(imm32))]
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if not add:
+            imm32 *= -1
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsub_int(self, opcode, encoding):
+        """
+        A8.8.414
+        VSUB (integer)
+        Vector Subtract subtracts the elements of one vector from the corresponding elements of another vector, and places
+        the results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VSUB"
+        ins_id = ARMInstruction.vsub_int
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsub_fp(self, opcode, encoding):
+        """
+        A8.8.415
+        VSUB (floating-point)
+        Vector Subtract subtracts the elements of one vector from the corresponding elements of another vector, and places
+        the results in the destination vector.        
+        """
+        props = {}
+        
+        name = "VSUB"
+        ins_id = ARMInstruction.vsub_fp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingT2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA2:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsubhn(self, opcode, encoding):
+        """
+        A8.8.416
+        VSUBHN
+        Vector Subtract and Narrow, returning High Half subtracts the elements of one quadword vector from the
+        corresponding elements of another quadword vector, takes the most significant half of each result, and places the
+        final results in a doubleword vector.         
+        """
+        props = {}
+        
+        name = "VSUBHN"
+        ins_id = ARMInstruction.vsubhn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vsubl_vsubw(self, opcode, encoding):
+        """
+        A8.8.417
+        VSUBL, VSUBW
+        Vector Subtract Long subtracts the elements of one doubleword vector from the corresponding elements of another
+        doubleword vector, and places the results in a quadword vector. Before subtracting, it sign-extends or zero-extends
+        the elements of both operands.        
+        """
+        props = {}
+        
+        name = "VSUBL"
+        ins_id = ARMInstruction.vsubl_vsubw
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vswp(self, opcode, encoding):
+        """
+        A8.8.418
+        VSWP
+        VSWP (Vector Swap) exchanges the contents of two vectors. The vectors can be either doubleword or quadword.
+        There is no distinction between data types.        
+        """
+        props = {}
+        
+        name = "VSWP"
+        ins_id = ARMInstruction.vswp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I9, 1, I2, 2, I2, 4, I5, 1, 1, I1, 4]
+            D, size, Vd, Q, M, Vm = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I9, 1, I2, 2, I2, 4, I5, 1, 1, I1, 4]
+            D, size, Vd, Q, M, Vm = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        if size != 0b00:
+            raise UndefinedOpcode()
+
+        if Q == 1 and (get_bit(Vd, 0) == 1 or get_bit(Vm, 0) == 1):
+            raise UndefinedOpcode()
+
+        d = (D << 4) | Vd
+        m = (M << 4) | Vm
+
+        regs = 1 if Q == 0 else 2
+
+        if Q == 1:
+            qualifier = ".64"
+            operands = [QRegister(d), QRegister(m)]
+        else:
+            qualifier = ".32"
+            operands = [DRegister(d), DRegister(m)]
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vtbl_vtbx(self, opcode, encoding):
+        """
+        A8.8.419
+        VTBL, VTBX
+        Vector Table Lookup uses byte indexes in a control vector to look up byte values in a table and generate a new
+        vector. Indexes out of range return 0.        
+        """
+        props = {}
+        
+        name = "VTBL"
+        ins_id = ARMInstruction.vtbl_vtbx
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vtrn(self, opcode, encoding):
+        """
+        A8.8.420
+        VTRN
+        Vector Transpose treats the elements of its operand vectors as elements of 2 x 2 matrices, and transposes the
+        matrices.        
+        """
+        props = {}
+        
+        name = "VTRN"
+        ins_id = ARMInstruction.vtrn
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vtst(self, opcode, encoding):
+        """
+        A8.8.421
+        VTST
+        Vector Test Bits takes each element in a vector, and bitwise ANDs it with the corresponding element of a second
+        vector. If the result is not zero, the corresponding element in the destination vector is set to all ones. Otherwise, it is
+        set to all zeros.        
+        """
+        props = {}
+        
+        name = "VTST"
+        ins_id = ARMInstruction.vtst
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vuzp(self, opcode, encoding):
+        """
+        A8.8.422
+        VUZP
+        Vector Unzip de-interleaves the elements of two vectors. See Table A8-12 and Table A8-13 for examples of the
+        operation.        
+        """
+        props = {}
+        
+        name = "VUZP"
+        ins_id = ARMInstruction.vuzp
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+    def decode_vzip(self, opcode, encoding):
+        """
+        A8.8.423
+        VZIP
+        Vector Zip interleaves the elements of two vectors. See Table A8-14 and Table A8-15 for examples of the operation.
+        """
+        props = {}
+        
+        name = "VZIP"
+        ins_id = ARMInstruction.vzip
+        setsflags = False
+        condition = None
+
+        if encoding == eEncodingT1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        elif encoding == eEncodingA1:
+            decode_mask = [I(0)]
+            _ = decode_opcode(opcode, decode_mask)
+            operands = []
+
+        else:
+            raise InvalidInstructionEncoding("Invalid encoding for instruction")
+
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        return ins
+
+if __name__ == "__main__":
+    d = ARMDisassembler()
+    print d.disassemble(0xec5cb9ed)

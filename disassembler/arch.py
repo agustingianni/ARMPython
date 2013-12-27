@@ -1,6 +1,56 @@
 from disassembler.constants.arm import ARMEncodings
 from disassembler.utils.bits import get_bit
 
+"""
+Advanced SIMD and Floating-point data-processing instructions use the following general format:
+V{<modifier>}<operation>{<shape>}{<c>}{<q>}{.<dt>} {<dest>,} <src1>, <src2>
+
+The <modifier> field provides additional variants of some instructions:
+
+    Q The operation uses saturating arithmetic.
+    R The operation performs rounding.
+    D The operation doubles the result (before accumulation, if any).
+    H The operation halves the result.
+
+The <shape> field provides additional variants of some instructions:
+
+    - The operands and result are all the same width.                                    Dd, Dn, Dm or Qd, Qn, Qm
+    L Long operation result is twice the width of both operands                          Qd, Dn, Dm
+    N Narrow operation result is half the width of both operands                         Dd, Qn, Qm
+    W Wide operation result and first operand are twice the width of the second operand  Qd, Qn, Dm
+
+
+The <dt> field normally contains one data type specifier. Unless the assembler syntax description for the instruction
+indicates otherwise, this indicates the data type contained in:
+
+    - the second operand, if any
+    - the operand, if there is no second operand
+    - the result, if there are no operand registers.
+
+The data types of the other operand and result are implied by the <dt> field combined with the instruction shape
+
+
+A7.3 Register encoding
+
+An Advanced SIMD register is either:
+    
+    - quadword, meaning it is 128 bits wide
+    - doubleword, meaning it is 64 bits wide.
+
+Some instructions have options for either doubleword or quadword registers. This is normally encoded in Q, bit[6],
+as Q = 0 for doubleword operations, or Q = 1 for quadword operations.
+
+A Floating-point register is either:
+    
+    - double-precision, meaning it is 64 bits wide
+    - single-precision, meaning it is 32 bits wide.
+
+This is encoded in the sz field, bit[8], as sz = 1 for double-precision operations, or sz = 0 for single-precision
+operations.
+
+"""
+
+
 class Instruction(object):
     def __init__(self, id_, opcode, name, setflags, condition, operands, encoding, qualifiers=""):
         self.id = id_
@@ -34,7 +84,7 @@ class Instruction(object):
         else:
             sf = ""
         
-        buffer_ = "%s%s%s%s " % (self.name, sf, self.condition, self.qualifiers.replace(".", ""))
+        buffer_ = "%s%s%s%s " % (self.name, sf, self.condition, self.qualifiers)
         buffer_ += ", ".join([x for x in map(str, self.operands) if x != ""])
         
         return buffer_
@@ -145,6 +195,56 @@ class ProcessorFlag(object):
         elif self.flag == 4:
             return "Q"   
 
+class SRegister(object):
+    def __init__(self, reg):
+        self.reg = reg
+
+    def __str__(self):
+        return "S%d" % self.reg
+
+    def __eq__(self, other):
+        if isinstance(other, QRegister):
+            return self.reg == other.reg
+        else:
+            return self.reg == other
+    
+    def __repr__(self):
+        return self.__str__()
+
+class QRegister(object):
+    def __init__(self, reg):
+        self.reg = reg
+
+    def __str__(self):
+        return "Q%d" % self.reg
+
+    def __eq__(self, other):
+        if isinstance(other, QRegister):
+            return self.reg == other.reg
+        else:
+            return self.reg == other
+    
+    def __repr__(self):
+        return self.__str__()
+
+class DRegister(object):
+    def __init__(self, reg, index=None):
+        self.reg = reg
+        self.index = index
+
+    def __str__(self):
+        return "D%d" % self.reg if self.index == None else "D%d[%d]" % (self.reg, self.index) 
+
+    def __eq__(self, other):
+        if isinstance(other, DRegister):
+            return self.reg == other.reg
+        else:
+            return self.reg == other
+    
+    def __repr__(self):
+        return self.__str__()
+    
+    
 class Register(object):
     def __init__(self, reg, wback=False, negative=False):
         self.reg = reg
@@ -255,6 +355,60 @@ class Memory(object):
             ret += "!"
             
         return ret
+
+class ISBOption(object):
+    def __init__(self, option):
+        self.option = option
+
+    def __str__(self):
+        if self.option == 0b1111:
+            opt_str = "SY"
+        
+        else:
+            opt_str = "#%d" % self.option
+
+        return opt_str
+
+    def __repr__(self):
+        return self.__str__()    
+
+class MemoryBarrierOption(object):
+    def __init__(self, option):
+        self.option = option
+
+    def __str__(self):
+        if self.option == 0b1111:
+            opt_str = "SY"
+        
+        elif self.option == 0b1110:
+            opt_str = "ST"
+        
+        elif self.option == 0b1011:
+            opt_str = "ISH"
+        
+        elif self.option == 0b1010:
+            opt_str = "ISHST"
+        
+        elif self.option == 0b0111:
+            opt_str = "NSH"
+        
+        elif self.option == 0b0110:
+            opt_str = "NSHST"
+        
+        elif self.option == 0b0011:
+            opt_str = "OSH"
+        
+        elif self.option == 0b0010:
+            opt_str = "OSHST"
+
+        else:
+            opt_str = "#%d" % self.option
+        
+        return opt_str
+        
+    def __repr__(self):
+        return self.__str__()
+    
 
 class Immediate(object):
     def __init__(self, n):
@@ -381,6 +535,13 @@ class Flag(object):
         else:
             return self.flag == other
     
+    def __repr__(self):
+        return self.__str__()
+
+class FPSCR(object):
+    def __str__(self):
+        return "FPSCR"
+
     def __repr__(self):
         return self.__str__()
     

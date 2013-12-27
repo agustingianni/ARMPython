@@ -255,12 +255,20 @@ def test(mask, value, mode, limit=10000):
 
 def test_decoding():
     d = ARMDisassembler()
-    
-    print d.disassemble(0x40c040b2)
-    return
-    
+        
     thumb_table = d.thumb_table
     arm_table = d.arm_table
+
+    d.disassemble(0xf3af8000, ARMMode.THUMB)
+
+    # VMOV Advanced SIMD
+    # (0xfeb80090, 0xf2800010, SIMD, eEncodingA1, No_VFP, eSize32, self.decode_vmov_immediate),
+    # VMOV Advanced SIMD
+    # (0x0fb00ef0, 0x0eb00a00, SIMD, eEncodingA2, No_VFP, eSize32, self.decode_vmov_immediate),
+
+        
+    arm_table = [(0xfeb80090, 0xf2800010), (0x0fb00ef0, 0x0eb00a00)]
+    thumb_table = []
 
     print "Testing THUMB Decoding"
     for i in xrange(0, len(thumb_table)):
@@ -272,8 +280,6 @@ def test_decoding():
         print "Instruction: ", thumb_table[i][-1]
         test(mask, value, ARMMode.THUMB, limit=100)
         
-
-    return
     
     print "Testing ARM Decoding"
     for i in xrange(0, len(arm_table)):

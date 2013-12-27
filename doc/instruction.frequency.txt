@@ -18,24 +18,27 @@ Mnemonic        LSL has a frequency of 25263        -
 Mnemonic        AND has a frequency of 22159        -
 Mnemonic        ORR has a frequency of 20961        -
 Mnemonic         BX has a frequency of 17554        -
-Mnemonic       VLDR has a frequency of 16880        x
+Mnemonic       VLDR has a frequency of 16880        -
+
 Mnemonic       VMOV has a frequency of 16023        x
+
 Mnemonic        RSB has a frequency of 15073        -
 Mnemonic        ASR has a frequency of 14965        -
 Mnemonic        MUL has a frequency of 10438        -
 Mnemonic        LSR has a frequency of 9071         -
-Mnemonic       UBFX has a frequency of 8526         x
+Mnemonic       UBFX has a frequency of 8526         -
 Mnemonic        MLA has a frequency of 7758         -
 Mnemonic        BIC has a frequency of 7111         -
-Mnemonic       VCVT has a frequency of 7057         x
-Mnemonic       VSTR has a frequency of 6860         x
+Mnemonic       VCVT has a frequency of 7057         -
+Mnemonic       VSTR has a frequency of 6860         -
 Mnemonic        EOR has a frequency of 6335         -
 Mnemonic        ADC has a frequency of 6123         -
-Mnemonic       VMRS has a frequency of 5806         x
-Mnemonic       UXTB has a frequency of 5609         x
+Mnemonic       VMRS has a frequency of 5806         -
+Mnemonic       UXTB has a frequency of 5609         -
 Mnemonic        TST has a frequency of 5548         -
 Mnemonic        NEG has a frequency of 4406         -
-Mnemonic        DMB has a frequency of 4030         x
+Mnemonic        DMB has a frequency of 4030         -
+
 Mnemonic       VMUL has a frequency of 3989         x
 Mnemonic       UXTH has a frequency of 3897         x
 Mnemonic      VCMPE has a frequency of 3330         x
