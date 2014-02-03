@@ -11,6 +11,8 @@ def test():
     anded=(((bv1 & bv2) | 0x12345678) + 0xbababebe)
     anded2=(0xbababebe + (0x12345678 | (bv2 & bv1)))
     
+    print hash(TrueExpr)
+    print hash(FalseExpr)
     print hash(bv1)
     print hash(bv2)
     print hash(anded)

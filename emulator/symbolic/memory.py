@@ -23,6 +23,7 @@ class DeferredMemRead(BvExpr):
         self.memmap=memmap
         self.generation=memmap.generation
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     def __str__(self):
         return "memread(%s)" % self.children[0]
@@ -128,7 +129,7 @@ class AbstractMemoryMap(ConcreteMemoryMap):
                 mem[senti]=senti
                 break
             
-            #this list has the memory writes reversed! (first is last operation)
+            #this list has the memory writes reversed! (first item is last operation)
             cmem.append( (address, mem[address]) )
         
         self.executeMemCommit(self.generation, cmem)

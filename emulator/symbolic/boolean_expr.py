@@ -99,6 +99,7 @@ class BoolVarExpr(BoolExpr):
         else:
             self.name=name
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     def __str__(self):
         return self.name
@@ -121,7 +122,9 @@ class _TrueExpr(BoolExpr):
         return self.__function__
     def __nonzero__(self):
         return True
-TrueExpr=_TrueExpr() #singleton
+TrueExpr=_TrueExpr() #single instance used everywhere as it's immutable
+#precalculate hash for this singletons
+TrueExpr.__hash_fun__()
 
 class _FalseExpr(BoolExpr):
     __slots__=()
@@ -134,7 +137,9 @@ class _FalseExpr(BoolExpr):
         return self.__function__
     def __nonzero__(self):
         return False
-FalseExpr=_FalseExpr() #singleton
+FalseExpr=_FalseExpr() #instance used everywhere as it's immutable
+#precalculate hash for this singletons
+FalseExpr.__hash_fun__()
 
 class BoolAndExpr(BoolExpr):
     __slots__=()
@@ -146,6 +151,7 @@ class BoolAndExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -169,6 +175,7 @@ class BoolOrExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -192,6 +199,7 @@ class BoolXorExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -214,6 +222,7 @@ class BoolNotExpr(BoolExpr):
         self.__depth__=p1.__depth__ + 1
         self.children=(p1, )
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, force_expr=False):
@@ -232,6 +241,7 @@ class BoolImplExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2):
@@ -247,6 +257,7 @@ class EqExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -265,6 +276,7 @@ class DistinctExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -283,6 +295,7 @@ class BoolIteExpr(BoolExpr):
         self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
         self.children=(_if, _then, _else)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(_if, _then, _else):

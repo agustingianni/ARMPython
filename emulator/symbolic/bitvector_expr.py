@@ -562,6 +562,7 @@ class BvConstExpr(BvExpr):
         self.size=size
         self.__sort__="(_ BitVec %d)" % size
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     def __str__(self):
         return ("0x%0" + str(((self.size - 1) // 4) + 1) + "x[%d]") % (self.value, self.size)
@@ -597,6 +598,7 @@ class BvVarExpr(BvExpr):
         self.size_mask = ((2 ** size) - 1)
         self.__sort__="(_ BitVec %d)" % size
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     def __str__(self):
         return "%s[%d]" % (self.name, self.size)
@@ -620,6 +622,7 @@ class BvConcatExpr(BvExpr):
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__="(_ BitVec %d)" % self.size
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_assoc=True):
@@ -647,6 +650,7 @@ class BvExtractExpr(BvExpr):
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__="(_ BitVec %d)" % self.size
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     def __str__(self):
         return "%s(%s, %d, %d)" % (self.__function__, str(self.children[0]), self.end, self.start)
@@ -670,6 +674,7 @@ class BvNotExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @staticmethod
     def construct(p1):
@@ -690,6 +695,7 @@ class BvNegExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1):
@@ -713,6 +719,7 @@ class BvAndExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -744,6 +751,7 @@ class BvOrExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -775,6 +783,7 @@ class BvXorExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -806,6 +815,7 @@ class BvAddExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -856,6 +866,7 @@ class BvSubExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -892,6 +903,7 @@ class BvMulExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
@@ -912,6 +924,7 @@ class BvUDivExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr):
@@ -938,6 +951,7 @@ class BvURemExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -959,6 +973,7 @@ class BvShlExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2):
@@ -977,6 +992,7 @@ class BvShrExpr(BvExpr):
         self.size_mask=p1.size_mask
         self.__sort__=p1.__sort__
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2):
@@ -994,6 +1010,7 @@ class BvUltExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -1012,6 +1029,7 @@ class BvUleExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -1030,6 +1048,7 @@ class BvUgtExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -1048,6 +1067,7 @@ class BvUgeExpr(BoolExpr):
         self.__depth__=max(p1.__depth__, p2.__depth__) + 1
         self.children=(p1, p2)
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
@@ -1069,6 +1089,7 @@ class BvIteExpr(BvExpr):
         self.children=(_if, _then, _else)
         self.__depth__=max(_if.__depth__, _then.__depth__, _else.__depth__) + 1
         self.__backend__=self.__backend_fun__
+        self.__hash__=self.__hash_fun__
 
     @staticmethod
     def construct(_if, _then, _else):

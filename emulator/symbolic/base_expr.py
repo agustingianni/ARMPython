@@ -10,31 +10,37 @@ Expressions
     __init__ functions should be avoided as much as possible.
     All type information should be static and part of the class definition.
 
-- There's different levels of optimizations that might apply to an expression.
-- It should never be expected to receive the naive operation application from an expression
-- It should not be expected to receive an Expression as a result of an operation.
-  (unless there's a specific option in the function that forces the response to be an expression)
+- There're different levels of optimizations that might apply to an expression.
+- It should never be expected to receive an operator instance for any applied operation (the operation could be optimized away) 
+- It should never be expected to receive an Expression as a result of an operation (it could return a Python number for example).
+  [unless there's a specific option in the function that forces the response to be an expression]
 
 Optimization rules:
 - the pythonic methods might receive native data types (not derived from Expr) and the optimizations must
   cope with that.
 - All parameters of the operation classes must be Expr derived instances
-- The operation class constructor don't apply any kind of optimization, all work is done in the construct()
+- The operation class constructor does NOT apply any kind of optimization, all work is done in the construct()
   function.
 - All construct() functions have a force_expr argument that forces the answer to be a Expr derived instance.
   
 '''
 
-def singleton(cls):
-    instances={}
-    def getinstance():
-        if cls not in instances:
-            instances[cls]=cls()
-        return instances[cls]
-    return getinstance
+class Singleton(type):
+    _instances = {}
+    def __call__(self, *args, **kwargs):
+        if self not in self._instances:
+            self._instances[self] = super(Singleton, self).__call__(*args, **kwargs)
+        return self._instances[self]
 
-@singleton
 class ExportParameters(object):
+    """
+    Singleton Class/Instance used to accumulate all information needed to export a
+    group of constrains to SMTLIB-2.
+    
+    It includes the function definitions cache to cope with equal subexpressions caching. 
+    """
+    __metaclass__ = Singleton
+    
     def __init__(self):
         self.clear()
 
@@ -59,10 +65,10 @@ class ExportParameters(object):
         self.cache_maxsize = n
 
 class Expr(object):
-    __slots__=("children", "__depth__", "__hashcode__", "__backend__", "__solver_ctor__")
+    __slots__=("children", "__depth__", "__hash__", "__backend__", "__solver_ctor__")
     __has_value__=False
     __commutative__=False
-
+    
     def __repr__(self):
         return "<%s>" % self
 
@@ -182,10 +188,7 @@ class Expr(object):
             else:
                 return (val, self, False)
 
-    def __hash__(self):
-        if hasattr(self, "__hashcode__ "):
-            return self.__hashcode__
-
+    def __hash_fun__(self):
         children=[hash(x) for x in self.children]
         if self.__commutative__:
             children.sort()
@@ -199,5 +202,6 @@ class Expr(object):
         if hasattr(self, "__function__"):
             optional.append(self.__function__)
 
-        self.__hashcode__ = hash((self.__sort__, self.__has_value__, tuple(optional), children))
-        return self.__hashcode__
+        hashcode = hash((self.__sort__, self.__has_value__, tuple(optional), children))
+        self.__hash__ = lambda: hashcode
+        return hashcode

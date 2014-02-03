@@ -9,6 +9,7 @@ import z3, z3core, z3types, z3printer
 import traceback
 
 def unwrap_args(args, kw):
+    #debug!
 #    c=0
 #    for x in args:
 #        if isinstance(x, Expr):
@@ -243,6 +244,7 @@ class Z3ArrayExpr(BvExpr):
     children = () 
     __depth__ = 1
     def __init__(self, backend):
+        self.__hash__=self.__hash_fun__
         self.size = 8
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__ = "(Array (_ BitVec %d) (_ BitVec 8))" % backend.domain().size()
@@ -255,6 +257,7 @@ class Z3ArrayExpr(BvExpr):
 class Z3BvExpr(BvExpr):
     __slots__=("__function__")
     def __init__(self, backend):
+        self.__hash__=self.__hash_fun__
         self.size = backend.size()
         self.size_mask = ((2 ** self.size) - 1)
         self.__sort__ = "(_ BitVec %d)" % self.size
