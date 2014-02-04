@@ -18,6 +18,7 @@ class DeferredMemRead(BvExpr):
     size_mask=255
     __depth__=1
     __backend_fun__=lambda: None
+    __function__="select"
     def __init__(self, address, memmap):
         self.children=(address, )
         self.memmap=memmap

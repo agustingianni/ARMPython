@@ -579,6 +579,11 @@ class BvConstExpr(BvExpr):
     def __long__(self):
         return self.value
 
+    def __hash_fun__(self):
+        hashcode = hash((self.__sort__, "const", self.value))
+        self.__hash__ = lambda: hashcode
+        return hashcode
+
     @staticmethod
     def construct(value, size):
         return BvConstExpr(value, size)
@@ -605,6 +610,11 @@ class BvVarExpr(BvExpr):
 
     def __export__(self):
         return self.name
+
+    def __hash_fun__(self):
+        hashcode = hash((self.__sort__, "var", self.name))
+        self.__hash__ = lambda: hashcode
+        return hashcode
 
     @staticmethod
     def construct(size, name=None):
@@ -657,6 +667,11 @@ class BvExtractExpr(BvExpr):
     
     def __export__(self):
         return "((_ extract %d %d) %s)" % (self.end, self.start, self.children[0].export())
+
+    def __hash_fun__(self):
+        hashcode = hash((self.__sort__, "extract", hash(self.children[0]), self.end, self.start))
+        self.__hash__ = lambda: hashcode
+        return hashcode
 
     @staticmethod
     def construct(p1, i, j):

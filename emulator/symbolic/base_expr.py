@@ -22,7 +22,9 @@ Optimization rules:
 - The operation class constructor does NOT apply any kind of optimization, all work is done in the construct()
   function.
 - All construct() functions have a force_expr argument that forces the answer to be a Expr derived instance.
-  
+
+The __hash__ function for Expressions is special, in the sense that it will sort the children on commutative operations,
+this way "p + q" and "q + p" will actually return the same hash value. This helps to catch more caching opportunities.
 '''
 
 class Singleton(type):
@@ -188,20 +190,13 @@ class Expr(object):
             else:
                 return (val, self, False)
 
+    #catch-all function for Expressions that don't have an specific hashing function
     def __hash_fun__(self):
         children=[hash(x) for x in self.children]
         if self.__commutative__:
             children.sort()
         children=tuple(children)
 
-        optional=[]
-        if self.__has_value__:
-            optional.append(self.value)
-        if hasattr(self, "name"):
-            optional.append(self.name)
-        if hasattr(self, "__function__"):
-            optional.append(self.__function__)
-
-        hashcode = hash((self.__sort__, self.__has_value__, tuple(optional), children))
+        hashcode = hash((self.__sort__, self.__function__, children))
         self.__hash__ = lambda: hashcode
         return hashcode
