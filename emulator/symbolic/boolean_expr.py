@@ -112,6 +112,9 @@ class BoolVarExpr(BoolExpr):
         self.__hash__ = lambda: hashcode
         return hashcode
 
+    def extractVariables(self):
+        return (self, )
+
     @staticmethod
     def construct(name=None):
         return BoolVarExpr(name)

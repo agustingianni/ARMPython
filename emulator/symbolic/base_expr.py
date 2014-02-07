@@ -67,7 +67,7 @@ class ExportParameters(object):
         self.cache_maxsize = n
 
 class Expr(object):
-    __slots__=("children", "__depth__", "__hash__", "__backend__", "__solver_ctor__")
+    __slots__=("children", "__depth__", "__hash__", "__backend__", "__solver_ctor__", "__vars__")
     __has_value__=False
     __commutative__=False
     
@@ -200,3 +200,14 @@ class Expr(object):
         hashcode = hash((self.__sort__, self.__function__, children))
         self.__hash__ = lambda: hashcode
         return hashcode
+
+    def extractVariables(self):
+        if hasattr(self, "__vars__"):
+            return self.__vars__
+        
+        v=set()
+        for c in self.children:
+            v.update(c.extractVariables())
+        
+        self.__vars__=v
+        return v

@@ -616,6 +616,9 @@ class BvVarExpr(BvExpr):
         self.__hash__ = lambda: hashcode
         return hashcode
 
+    def extractVariables(self):
+        return (self, )
+
     @staticmethod
     def construct(size, name=None):
         return BvVarExpr(size, name)
