@@ -160,7 +160,14 @@ def test():
     print "================================"
     print bv2 & 0xff
     print bv2 | 0xff
-
+    
+    print "================================"
+    #testing absorption
+    b1 = BoolVarExpr("b1")
+    b2 = BoolVarExpr("b2")
+    
+    print b1 & (b1 | b2)
+    print b1 | (b2 & b1)
 
 if __name__=="__main__":
     test()

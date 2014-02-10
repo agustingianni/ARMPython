@@ -198,13 +198,24 @@ class BoolOrExpr(BoolExpr):
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
+        p1h = p1.__hash__()
+        p2h = p2.__hash__()
+
         #p | p <=> p. Idempotence.
-        if p1.__hash__() == p2.__hash__():
+        if p1h == p2h:
             return p1
         
+        #p | (p & q) <=> p. Absorption.
+        if (isinstance(p2, BoolAndExpr) and (p2.children[0].__hash__() == p1h or p2.children[1].__hash__() == p1h)):
+            return p1
+
+        #(p & q) | p <=> p. Absorption.
+        if (isinstance(p1, BoolAndExpr) and (p1.children[0].__hash__() == p2h or p1.children[1].__hash__() == p2h)):
+            return p2
+
         #p | !p <=> True. Complementation.
-        if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
-           (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+        if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2h) or \
+           (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1h):
             return True if not force_expr else TrueExpr
         return BoolOrExpr(p1, p2)
 
