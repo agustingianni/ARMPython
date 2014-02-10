@@ -168,6 +168,9 @@ def test():
     
     print b1 & (b1 | b2)
     print b1 | (b2 & b1)
+    
+    print (c1 & c2) | c2
+    print (c2 | c1) & c1
 
 if __name__=="__main__":
     test()

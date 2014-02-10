@@ -743,14 +743,24 @@ class BvAndExpr(BvExpr):
     def construct(cls, p1, p2, force_expr=False):
         p1, p2 = cls.__associative_construct__(p1, p2)
         p2 = forceToExpr(p2, p1.size)
+        p1h = p1.__hash__()
+        p2h = p2.__hash__()
 
         #p & p = p
-        if p1.__hash__() == p2.__hash__():
+        if p1h == p2h:
             return p1
         
+        #p & (p | q) <=> p. Absorption.
+        if (isinstance(p2, BvOrExpr) and (p2.children[0].__hash__() == p1h or p2.children[1].__hash__() == p1h)):
+            return p1
+
+        #(p | q) & p <=> p. Absorption.
+        if (isinstance(p1, BvOrExpr) and (p1.children[0].__hash__() == p2h or p1.children[1].__hash__() == p2h)):
+            return p2
+
         #p & !p = 0
-        if (isinstance(p1, BvNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
-           (isinstance(p2, BvNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+        if (isinstance(p1, BvNotExpr) and p1.children[0].__hash__() == p2h) or \
+           (isinstance(p2, BvNotExpr) and p2.children[0].__hash__() == p1h):
             return forceToExprCond(force_expr, 0, p1.size)
         return cls(p1, p2)
 
@@ -775,14 +785,24 @@ class BvOrExpr(BvExpr):
     def construct(cls, p1, p2, force_expr=False):
         p1, p2 = cls.__associative_construct__(p1, p2)
         p2 = forceToExpr(p2, p1.size)        
+        p1h = p1.__hash__()
+        p2h = p2.__hash__()
         
         #p | p = p
-        if p1.__hash__() == p2.__hash__():
+        if p1h == p2h:
             return p1
+
+        #p | (p & q) <=> p. Absorption.
+        if (isinstance(p2, BvAndExpr) and (p2.children[0].__hash__() == p1h or p2.children[1].__hash__() == p1h)):
+            return p1
+
+        #(p & q) | p <=> p. Absorption.
+        if (isinstance(p1, BvAndExpr) and (p1.children[0].__hash__() == p2h or p1.children[1].__hash__() == p2h)):
+            return p2
         
         #p | !p = all-1 
-        if (isinstance(p1, BvNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
-           (isinstance(p2, BvNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+        if (isinstance(p1, BvNotExpr) and p1.children[0].__hash__() == p2h) or \
+           (isinstance(p2, BvNotExpr) and p2.children[0].__hash__() == p1h):
             return forceToExprCond(force_expr, p1.size_mask, p1.size)
         return cls(p1, p2)
 
