@@ -11,7 +11,7 @@ class BoolExpr(Expr):
             return BoolAndExpr.construct(self, other)
         else:
             (value, secondary, _) = self.getValue(other)
-            #p & T <=> p, p & F <=> F
+            #p & T <=> p (Identity), p & F <=> F (Annihilator)
             return secondary if value else False
 
     def __rand__(self, other):
@@ -23,7 +23,7 @@ class BoolExpr(Expr):
             return BoolOrExpr.construct(self, other)
         else:
             (value, secondary, _) = self.getValue(other)
-            #p | T <=> T, p | F <=> p
+            #p | T <=> T (Annihilator), p | F <=> p (Identity)
             return True if value else secondary
 
     def __ror__(self, other):
@@ -163,13 +163,24 @@ class BoolAndExpr(BoolExpr):
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
-        #p & p <=> p
-        if p1.__hash__() == p2.__hash__():
-            return p1
+        p1h = p1.__hash__()
+        p2h = p2.__hash__()
         
-        #p & !p <=> False
-        if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
-           (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
+        #p & p <=> p. Idempotence.
+        if p1h == p2h:
+            return p1
+
+        #p & (p | q) <=> p. Absorption.
+        if (isinstance(p2, BoolOrExpr) and (p2.children[0].__hash__() == p1h or p2.children[1].__hash__() == p1h)):
+            return p1
+
+        #(p | q) & p <=> p. Absorption.
+        if (isinstance(p1, BoolOrExpr) and (p1.children[0].__hash__() == p2h or p1.children[1].__hash__() == p2h)):
+            return p2
+        
+        #p & !p <=> False. Complementation.
+        if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2h) or \
+           (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1h):
             return False if not force_expr else FalseExpr
         return BoolAndExpr(p1, p2)
 
@@ -187,11 +198,11 @@ class BoolOrExpr(BoolExpr):
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
-        #p | p <=> p
+        #p | p <=> p. Idempotence.
         if p1.__hash__() == p2.__hash__():
             return p1
         
-        #p | !p <=> True
+        #p | !p <=> True. Complementation.
         if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
            (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
             return True if not force_expr else TrueExpr
@@ -211,11 +222,11 @@ class BoolXorExpr(BoolExpr):
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
-        #p ^ p <=> False
+        #p ^ p <=> False. Idempotence.
         if p1.__hash__() == p2.__hash__():
             return False if not force_expr else FalseExpr
         
-        #p ^ !p <=> True
+        #p ^ !p <=> True. Complementation.
         if (isinstance(p1, BoolNotExpr) and p1.children[0].__hash__() == p2.__hash__()) or \
            (isinstance(p2, BoolNotExpr) and p2.children[0].__hash__() == p1.__hash__()):
             return True if not force_expr else TrueExpr
@@ -234,7 +245,7 @@ class BoolNotExpr(BoolExpr):
 
     @staticmethod
     def construct(p1, force_expr=False):
-        #!!p = p
+        #!!p = p. Double Negation.
         if isinstance(p1, BoolNotExpr):
             return p1.children[0]
         
@@ -269,7 +280,7 @@ class EqExpr(BoolExpr):
     
     @staticmethod
     def construct(p1, p2, force_expr=False):
-        #p EQ p <=> True
+        #p EQ p <=> True. Idempotence.
         if p1.__hash__() == p2.__hash__():
             return True if not force_expr else TrueExpr
         return EqExpr(p1, p2)
@@ -288,7 +299,7 @@ class DistinctExpr(BoolExpr):
 
     @staticmethod
     def construct(p1, p2, force_expr=False):
-        #p NE p <=> False
+        #p NE p <=> False. Idempotence.
         if p1.__hash__() == p2.__hash__():
             return False if not force_expr else FalseExpr
         return DistinctExpr(p1, p2)
