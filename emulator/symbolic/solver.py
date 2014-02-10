@@ -1,3 +1,19 @@
+"""
+TODO:
+    a INEQ b AND b INEQ c => a INEQ c (transitivity)
+ 
+    make a constraint switcher to negate constraints one by one (related to the previous check).
+    (add a switch limiter for loops)
+
+    constraint subsumption (from SAGE docs)
+        Syntactic check for implication, take strongest constraint
+        Moreover, using a cheap syntactic check, constraint subsumption eliminates
+        constraints logically implied by other constraints injected at
+        the same program branch (mostly likely due to successive
+        iterations of an input-dependent loop).
+
+"""
+
 from emulator.symbolic.base_expr import *
 from emulator.symbolic.bitvector_expr import *
 from emulator.symbolic.boolean_expr import *
@@ -16,6 +32,7 @@ class BooleanExpressionSet(set):
     result=None
     dirty=True
     hashcode=None
+    trivial=False #used for optimizations that allow us to bypass the solver
 
     #Overload all set methods to support hash caching
     def add(self, elem):
@@ -26,6 +43,8 @@ class BooleanExpressionSet(set):
         self.solverObj=None
         self.result=None
         self.dirty=True
+        self.hashcode=None
+        self.trivial=False
         set.clear(self)
     
     def difference(self, other):
@@ -79,25 +98,48 @@ class BooleanExpressionSet(set):
 
     #new methods
     def solve(self, disjunction=False, solverFor="QF_AUFBV"):
-        if self.solverObj == None:
-            self.solverObj = z3.SolverFor(solverFor)
+        """
+        Detects trivial cases where the system is either SAT or UNSAT.
+        The solverObj is left in an inconsistent state for those cases and
+        model() returns True instead of a real model (because the system is VALID).
+        """
 
-        s = self.solverObj
+        s = self.solverObj = z3.SolverFor(solverFor)
+        self.trivial = False
+
         if disjunction:
             tmp = FalseExpr
             for constrain in self:
                 tmp |= constrain
+                
+                #check for the existence of p | ~p
+                if isinstance(constrain, BoolNotExpr) and constrain.children[0] in self:
+                    self.trivial=True
+                    self.result=z3.sat
+                    return self.result
             
             s.add(tmp)
         else:
             for constrain in self:
+                #check for the existence of p & ~p
+                if isinstance(constrain, BoolNotExpr) and constrain.children[0] in self:
+                    self.trivial=True
+                    self.result=z3.unsat
+                    return self.result
+
                 s.add(constrain)
         
         self.result = s.check()
         return self.result
     
     def model(self):
+        """
+        Return a model for variables that make the system be SAT.
+        Also returns True if the system is VALID and None if UNSAT.
+        """
         if self.result == z3.sat:
+            if self.trivial:
+                return True
             return self.solverObj.model()
         else:
             return None
@@ -117,6 +159,8 @@ class BooleanExpressionSet(set):
         Return a subset of the current set including only the expressions that
         contain variables from the "v" set.
         Always include fully constant expressions.
+        
+        keyword: related constraint optimization
         """
         
         if isinstance(v, Expr):
@@ -155,6 +199,17 @@ def test():
     bset.discard(c)
     print bset.dirty
     print bset.copy().dirty
+    
+    #check trivial
+    bset = BooleanExpressionSet()
+    bset.add(w1 > 0)
+    bset.add(~(w1 > 0))
+    
+    print bset
+    print bset.solve()
+    
+    print bset.solve(True)
+    print bset.model()
     
 if __name__=="__main__":
     test()
