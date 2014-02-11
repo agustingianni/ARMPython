@@ -49,7 +49,10 @@ class BvExpr(Expr):
         return p1, p2
     
     def __nonzero__(self):
-        raise Exception, "A BitVector Expression cannot be evaluated to boolean"
+        if self.__has_value__:
+            return self.value != 0
+
+        raise Exception, "A non-constant BitVector Expression cannot be evaluated to boolean"
     
     def __len__(self):
         return self.size

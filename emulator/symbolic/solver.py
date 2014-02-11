@@ -124,6 +124,8 @@ class BooleanExpressionSet(set):
         """
         
         changed=False
+        
+        #constraint subsumption
 
         #p INEQ q AND q INEQ r => p INEQ r
         if isinstance(constraint, BvInequalityExpr):
@@ -166,7 +168,7 @@ class BooleanExpressionSet(set):
         return changed
                         
 
-    def solve(self, disjunction=False, solverFor="QF_AUFBV"):
+    def solve(self, solverFor="QF_AUFBV"):
         """
         Detects trivial cases where the system is either SAT or UNSAT.
         The solverObj is left in an inconsistent state for those cases and
@@ -176,50 +178,23 @@ class BooleanExpressionSet(set):
         s = self.solverObj = z3.SolverFor(solverFor)
         self.trivial = False
 
-        if disjunction:
-            tmp = FalseExpr
-            for constraint in self:
-                #check for the existence of a constant boolean expression
-                if constraint == FalseExpr:
-                    continue
-                
-                if constraint == TrueExpr:
-                    self.trivial=True
-                    self.result=z3.sat
-                    return self.result
-                
-                #check for the existence of p | ~p
-                if isinstance(constraint, BoolNotExpr) and constraint.children[0] in self:
-                    self.trivial=True
-                    self.result=z3.sat
-                    return self.result
+        for constraint in self:
+            #check for the existence of a constant boolean expression
+            if id(constraint) == id(TrueExpr):
+                continue
             
-                tmp |= constraint
-
-            if constraint == FalseExpr or constraint == TrueExpr:
+            if id(constraint) == id(FalseExpr):
                 self.trivial=True
-                self.result=z3.sat if constraint == TrueExpr else z3.unsat
+                self.result=z3.unsat
                 return self.result
 
-            s.add(tmp)
-        else:
-            for constraint in self:
-                #check for the existence of a constant boolean expression
-                if constraint == TrueExpr:
-                    continue
-                
-                if constraint == FalseExpr:
-                    self.trivial=True
-                    self.result=z3.unsat
-                    return self.result
+            #check for the existence of p & ~p = F
+            if isinstance(constraint, BoolNotExpr) and constraint.children[0] in self:
+                self.trivial=True
+                self.result=z3.unsat
+                return self.result
 
-                #check for the existence of p & ~p
-                if isinstance(constraint, BoolNotExpr) and constraint.children[0] in self:
-                    self.trivial=True
-                    self.result=z3.unsat
-                    return self.result
-
-                s.add(constraint)
+            s.add(constraint)
         
         self.result = s.check()
         return self.result
@@ -295,16 +270,12 @@ def test():
     #check trivial
     bset = BooleanExpressionSet()
     bset.add(c1 > c2)
-    #bset.add(c2 > c3)
-    bset.add(c2 > c1)
+    bset.add(c2 > c3)
     
     print bset
     print bset.constraint_transformations_all()
     print bset
     print bset.solve()
-    print bset.trivial
-    
-    print bset.solve(True)
     print bset.trivial
     print bset.model()
     

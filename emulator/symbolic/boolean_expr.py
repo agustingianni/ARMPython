@@ -4,6 +4,12 @@ from utils.lru import LruCache
 class BoolExpr(Expr):
     __slots__=()
     __sort__="Bool"
+
+    def __nonzero__(self):
+        if self.__has_value__:
+            return self.value
+
+        raise Exception, "A non-constant Boolean Expression cannot be evaluated to boolean"
     
     def __and__(self, other):
         if isinstance(other, BoolExpr) and not other.__has_value__ \
