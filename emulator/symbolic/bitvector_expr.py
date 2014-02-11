@@ -24,6 +24,9 @@ def forceToExpr(val, size):
 def forceToExprCond(cond, val, size):
     return forceToExpr(val) if cond else val
 
+class BvInequalityExpr:
+    pass
+
 class BvExpr(Expr):
     __slots__=("size", "size_mask", "__sort__")
     __base_sort__="BitVec"
@@ -1038,7 +1041,7 @@ class BvShrExpr(BvExpr):
     
 # Comparison (return Bool from 2 BitVec)
 
-class BvUltExpr(BoolExpr):
+class BvUltExpr(BoolExpr, BvInequalityExpr):
     __slots__=()
     __function__="bvult"
     __python_op__=staticmethod(BvExpr.__lt__)
@@ -1057,7 +1060,7 @@ class BvUltExpr(BoolExpr):
             return False if not force_expr else FalseExpr
         return BvUltExpr(p1, p2)
 
-class BvUleExpr(BoolExpr):
+class BvUleExpr(BoolExpr, BvInequalityExpr):
     __slots__=()
     __function__="bvule"
     __python_op__=staticmethod(BvExpr.__le__)
@@ -1076,7 +1079,7 @@ class BvUleExpr(BoolExpr):
             return True if not force_expr else TrueExpr
         return BvUleExpr(p1, p2)
 
-class BvUgtExpr(BoolExpr):
+class BvUgtExpr(BoolExpr, BvInequalityExpr):
     __slots__=()
     __function__="bvugt"
     __python_op__=staticmethod(BvExpr.__gt__)
@@ -1095,7 +1098,7 @@ class BvUgtExpr(BoolExpr):
             return False if not force_expr else FalseExpr
         return BvUgtExpr(p1, p2)
 
-class BvUgeExpr(BoolExpr):
+class BvUgeExpr(BoolExpr, BvInequalityExpr):
     __slots__=()
     __function__="bvuge"
     __python_op__=staticmethod(BvExpr.__ge__)

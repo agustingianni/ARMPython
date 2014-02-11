@@ -1,7 +1,5 @@
 """
 TODO:
-    a INEQ b AND b INEQ c => a INEQ c (transitivity)
- 
     make a constraint switcher to negate constraints one by one (related to the previous check).
     (add a switch limiter for loops)
 
@@ -33,9 +31,14 @@ class BooleanExpressionSet(set):
     dirty=True
     hashcode=None
     trivial=False #used for optimizations that allow us to bypass the solver
+    lhs_ineq={}
+    rhs_ineq={}
 
     #Overload all set methods to support hash caching
     def add(self, elem):
+        if not isinstance(elem, Expr):
+            return
+
         set.add(self, elem)
         self.dirty=True
 
@@ -45,6 +48,8 @@ class BooleanExpressionSet(set):
         self.dirty=True
         self.hashcode=None
         self.trivial=False
+        self.lhs_ineq={}
+        self.rhs_ineq={}
         set.clear(self)
     
     def difference(self, other):
@@ -97,6 +102,70 @@ class BooleanExpressionSet(set):
         self.dirty=True
 
     #new methods
+    def constraint_transformations_all(self):
+        changed=False
+
+        for constraint in self.copy():
+            changed |= self.constraint_transformations(constraint)
+    
+        #recurse until it reaches a fixed point
+        if changed:
+            self.constraint_transformations_all()
+                
+        self.dirty=changed
+        return changed
+
+    def constraint_transformations(self, constraint):
+        """
+        This method takes a constraint from the set and lookup the other 
+        constraints for relations that might allow to optimize them.
+        
+        One example could be transitivity over bitvector inequalities.
+        """
+        
+        changed=False
+
+        #p INEQ q AND q INEQ r => p INEQ r
+        if isinstance(constraint, BvInequalityExpr):
+            lhs=hash((constraint.children[0], constraint.__function__))   #q, >
+            rhs=hash((constraint.children[1], constraint.__function__))   #w, >
+            
+            if rhs in self.lhs_ineq and len(self.lhs_ineq[rhs]):
+                #pick one of the options for the right side
+                rhs_constraint = self.lhs_ineq[rhs].pop()
+                
+                #remove the right side constraint from all sets
+                rhs_constraint_hash=hash((rhs_constraint.children[1], rhs_constraint.__function__))
+                self.rhs_ineq[rhs_constraint_hash].remove(rhs_constraint)
+                self.discard(constraint)
+                self.discard(rhs_constraint)
+                
+                self.add( constraint.__class__.construct(constraint.children[0], rhs_constraint.children[1], force_expr=True) )
+                changed=True
+            elif lhs in self.rhs_ineq and len(self.rhs_ineq[lhs]):
+                #pick one of the options for the right side
+                lhs_constraint = self.rhs_ineq[lhs].pop()
+                
+                #remove the right side constraint from all sets
+                lhs_constraint_hash=hash((lhs_constraint.children[0], lhs_constraint.__function__))
+                self.lhs_ineq[lhs_constraint_hash].remove(lhs_constraint)
+                self.discard(constraint)
+                self.discard(lhs_constraint)
+                
+                self.add( constraint.__class__.construct(lhs_constraint.children[0], constraint.children[1], force_expr=True) )
+                changed=True
+            else:
+                if not rhs in self.rhs_ineq:
+                    self.rhs_ineq[rhs]=set()
+                self.rhs_ineq[rhs].add(constraint)
+    
+                if not lhs in self.lhs_ineq:
+                    self.lhs_ineq[lhs]=set()
+                self.lhs_ineq[lhs].add(constraint)
+        
+        return changed
+                        
+
     def solve(self, disjunction=False, solverFor="QF_AUFBV"):
         """
         Detects trivial cases where the system is either SAT or UNSAT.
@@ -109,25 +178,48 @@ class BooleanExpressionSet(set):
 
         if disjunction:
             tmp = FalseExpr
-            for constrain in self:
-                tmp |= constrain
+            for constraint in self:
+                #check for the existence of a constant boolean expression
+                if constraint == FalseExpr:
+                    continue
+                
+                if constraint == TrueExpr:
+                    self.trivial=True
+                    self.result=z3.sat
+                    return self.result
                 
                 #check for the existence of p | ~p
-                if isinstance(constrain, BoolNotExpr) and constrain.children[0] in self:
+                if isinstance(constraint, BoolNotExpr) and constraint.children[0] in self:
                     self.trivial=True
                     self.result=z3.sat
                     return self.result
             
+                tmp |= constraint
+
+            if constraint == FalseExpr or constraint == TrueExpr:
+                self.trivial=True
+                self.result=z3.sat if constraint == TrueExpr else z3.unsat
+                return self.result
+
             s.add(tmp)
         else:
-            for constrain in self:
-                #check for the existence of p & ~p
-                if isinstance(constrain, BoolNotExpr) and constrain.children[0] in self:
+            for constraint in self:
+                #check for the existence of a constant boolean expression
+                if constraint == TrueExpr:
+                    continue
+                
+                if constraint == FalseExpr:
                     self.trivial=True
                     self.result=z3.unsat
                     return self.result
 
-                s.add(constrain)
+                #check for the existence of p & ~p
+                if isinstance(constraint, BoolNotExpr) and constraint.children[0] in self:
+                    self.trivial=True
+                    self.result=z3.unsat
+                    return self.result
+
+                s.add(constraint)
         
         self.result = s.check()
         return self.result
@@ -202,13 +294,18 @@ def test():
     
     #check trivial
     bset = BooleanExpressionSet()
-    bset.add(w1 > 0)
-    bset.add(~(w1 > 0))
+    bset.add(c1 > c2)
+    #bset.add(c2 > c3)
+    bset.add(c2 > c1)
     
     print bset
+    print bset.constraint_transformations_all()
+    print bset
     print bset.solve()
+    print bset.trivial
     
     print bset.solve(True)
+    print bset.trivial
     print bset.model()
     
 if __name__=="__main__":
