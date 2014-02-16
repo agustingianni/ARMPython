@@ -276,49 +276,48 @@ class ARMDisassembler(object):
     def __build_thumb_table__(self):
         """
         Build thumb opcode to decoding function map.
-        
         """
         self.thumb_table = \
         (
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_uxth),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_uxth),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vpop),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vpop),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vpush),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vpush),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxtb),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_sxtb),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sbfx),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_orn_immediate),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_orn_register),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxth),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_sxth),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vorr_immediate),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vorr_register),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_veor),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_rev),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_rev),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vldm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vldm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vand_register),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vstm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vstm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_uxtab),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxtab),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vswp),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_uxtah),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_sxtah),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_rbit),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_immediate),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_register),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_ssat),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_stc),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_stc),            
-        (0xffff0fff, 0xeef10a10, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vmrs),
-        (0xff300f00, 0xed000b00, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vstr),
-        (0xff300f00, 0xed000a00, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vstr),
-        (0xffe00f00, 0xed100b00, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_vldr),
-        (0xff300f00, 0xed100a00, ARMvAll, eEncodingT2, No_VFP, eSize32, self.decode_vldr),
+        (0xffbf0f00, 0xecbd0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vpop),  # FIXME
+        (0xffbf0f00, 0xecbd0a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vpop),  # FIXME
+        (0xffbf0f00, 0xed2d0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vpush), # FIXME
+        (0xffbf0f00, 0xed2d0a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vpush), # FIXME
+        (0xefb800b0, 0xef800010, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vorr_immediate),    # FIXME
+        (0xffb00f10, 0xef200110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vorr_register),     # FIXME
+        (0xffb00f10, 0xff000110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_veor),  # FIXME        
+        (0xfe100f00, 0xec100b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vldm),  # FIXME
+        (0xfe100f00, 0xec100a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vldm),  # FIXME
+        (0xffb00f10, 0xef000110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vand_register), # FIXME
+        (0xfe100f00, 0xec000b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vstm),  # FIXME
+        (0xfe100f00, 0xec000a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vstm),  # FIXME
+        (0xefb800b0, 0xef800030, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_immediate),    # FIXME
+        (0xffb30f90, 0xffb00580, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_register), # FIXME
+        (0xfe100000, 0xec000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_stc),   # FIXME       
+        (0xffffffc0, 0x0000b280, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_uxth),
+        (0xfffff0c0, 0xfa1ff080, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_uxth),
+        (0xffffffc0, 0x0000b240, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_sxtb),
+        (0xfffff0c0, 0xfa4ff080, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_sxtb),
+        (0xfff08020, 0xf3400000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_sbfx),
+        (0xfbe08000, 0xf0600000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_orn_immediate),
+        (0xffe08000, 0xea600000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_orn_register),
+        (0xffffffc0, 0x0000b200, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_sxth),
+        (0xfffff0c0, 0xfa0ff080, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_sxth),
+        (0xffffffc0, 0x0000ba00, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_rev),
+        (0xfff0f0f0, 0xfa90f080, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_rev),
+        (0xfe100000, 0xfc000000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_stc),
+        (0xfff0f0c0, 0xfa50f080, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_uxtab),
+        (0xfff0f0c0, 0xfa40f080, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_sxtab),
+        (0xffb30f90, 0xffb20000, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vswp),
+        (0xfff0f0c0, 0xfa10f080, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_uxtah),
+        (0xfff0f0c0, 0xfa00f080, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_sxtah),
+        (0xfff0f0f0, 0xfa90f0a0, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_rbit),
+        (0xffd08020, 0xf3000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ssat),
+        (0xffff0fff, 0xeef10a10, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vmrs),
+        (0xff300f00, 0xed000b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vstr),
+        (0xff300f00, 0xed000a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vstr),
+        (0xffe00f00, 0xed100b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vldr),
+        (0xff300f00, 0xed100a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vldr),
         (0xffff8020, 0xf36f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_bfc),
         (0xfff08020, 0xf3600000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_bfi),
         (0xff000010, 0xee000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_cdp),
@@ -338,8 +337,6 @@ class ARMDisassembler(object):
         (0xfe500000, 0xe8500000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrd_immediate),
         (0xfe5f0000, 0xe85f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrd_literal),
         (0xff7f0000, 0xf83f0000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrh_literal),
-        #(0xfffffe00, 0x00005a00, ARMv4T, ARMv5TAll | ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrh_register),
-        #(0xfff00fc0, 0xf8300000, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrh_register),
         (0xfff00f00, 0xf8300e00, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrht),
         (0xfff00000, 0xf9900000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_ldrsb_immediate),
         (0xfff00800, 0xf9100800, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_ldrsb_immediate),
@@ -997,39 +994,39 @@ class ARMDisassembler(object):
         """
         self.arm_table = \
         (
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_uxth),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vpop),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vpop),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vpush),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vpush),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxtb),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sbfx),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxth),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vorr_immediate),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vorr_register),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_veor),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_rev),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vldm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vldm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vand_register),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vstm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vstm),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_uxtab),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxtab),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vswp),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_uxtah),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_sxtah),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_rbit),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vmvn_immediate),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vmvn_register),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_ssat),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_stc),
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_stc),            
-        (0x0fff0fff, 0x0ef10a10, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vmrs),
-        (0x0f300f00, 0x0d000b00, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vstr),
-        (0x0f300f00, 0x0d000a00, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vstr),         
-        (0x0f300f00, 0x0d100b00, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_vldr),
-        (0x0f300f00, 0x0d100a00, ARMvAll, eEncodingA2, No_VFP, eSize32, self.decode_vldr),
+        (0x0fff03f0, 0x06ff0070, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_uxth),
+        (0x0fbf0f00, 0x0cbd0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vpop),
+        (0x0fbf0f00, 0x0cbd0a00, VFPv2 | VFPv3 | VFPv4, eEncodingA2, No_VFP, eSize32, self.decode_vpop),
+        (0x0fbf0f00, 0x0d2d0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vpush),
+        (0x0fbf0f00, 0x0d2d0a00, VFPv2 | VFPv3 | VFPv4, eEncodingA2, No_VFP, eSize32, self.decode_vpush),
+        (0x0fff03f0, 0x06af0070, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sxtb),
+        (0x0fe00070, 0x07a00050, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sbfx),
+        (0x0fff03f0, 0x06bf0070, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sxth),
+        (0xfeb800b0, 0xf2800010, AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vorr_immediate),
+        (0xffb30f10, 0xf3b00600, AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vorr_register),
+        (0xffb00f10, 0xf3000110, AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_veor),
+        (0x0fff0ff0, 0x06bf0f30, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_rev),
+        (0x0e100f00, 0x0c100b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vldm),
+        (0x0e100f00, 0x0c100a00, VFPv2 | VFPv3 | VFPv4, eEncodingA2, No_VFP, eSize32, self.decode_vldm),
+        (0xffb00f10, 0xf2000110, AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vand_register),
+        (0x0e100f00, 0x0c000b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vstm),
+        (0x0e100f00, 0x0c000a00, VFPv2 | VFPv3 | VFPv4, eEncodingA2, No_VFP, eSize32, self.decode_vstm),
+        (0x0ff003f0, 0x06e00070, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_uxtab),
+        (0x0ff003f0, 0x06a00070, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sxtab),
+        (0xffb30f90, 0xf3b20000, AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vswp),
+        (0x0ff003f0, 0x06f00070, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_uxtah),
+        (0x0ff003f0, 0x06b00070, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_sxtah),
+        (0x0fff0ff0, 0x06ff0f30, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_rbit),
+        (0xfeb800b0, 0xf2800030, AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vmvn_immediate),
+        (0xffb30f90, 0xf3b00580, AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vmvn_register),
+        (0x0fe00030, 0x06a00010, ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_ssat),
+        (0x0e100000, 0x0c000000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_stc),
+        (0xfe100000, 0xfc000000, ARMv5TAll | ARMv6All | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_stc),
+        (0x0fff0fff, 0x0ef10a10, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vmrs),
+        (0x0f300f00, 0x0d000b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vstr),
+        (0x0f300f00, 0x0d000a00, VFPv2 | VFPv3 | VFPv4, eEncodingA2, No_VFP, eSize32, self.decode_vstr),
+        (0x0f300f00, 0x0d100b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vldr),
+        (0x0f300f00, 0x0d100a00, VFPv2 | VFPv3 | VFPv4, eEncodingA2, No_VFP, eSize32, self.decode_vldr),
         (0x0fe0007f, 0x07c0001f, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_bfc),
         (0x0fe00070, 0x07c00010, ARMv6T2 | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_bfi),
         (0x0f000010, 0x0e000000, ARMv4All | ARMv5TAll | ARMv6All | ARMv7, eEncodingA1, No_VFP, eSize32, self.decode_cdp),
@@ -1596,7 +1593,7 @@ class ARMDisassembler(object):
 
         return ins
      
-    def disassemblerBuffer(self, ins_stream):
+    def disassemble_buffer(self, ins_stream, mode=ARMMode.ARM):
         """
         Disassemble a stream of instructions in string form.
         Return a list of all the disassembled instructions.
@@ -1606,16 +1603,17 @@ class ARMDisassembler(object):
         import struct
         ret = []
         
-        if self.mode == ARMMode.ARM:
+        if mode == ARMMode.ARM:
             opcodes = struct.unpack("<" + ("L" * (len(ins_stream) / 4)), ins_stream)           
             for opcode in opcodes:
                 ins = self.decode_arm(opcode)
                 ret.append(ins)
         
         else:
-            opcodes = struct.unpack("<" + ("L" * (len(ins_stream) / 4)), ins_stream)
+            opcodes = struct.unpack("<" + ("H" * (len(ins_stream) / 2)), ins_stream)
             for opcode in opcodes:
-                ins = self.decode_arm(opcode)
+                print "%.4x" %opcode
+                ins = self.decode_thumb(opcode)
                 ret.append(ins)
                 
         return ret
@@ -6556,10 +6554,12 @@ class ARMDisassembler(object):
         props = {}
         condition = None
         ins_id = ARMInstruction.uxtb
+        qualifiers = ""
         if encoding == eEncodingT1:
             Rm = get_bits(opcode, 5, 3)
             Rd = get_bits(opcode, 2, 0)
             rotation = 0
+            operands = [Register(Rd), Register(Rm)]
         
         elif encoding == eEncodingT2:
             Rd = get_bits(opcode, 11, 8)
@@ -6568,6 +6568,9 @@ class ARMDisassembler(object):
             
             if BadReg(Rd) or BadReg(Rm):
                 raise UnpredictableInstructionException()
+            
+            qualifiers = ".W"
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR, rotation)]
         
         elif encoding == eEncodingA1:
             condition = self.decode_condition_field(opcode)
@@ -6581,9 +6584,9 @@ class ARMDisassembler(object):
             
             
             Rm = get_bits(opcode, 3, 0)
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
-        operands = [Register(Rd), Register(Rm), Immediate(rotation)]
-        ins = Instruction(ins_id, opcode, "UXTB", False, condition, operands, encoding)
+        ins = Instruction(ins_id, opcode, "UXTB", False, condition, operands, encoding, qualifiers)
         return ins
             
     def decode_ubfx(self, opcode, encoding):
@@ -7124,6 +7127,7 @@ class ARMDisassembler(object):
         ins_id = ARMInstruction.mvn_immediate
         condition = self.decode_condition_field(opcode)
         
+        qualifiers = ""
         if encoding == eEncodingT1:
             Rd = get_bits(opcode, 11, 8)
             setflags = get_bit(opcode, 20)
@@ -7135,6 +7139,7 @@ class ARMDisassembler(object):
                 raise UnpredictableInstructionException()
             
             condition = None
+            qualifiers = ".W"
             
         elif encoding == eEncodingA1:
             Rd = get_bits(opcode, 15, 12)
@@ -7150,7 +7155,7 @@ class ARMDisassembler(object):
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
         
         operands = [Register(Rd), Immediate(imm32)]
-        ins = Instruction(ins_id, opcode, "MVN", setflags, condition, operands, encoding)
+        ins = Instruction(ins_id, opcode, "MVN", setflags, condition, operands, encoding, qualifiers)
         return ins
 
     def decode_str_immediate_thumb(self, opcode, encoding):
@@ -12059,6 +12064,7 @@ class ARMDisassembler(object):
         setsflags = False
         condition = None
 
+        qualifiers = ""
         if encoding == eEncodingT1:
             decode_mask = [I5, 1, I5, 1, 4, I1, 3, 4, 8]
             i, S, Rn, imm3, Rd, imm8 = decode_opcode(opcode, decode_mask)
@@ -12901,7 +12907,7 @@ class ARMDisassembler(object):
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
 
-        operands = [Register(Rd), Register(Rn), Immediate(lsb), Immediate(widthminus1 + 1)]
+        operands = [Register(Rd), Register(Rn), Immediate(lsbit), Immediate(widthminus1 + 1)]
         ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
         return ins
 
@@ -13495,7 +13501,7 @@ class ARMDisassembler(object):
             if sh == 1 and ((imm3 << 2) | imm2) == 0:
                 return self.decode_ssat16(opcode, encoding)
 
-            saturate_to = sat_imm + 1
+            saturate_to = sat_imm
             shift_t, shift_n = DecodeImmShift(sh << 1, (imm3 << 2) | imm2)
 
             if BadReg(Rd) or BadReg(Rn):
@@ -13506,7 +13512,7 @@ class ARMDisassembler(object):
         elif encoding == eEncodingA1:
             decode_mask = [4, I7, 5, 4, 5, 1, I2, 4]
             cond, sat_imm, Rd, imm5, sh, Rn = decode_opcode(opcode, decode_mask)
-            saturate_to = sat_imm + 1
+            saturate_to = sat_imm
             shift_t, shift_n = DecodeImmShift(sh << 1, imm5)
             if Rd == 15 or Rn == 15:
                 raise UnpredictableInstructionException()
@@ -13947,7 +13953,7 @@ class ARMDisassembler(object):
             if BadReg(Rd) or Rn == 13 or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I8, 4, 4, 2, I6, 4]
@@ -13960,7 +13966,7 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -13995,7 +14001,7 @@ class ARMDisassembler(object):
             if BadReg(Rd) or Rn == 13 or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I8, 4, 4, 2, I6, 4]
@@ -14008,7 +14014,7 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -14043,7 +14049,7 @@ class ARMDisassembler(object):
             if BadReg(Rd) or Rn == 13 or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I8, 4, 4, 2, I6, 4]
@@ -14056,7 +14062,7 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -14078,6 +14084,7 @@ class ARMDisassembler(object):
         setsflags = False
         condition = None
 
+        qualifiers = ""
         if encoding == eEncodingT1:
             decode_mask = [I(26), 3, 3]
             Rm, Rd = decode_opcode(opcode, decode_mask)
@@ -14091,7 +14098,8 @@ class ARMDisassembler(object):
             if BadReg(Rd) or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+            qualifiers = ".W"
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I(12), 4, 2, I6, 4]
@@ -14101,12 +14109,12 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
 
-        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifiers)
         return ins
 
     def decode_sxtb16(self, opcode, encoding):
@@ -14170,7 +14178,7 @@ class ARMDisassembler(object):
                 raise UnpredictableInstructionException()
 
             qualifier = ".W"
-            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I(12), 4, 2, I6, 4]
@@ -14181,7 +14189,7 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR,rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -14936,13 +14944,13 @@ class ARMDisassembler(object):
             decode_mask = [I(12), 4, I4, 4, I2, 2, 4]
             Rn, Rd, rotate, Rm = decode_opcode(opcode, decode_mask)
             if Rn == 0b1111:
-                return self.decode_uxtb(opcode, encoding)
+                return self.decode_uxtb(opcode, eEncodingT2)
 
             rotation = rotate << 3
             if BadReg(Rd) or Rn == 13 or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I8, 4, 4, 2, I6, 4]
@@ -14955,7 +14963,7 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -14988,7 +14996,7 @@ class ARMDisassembler(object):
             if BadReg(Rd) or Rn == 13 or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I8, 4, 4, 2, I6, 4]
@@ -15001,7 +15009,7 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -15034,7 +15042,7 @@ class ARMDisassembler(object):
             if BadReg(Rd) or Rn == 13 or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I8, 4, 4, 2, I6, 4]
@@ -15047,7 +15055,7 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rd), Register(Rn), Register(Rm), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rn), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
@@ -15101,11 +15109,12 @@ class ARMDisassembler(object):
         setsflags = False
         condition = None
 
+        qualifier = ""
         if encoding == eEncodingT1:
             decode_mask = [I(26), 3, 3]
             Rm, Rd = decode_opcode(opcode, decode_mask)
             rotation = 0
-            operands = [Register(Rm), Register(Rd)]
+            operands = [Register(Rd), Register(Rm)]
 
         elif encoding == eEncodingT2:
             decode_mask = [I(20), 4, I2, 2, 4]
@@ -15115,7 +15124,8 @@ class ARMDisassembler(object):
             if BadReg(Rd) or BadReg(Rm):
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rm), Register(Rd), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR, rotation)]
+            qualifier = ".W"
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I(12), 4, 2, I6, 4]
@@ -15126,12 +15136,12 @@ class ARMDisassembler(object):
             if Rd == 15 or Rm == 15:
                 raise UnpredictableInstructionException()
 
-            operands = [Register(Rm), Register(Rd), Immediate(rotation)]
+            operands = [Register(Rd), Register(Rm), RegisterShift(SRType_ROR, rotation)]
 
         else:
             raise InvalidInstructionEncoding("Invalid encoding for instruction")
 
-        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding)
+        ins = Instruction(ins_id, opcode, name, setsflags, condition, operands, encoding, qualifier)
         return ins
 
     def decode_vaba(self, opcode, encoding):
