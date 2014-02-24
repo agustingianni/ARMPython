@@ -297,21 +297,15 @@ class ARMDisassembler(object):
         """
         self.thumb_table = \
         (
-        (0xffbf0f00, 0xecbd0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vpop),  # FIXME
-        (0xffbf0f00, 0xecbd0a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vpop),  # FIXME
-        (0xffbf0f00, 0xed2d0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vpush), # FIXME
-        (0xffbf0f00, 0xed2d0a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vpush), # FIXME
-        (0xefb800b0, 0xef800010, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vorr_immediate),    # FIXME
-        (0xffb00f10, 0xef200110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vorr_register),     # FIXME
-        (0xffb00f10, 0xff000110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_veor),  # FIXME        
-        (0xfe100f00, 0xec100b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vldm),  # FIXME
-        (0xfe100f00, 0xec100a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vldm),  # FIXME
-        (0xffb00f10, 0xef000110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vand_register), # FIXME
-        (0xfe100f00, 0xec000b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vstm),  # FIXME
-        (0xfe100f00, 0xec000a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vstm),  # FIXME
-        (0xefb800b0, 0xef800030, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_immediate),    # FIXME
-        (0xffb30f90, 0xffb00580, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_register), # FIXME
-        (0xfe100000, 0xec000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_stc),   # FIXME       
+        (0xffbf0f00, 0xecbd0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vpop),
+        (0xffbf0f00, 0xecbd0a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vpop),
+        (0xffbf0f00, 0xed2d0b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vpush),
+        (0xffbf0f00, 0xed2d0a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vpush),
+        (0xefb800b0, 0xef800010, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vorr_immediate),
+        (0xffb00f10, 0xef200110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vorr_register),
+        (0xffb00f10, 0xff000110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_veor),
+        (0xffb00f10, 0xef000110, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vand_register),
+        (0xfe100000, 0xec000000, ARMv6T2 | ARMv7, eEncodingT1, No_VFP, eSize32, self.decode_stc),       
         (0xffffffc0, 0x0000b280, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_uxth),
         (0xfffff0c0, 0xfa1ff080, ARMv6T2 | ARMv7, eEncodingT2, No_VFP, eSize32, self.decode_uxth),
         (0xffffffc0, 0x0000b240, ARMv6All | ARMv7, eEncodingT1, No_VFP, eSize16, self.decode_sxtb),
@@ -1004,6 +998,15 @@ class ARMDisassembler(object):
 
         # LAST
         (0x00000000, 0x00000000, ARMvAll, eEncodingT1, No_VFP, eSize32, self.decode_unknown),
+
+        # FIX THESE:
+        (0xfe100f00, 0xec100b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vldm),  # FIXME
+        (0xfe100f00, 0xec100a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vldm),  # FIXME
+        (0xfe100f00, 0xec000b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vstm),  # FIXME
+        (0xfe100f00, 0xec000a00, VFPv2 | VFPv3 | VFPv4, eEncodingT2, No_VFP, eSize32, self.decode_vstm),  # FIXME
+        (0xefb800b0, 0xef800030, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_immediate),  # FIXME
+        (0xffb30f90, 0xffb00580, AdvancedSIMD, eEncodingT1, No_VFP, eSize32, self.decode_vmvn_register),  # FIXME
+        
         )
 
     def __build_arm_table__(self):        
@@ -1535,7 +1538,7 @@ class ARMDisassembler(object):
         (0xff000010, 0xfe000000, ARMv5TAll | ARMv6All | ARMv7, eEncodingA2, No_VFP, eSize32, self.decode_cdp),
         
         # END OF THE TABLE
-        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown)
+        (0x00000000, 0x00000000, ARMvAll, eEncodingA1, No_VFP, eSize32, self.decode_unknown),
         
         # FIX THOSE BELOW THIS LINE:
         (0x0e100f00, 0x0c100b00, VFPv2 | VFPv3 | VFPv4 | AdvancedSIMD, eEncodingA1, No_VFP, eSize32, self.decode_vldm),
@@ -1598,7 +1601,8 @@ class ARMDisassembler(object):
 
         decoder_entry = None
         for e in self.thumb_table:
-            if (opcode & e[0] == e[1]) and (self.arm_isa & e[2]):
+            #  and (self.arm_isa & e[2])
+            if (opcode & e[0] == e[1]):
                 decoder_entry = e
                 break
         
@@ -18037,7 +18041,7 @@ class ARMDisassembler(object):
             if regs == 0 or regs > 16 or (d + regs) > 32:
                 raise UnpredictableInstructionException()
 
-            operands = []
+            operands = [ExtensionRegisterSet([DRegister(reg) for reg in xrange(d, d + regs)], sequential=True)]
 
         elif encoding == eEncodingT2:
             decode_mask = [I9, 1, I6, 4, I4, 8]
@@ -18049,6 +18053,8 @@ class ARMDisassembler(object):
 
             if regs == 0 or (d + regs) > 32:
                 raise UnpredictableInstructionException()
+            
+            operands = [ExtensionRegisterSet([SRegister(reg) for reg in xrange(d, d + regs)], sequential=True)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I5, 1, I6, 4, I4, 8]
@@ -18111,6 +18117,8 @@ class ARMDisassembler(object):
 
             if regs == 0 or regs > 16 or (d + regs) > 32:
                 raise UnpredictableInstructionException()                
+            
+            operands = [ExtensionRegisterSet([DRegister(reg) for reg in xrange(d, d + regs)], sequential=True)]
 
         elif encoding == eEncodingT2:
             decode_mask = [I9, 1, I6, 4, I4, 8]
@@ -18121,6 +18129,8 @@ class ARMDisassembler(object):
             regs = imm8
             if regs == 0 or (d + regs) > 32:
                 raise UnpredictableInstructionException()            
+            
+            operands = [ExtensionRegisterSet([SRegister(reg) for reg in xrange(d, d + regs)], sequential=True)]
 
         elif encoding == eEncodingA1:
             decode_mask = [4, I5, 1, I6, 4, I4, 8]
