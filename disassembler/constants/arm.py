@@ -49,7 +49,8 @@ No_VFP = 0
 VFPv1 = (1 << 1)
 VFPv2 = (1 << 2)
 VFPv3 = (1 << 3)
-AdvancedSIMD = (1 << 4)
+VFPv4 = (1 << 4)
+AdvancedSIMD = (1 << 5)
 
 VFPv1_ABOVE = (VFPv1 | VFPv2 | VFPv3 | AdvancedSIMD)
 VFPv2_ABOVE = (VFPv2 | VFPv3 | AdvancedSIMD)

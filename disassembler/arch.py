@@ -162,6 +162,24 @@ class RegisterShift(object):
         else:
             return "INV"
 
+class ExtensionRegisterSet(object):
+    def __init__(self, registers, sequential=False):
+        self.registers = registers
+        self.repr = None
+        self.sequential = sequential and len(registers) != 1
+    
+    def __str__(self):
+        if self.repr:
+            return self.repr
+        
+        if self.sequential:
+            self.repr = "{" + str(self.registers[0]) + "-" + str(self.registers[-1]) + "}"
+        else:
+            self.repr = "{" + ", ".join(map(lambda x: str(x), self.registers)) + "}"
+            
+        return self.repr 
+    
+
 class RegisterSet(object):
     def __init__(self, registers):
         self.registers = registers
@@ -328,7 +346,20 @@ class CoprocessorOpCode(object):
             return self.n == other
     
     def __str__(self):
-        return "%d" % self.n
+        return "#%d" % self.n
+
+class CoprocessorOption(object):
+    def __init__(self, n):
+        self.n = n
+
+    def __eq__(self, other):
+        if isinstance(other, CoprocessorOption):
+            return self.n == other.n
+        else:
+            return self.n == other
+    
+    def __str__(self):
+        return "{%d}" % self.n
 
 class Memory(object):
     def __init__(self, op1=None, op2=None, op3=None, wback=False):
@@ -541,6 +572,13 @@ class Flag(object):
 class FPSCR(object):
     def __str__(self):
         return "FPSCR"
+
+    def __repr__(self):
+        return self.__str__()
+
+class APSR_nzcv(object):
+    def __str__(self):
+        return "APSR_nzcv"
 
     def __repr__(self):
         return self.__str__()
