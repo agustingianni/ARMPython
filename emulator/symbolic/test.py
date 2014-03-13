@@ -6,6 +6,31 @@ from emulator.symbolic.memory import *
 from emulator.symbolic.expression_z3 import *
 
 def test():
+    totalBlocks = BvVarExpr.construct(32, "totalBlocks")
+    blockSize = BvVarExpr.construct(32, "blockSize")
+    newsize = BvVarExpr.construct(64, "newsize")
+
+    oldsize = totalBlocks.zeroExtend(64) * blockSize.zeroExtend(64)
+    newblkcnt = newsize[0:32] / blockSize
+
+    reclaimblks = totalBlocks - newblkcnt
+
+
+    s=z3.SolverFor("QF_AUFBV")
+    s.add(newsize > 32 * 1024 * 1024)
+    s.add(newsize < oldsize)
+    s.add((newsize % 512) == 0)
+    s.add((blockSize % 512) == 0)
+
+    s.add(reclaimblks < (totalBlocks - 100))
+
+    s.add(newsize / 512 > 0xffffffff)
+    print s.check()
+    m = s.model()
+    print m
+    
+
+def test2():
     bv1=BvConstExpr.construct(0xcafecafe, 32)
     bv2=BvVarExpr.construct(32, "bv2")
     anded=(((bv1 & bv2) | 0x12345678) + 0xbababebe)

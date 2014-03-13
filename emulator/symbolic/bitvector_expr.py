@@ -60,6 +60,32 @@ class BvExpr(Expr):
     def __pos__(self):
         return self
 
+    def __getitem__(self, key):
+        if isinstance(key, BvExpr):
+            if not key.__has_value__:
+                raise TypeError
+            key=key.value
+
+        if isinstance(key, int) or isinstance(key, long):
+            stop = key
+            start = key
+        else:
+            start=key.start
+            stop=key.stop-1
+
+        if start == None:
+            start=0
+        if stop == 0x7FFFFFFE:
+            stop = self.__len__()-1
+        if start < 0 or stop < 0:
+            bits=self.size
+            if start < 0:
+                start = bits + start
+            if stop < 0:
+                stop = bits + stop
+        
+        return self.extract(stop, start)
+
     def __and__(self, other):
         if isinstance(other, BvExpr) and not other.__has_value__ and not self.__has_value__:
             return BvAndExpr.construct(self, other)
@@ -952,7 +978,7 @@ class BvMulExpr(BvExpr):
     @classmethod
     def construct(cls, p1, p2, force_expr=False):
         p1, p2 = cls.__associative_construct__(p1, p2)
-        p2 = forceToExpr(p2, p1.size)        
+        p2 = forceToExpr(p2, p1.size)
         return cls(p1, p2)
 
 class BvUDivExpr(BvExpr):
@@ -971,7 +997,7 @@ class BvUDivExpr(BvExpr):
         self.__hash__=self.__hash_fun__
     
     @staticmethod
-    def construct(p1, p2, force_expr):
+    def construct(p1, p2, force_expr=False):
         #p / p = 1
         if p1.__hash__() == p2.__hash__():
             return forceToExprCond(force_expr, 1, p1.size)

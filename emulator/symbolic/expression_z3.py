@@ -132,7 +132,7 @@ def boolvar_wrapper(expr):
     return (expr.name, )
 
 def extract_wrapper(expr):
-    return (expr.end, expr.start, expr.children[0])
+    return (int(expr.end), int(expr.start), expr.children[0])
 
 def deferredmemread_backend(self):
     pmem = self.memmap.commited_memory_solver
