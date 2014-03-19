@@ -480,7 +480,7 @@ class BvExpr(Expr):
                     return False
 
                 #p < 0 <=> False
-                if not self.__has_value__ and self.value == 0:
+                if not self.__has_value__ and long(other) == 0:
                     return False
 
                 return BvUltExpr.construct(self, forceToExpr(other, self.size))
