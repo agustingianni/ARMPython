@@ -5,6 +5,23 @@ class BoolExpr(Expr):
     __slots__=()
     __sort__="Bool"
 
+    @staticmethod
+    def toExpr(val):
+        return val
+
+    @staticmethod
+    def forceToExpr(val):
+        if isinstance(val, BoolExpr):
+            return val
+        elif bool(val):
+            return TrueExpr
+        else:
+            return FalseExpr
+
+    @staticmethod
+    def forceToExprCond(cond, val):
+        return BoolExpr.forceToExpr(val) if cond else val
+
     def __nonzero__(self):
         if self.__has_value__:
             return self.value
@@ -18,7 +35,7 @@ class BoolExpr(Expr):
         else:
             (value, secondary, _) = self.getValue(other)
             #p & T <=> p (Identity), p & F <=> F (Annihilator)
-            return secondary if value else False
+            return BoolExpr.toExpr(secondary if value else False)
 
     def __rand__(self, other):
         return self.__and__(other)
@@ -30,7 +47,7 @@ class BoolExpr(Expr):
         else:
             (value, secondary, _) = self.getValue(other)
             #p | T <=> T (Annihilator), p | F <=> p (Identity)
-            return True if value else secondary
+            return BoolExpr.toExpr(True if value else secondary)
 
     def __ror__(self, other):
         return self.__or__(other)
@@ -42,14 +59,14 @@ class BoolExpr(Expr):
         else:
             (value, secondary, _) = self.getValue(other)
             #p ^ T <=> ~p, p ^ F <=> p
-            return ~secondary if value else secondary 
+            return BoolExpr.toExpr(~secondary if value else secondary) 
 
     def __rxor__(self, other):
         return self.__xor__(other)
     
     def __invert__(self):
         if self.__has_value__:
-            return not self.value
+            return BoolExpr.toExpr(not self.value)
         else:
             return BoolNotExpr.construct(self)
     
@@ -57,7 +74,7 @@ class BoolExpr(Expr):
         #using >> for Implication
 
         #p -> q <=> !p | q
-        return ~self | other
+        return BoolExpr.toExpr(~self | other)
     
     def __rrshift__(self, other):
         #This is only for the reversed case of implication
@@ -65,14 +82,14 @@ class BoolExpr(Expr):
 
         #T => p <=> p, F => p <=> T
         if self.__has_value__:
-            return self.value if bool(other) else True
+            return BoolExpr.toExpr(self.value if bool(other) else True)
         else:
-            return self if bool(other) else True
+            return BoolExpr.toExpr(self if bool(other) else True)
     
     def __eq__(self, other):
         other_is_expr = isinstance(other, BoolExpr)
         if self.__has_value__ and (not other_is_expr or other.__has_value__):
-            return self.value == bool(other)
+            return BoolExpr.toExpr(self.value == bool(other))
         else:
             if not other_is_expr:
                 other = TrueExpr if bool(other) else FalseExpr
@@ -82,7 +99,7 @@ class BoolExpr(Expr):
     def __ne__(self, other):
         other_is_expr = isinstance(other, BoolExpr)
         if self.__has_value__ and (not other_is_expr or other.__has_value__):
-            return self.value != bool(other)
+            return BoolExpr.toExpr(self.value != bool(other))
         else:
             if not other_is_expr:
                 other = TrueExpr if bool(other) else FalseExpr

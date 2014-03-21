@@ -24,15 +24,33 @@ def IteExpr(_if, _then, _else, op_size=32):
 
         #if _then == _else it doesn't matter what _if says
         (value, secondary, both_values) = _then.getValue(_else)
+        then_is_bool=isinstance(_then, BoolExpr)
+        
         if both_values and value == secondary:
-            return value
+            if then_is_bool: 
+                return BoolExpr.toExpr(value)
+            else:
+                return BvExpr.toExpr(value, _then.size)
+        
+        if _then.__hash__() == _else.__hash__():
+            return _then
 
-        if isinstance(_then, BoolExpr):
+        if then_is_bool:
             return BoolIteExpr.construct(_if, _then, _else)
         else:
             return BvIteExpr.construct(_if, _then, _else)
     else:
         if bool(_if):
-            return _then.value if isinstance(_then, Expr) and _then.__has_value__ else _then
+            if isinstance(_then, BvExpr):
+                return BvExpr.toExpr(_then.value, _then.size) if _then.__has_value__ else _then
+            elif isinstance(_then, BoolExpr):
+                return BoolExpr.toExpr(_then.value) if _then.__has_value__ else _then
+            else:
+                return _then
         else:
-            return  _else.value if isinstance(_else, Expr) and _else.__has_value__ else _else
+            if isinstance(_else, BvExpr):
+                return BvExpr.toExpr(_else.value, _else.size) if _else.__has_value__ else _else
+            elif isinstance(_else, BoolExpr):
+                return BoolExpr.toExpr(_else.value) if _else.__has_value__ else _else
+            else:
+                return _else
