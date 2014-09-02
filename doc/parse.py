@@ -85,7 +85,8 @@ enum_elements = delimitedList(identifier ^ number)
 enum_expr = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumeration(x[0][:]))
 
 # An atom is either an identifier or a number. Atoms are the most basic elements of expressions.
-atom = identifier ^ number ^ enum_expr ^ boolean_value
+expr = Forward()
+atom = identifier ^ number ^ enum_expr ^ boolean_value ^ (LPAR + expr + RPAR)
 
 # Procedure call expression, arguments cannot be complex expressions as they were not needed.
 concat_expr = Forward()
@@ -112,6 +113,14 @@ boolean_operator = oneOf("|| && == != > < >= <= IN")
 bitstring_operator = oneOf(":")
 assignment_operator = EQUALS
 
+if False:
+    LPAR,RPAR = map(Suppress, '()')
+    expr = Forward()
+    operand = real | integer
+    factor = operand | Group(LPAR + expr + RPAR)
+    term = factor + ZeroOrMore( oneOf('* /') + factor )
+    expr = term + ZeroOrMore( oneOf('+ -') + term )
+
 def decode_binary(x):
     op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul", \
         "<<" : "lshift", ">>" : "rshift", "DIV" : "div", "MOD" : "mod", \
@@ -128,9 +137,9 @@ boolean_expr = Forward()
 boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).setParseAction(decode_binary)
 
 # Generic expression, comprising all the combinations of the preceeding definitions.
-expr = boolean_expr ^ (LPAR + boolean_expr + RPAR)
+expr <<= boolean_expr
 
-print expr.parseString("(1 + 2) - 3 * 4", parseAll=True)
+print expr.parseString("(1 + 2) - (3 * 4)", parseAll=True)
 import sys
 sys.exit()
 
