@@ -61,10 +61,10 @@ identifier = Word(alphas + "_", alphanums + "_").setParseAction(lambda x: Identi
 unary_operator = oneOf("! - ~ +")
 
 # Binary Operators. 
-integer_operators = oneOf("+ - / * << >> DIV MOD ^").setResultsName("int_op")
-boolean_operator = oneOf("|| && == != > < >= <= IN").setResultsName("bool_op")
-bitstring_operator = oneOf(":").setResultsName("bit_op")
-assignment_operator = EQUALS.setResultsName("assignment_op")
+integer_operators = oneOf("+ - / * << >> DIV MOD ^")
+boolean_operator = oneOf("|| && == != > < >= <= IN")
+bitstring_operator = oneOf(":")
+assignment_operator = EQUALS
 binary_operator = (integer_operators ^ boolean_operator ^ bitstring_operator)
 
 # Use the already defined C multiline comment and C++ inline comments.
@@ -107,10 +107,10 @@ def decode_unary(x):
 unary_expr = Forward()
 unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_unary)
 
-integer_operators = oneOf("+ - / * << >> DIV MOD ^").setResultsName("int_op")
-boolean_operator = oneOf("|| && == != > < >= <= IN").setResultsName("bool_op")
-bitstring_operator = oneOf(":").setResultsName("bit_op")
-assignment_operator = EQUALS.setResultsName("assignment_op")
+integer_operators = oneOf("+ - / * << >> DIV MOD ^")
+boolean_operator = oneOf("|| && == != > < >= <= IN")
+bitstring_operator = oneOf(":")
+assignment_operator = EQUALS
 
 def decode_binary(x):
     op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul", \
@@ -130,7 +130,7 @@ boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).s
 # Generic expression, comprising all the combinations of the preceeding definitions.
 expr = boolean_expr ^ (LPAR + boolean_expr + RPAR)
 
-print expr.parseString("1 + 2 - 3 * 4", parseAll=True)
+print expr.parseString("(1 + 2) - 3 * 4", parseAll=True)
 import sys
 sys.exit()
 
