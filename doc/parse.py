@@ -154,11 +154,18 @@ return_statement = Group(RETURN ^ (RETURN + expr))
 # Assignment statement.
 assignment_statement = (expr + assignment_operator + expr).setParseAction(decode_binary)
 
+If = namedtuple("If", ["condition", "statements"])
+def decode_if(x):
+    return If(x[1], x[3][:])
+
 # Define the whole if (...) then ... [elsif (...) then ...] [else ...]
-if_statement = \
-    IF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list + \
-    ZeroOrMore(ELSIF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list) + \
-    Optional(ELSE + statement_list)
+# if_statement = \
+#    IF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list + \
+#    ZeroOrMore(ELSIF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list) + \
+#    Optional(ELSE + statement_list)
+#
+# Define a simplified if statement. TODO: In the future we ma want to extend it.
+if_statement = (IF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list).setParseAction(decode_if)
 
 # Repeat until statement.
 repeat_until_statement = (REPEAT + statement_list + UNTIL + expr ).setParseAction(decode_repeat_until)
@@ -177,7 +184,8 @@ statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statem
 # Define a basic program.
 program = statement_list
 
-print program.parseString("if AAAA IN {1111} && BBBB IN {2222} then a=TRUE;")
+print program.parseString("if 1 == 1 then\nUNPREDICTABLE;\nUNPREDICTABLE;")
+
 print program.parseString("d = UInt(Rd);")
 print program.parseString("setflags = (S == '111');")
 print program.parseString("imm32 = ThumbExpandImm(i:imm3:imm8);")
