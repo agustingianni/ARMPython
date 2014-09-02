@@ -54,6 +54,19 @@ UnaryExpression = namedtuple("UnaryExpression", ["type", "expr"])
 BinaryExpression = namedtuple("BinaryExpression", ["type", "left_expr", "right_expr"])
 ProcedureCall = namedtuple("ProcedureCall", ["name", "arguments"])
 
+def decode_unary(x):
+    print "AAAA:", x
+    op_name = {"!" : "negate", "-" : "minus", "~" : "invert", "+" : "plus"}
+    op = op_name[x[0]]
+    return UnaryExpression(op, x[1])
+
+def decode_binary(x):
+    op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul", \
+        "<<" : "lshift", ">>" : "rshift", "DIV" : "div", "MOD" : "mod", \
+        "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne", \
+        ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in", "=" : "assign"}
+    return BinaryExpression(op_name[x[1]], x[0], x[2])
+
 boolean_value = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
 identifier = Word(alphas + "_", alphanums + "_").setParseAction(lambda x: Identifier(x[0]))
 
@@ -63,8 +76,8 @@ unary_operator = oneOf("! - ~ +")
 # Binary Operators. 
 integer_operators = oneOf("+ - / * << >> DIV MOD ^")
 boolean_operator = oneOf("|| && == != > < >= <= IN")
-bitstring_operator = oneOf(":")
-assignment_operator = EQUALS
+bitstring_operator = Literal(":")
+assignment_operator = Literal("=")
 binary_operator = (integer_operators ^ boolean_operator ^ bitstring_operator)
 
 # Use the already defined C multiline comment and C++ inline comments.
@@ -99,34 +112,9 @@ procedure_call_expr = Group(identifier + LPAR + Optional(procedure_arguments) + 
 # We define a primary to be either an atom or a procedure call.
 primary = (atom ^ procedure_call_expr)
 
-def decode_unary(x):
-    op_name = {"!" : "negate", "-" : "minus", "~" : "invert", "+" : "plus"}
-    op = op_name[x[0]]
-    return UnaryExpression(op, x[1])
-
 # Define a unary expression.
 unary_expr = Forward()
 unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_unary)
-
-integer_operators = oneOf("+ - / * << >> DIV MOD ^")
-boolean_operator = oneOf("|| && == != > < >= <= IN")
-bitstring_operator = oneOf(":")
-assignment_operator = EQUALS
-
-if False:
-    LPAR,RPAR = map(Suppress, '()')
-    expr = Forward()
-    operand = real | integer
-    factor = operand | Group(LPAR + expr + RPAR)
-    term = factor + ZeroOrMore( oneOf('* /') + factor )
-    expr = term + ZeroOrMore( oneOf('+ -') + term )
-
-def decode_binary(x):
-    op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul", \
-        "<<" : "lshift", ">>" : "rshift", "DIV" : "div", "MOD" : "mod", \
-        "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne", \
-        ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in"}
-    return BinaryExpression(op_name[x[1]], x[0], x[2])
 
 # Define a binary expression.
 binary_expr = Forward()
@@ -138,10 +126,6 @@ boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).s
 
 # Generic expression, comprising all the combinations of the preceeding definitions.
 expr <<= boolean_expr
-
-print expr.parseString("(1 + 2) - (3 * 4)", parseAll=True)
-import sys
-sys.exit()
 
 # Forward declaration of a generic statement.
 statement = Forward()
@@ -156,7 +140,7 @@ subarchitecture_defined_statement = Group(SUBARCHITECTURE_DEFINED + Word(printab
 return_statement = Group(RETURN ^ (RETURN + expr))
 
 # Assignment statement.
-assignment_statement = expr + EQUALS + expr
+assignment_statement = (expr + assignment_operator + expr).setParseAction(decode_binary)
 
 # Define the whole if (...) then ... [elsif (...) then ...] [else ...]
 if_statement = \
@@ -186,5 +170,4 @@ print program.parseString("d = UInt(Rd);")
 print program.parseString("n = UInt(Rn);")
 print program.parseString("setflags = (S == '1');")
 print program.parseString("imm32 = ThumbExpandImm(i:imm3:imm8);")
-a = program.parseString("if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;")
-print a.asXML("code")
+print program.parseString("if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;")
