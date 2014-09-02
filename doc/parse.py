@@ -56,6 +56,7 @@ ProcedureCall = namedtuple("ProcedureCall", ["name", "arguments"])
 RepeatUntil = namedtuple("RepeatUntil", ["statements", "condition"])
 While = namedtuple("While", ["condition", "statements"])
 For = namedtuple("For", ["from_", "to", "statements"])
+If = namedtuple("If", ["condition", "statements"])
 
 def decode_repeat_until(x):
     return RepeatUntil(x[1], x[3])
@@ -77,6 +78,9 @@ def decode_binary(x):
         "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne", \
         ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in", "=" : "assign"}
     return BinaryExpression(op_name[x[1]], x[0], x[2])
+
+def decode_if(x):
+    return If(x[1], x[3][:])
 
 boolean_value = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
 identifier = Word(alphas + "_", alphanums + "_").setParseAction(lambda x: Identifier(x[0]))
@@ -150,13 +154,10 @@ see_statement = Group(SEE + Word(printables + " "))
 implementation_defined_statement = Group(IMPLEMENTATION_DEFINED + Word(printables + " "))
 subarchitecture_defined_statement = Group(SUBARCHITECTURE_DEFINED + Word(printables + " "))
 return_statement = Group(RETURN ^ (RETURN + expr))
+procedure_call_statement = procedure_call_expr
 
 # Assignment statement.
 assignment_statement = (expr + assignment_operator + expr).setParseAction(decode_binary)
-
-If = namedtuple("If", ["condition", "statements"])
-def decode_if(x):
-    return If(x[1], x[3][:])
 
 # Define the whole if (...) then ... [elsif (...) then ...] [else ...]
 # if_statement = \
@@ -178,14 +179,14 @@ for_statement = (FOR + assignment_statement + TO + expr + statement_list).setPar
 
 # Collect all statements. We have two kinds, the ones that end with a semicolon and if, for and other statements that do not.
 statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statement ^ \
-    implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^ assignment_statement) + SEMI) ^ \
+    implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^ procedure_call_statement ^ assignment_statement) + SEMI) ^ \
     if_statement ^ repeat_until_statement ^ while_statement ^ for_statement)
 
 # Define a basic program.
 program = statement_list
 
+print program.parseString("a = 1;\nb = 2;\npepe();")
 print program.parseString("if 1 == 1 then\nUNPREDICTABLE;\nUNPREDICTABLE;")
-
 print program.parseString("d = UInt(Rd);")
 print program.parseString("setflags = (S == '111');")
 print program.parseString("imm32 = ThumbExpandImm(i:imm3:imm8);")
