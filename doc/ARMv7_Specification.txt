@@ -1,0 +1,1750 @@
+ADC Immediate
+T1 11110 i#1 01010 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0010101 S#1 Rn#4 Rd#4 imm12#12
+
+ADC Register
+T1 0100000101 Rm#3 Rdn#3
+T2 11101011010 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0000101 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+ADC (register-shifted register)
+A1 cond#4 0000101 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+ADD (immediate, Thumb)
+T1 0001110 imm3#3 Rn#3 Rd#3
+T2 00110 Rdn#3 imm8#8
+T3 11110 i#1 01000 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+T4 11110 i#1 100000 Rn#4 0 imm3#3 Rd#4 imm8#8
+
+ADD (immediate, ARM)
+A1 cond#4 0010100 S#1 Rn#4 Rd#4 imm12#12
+
+ADD (register, Thumb)
+T1 0001100 Rm#3 Rn#3 Rd#3
+T2 01000100 DN#1 Rm#4 Rdn#3
+T3 11101011000 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+
+ADD (register, ARM)
+A1 cond#4 0000100 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+ADD (register-shifted register)
+A1 cond#4 0000100 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+ADD (SP plus immediate)
+T1 10101 Rd#3 imm8#8
+T2 101100000 imm7#7
+T3 11110 i#1 01000 S#1 11010 imm3#3 Rd#4 imm8#8
+T4 11110 i#1 10000011010 imm3#3 Rd#4 imm8#8 
+A1 cond#4 0010100 S#1 1101 Rd#4 imm12#12
+
+ADD (SP plus register, Thumb)
+T1 01000100 DM#1 1101 Rdm#3
+T2 01000100 1 Rm#4 101
+T3 11101011000 S#1 11010 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+
+ADD (SP plus register, ARM)
+A1 cond#4 0000100 S#1 1101 Rd#4 imm5#5 type#2 0 Rm#4
+
+ADR
+T1 10100 Rd#3 imm8#8
+T2 11110 i#1 10101011110 imm3#3 Rd#4 imm8#8
+T3 11110 i#1 10000011110 imm3#3 Rd#4 imm8#8 
+A1 cond#4 001010001111 Rd#4 imm12#12
+A2 cond#4 001001001111 Rd#4 imm12#12
+
+AND (immediate)
+T1 11110 i#1 00000 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0010000 S#1 Rn#4 Rd#4 imm12#12
+
+AND (register)
+T1 0100000000 Rm#3 Rdn#3
+T2 11101010000 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0000000 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+AND (register-shifted register)
+A1 cond#4 0000000 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+ASR (immediate) 
+T1 00010 imm5#5 Rm#3 Rd#3 
+T2 11101010010 S#1 11110 imm3#3 Rd#4 imm2#2 10 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 imm5#5 100 Rm#4
+
+ASR (register)
+T1 0100000100 Rm#3 Rdn#3
+T2 11111010010 S#1 Rn#4 1111 Rd#4 0000 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 Rm#4 0101 Rn#4
+
+B
+T1 1101 cond#4 imm8#8
+T2 11100 imm11#11
+T3 11110 S#1 cond#4 imm6#6 10 J1#1 0 J2#1 imm11#11
+T4 11110 S#1 imm10#10 10 J1#1 1 J2#1 imm11#11
+A1 cond#4 1010 imm2#24
+
+BFC
+T1 11110011011011110 imm3#3 Rd#4 imm2#2 0 msb#5
+A1 cond#4 0111110 msb#5 Rd#4 lsb#5 0011111
+
+BFI
+T1 111100110110 Rn#4 0 imm3#3 Rd#4 imm2#2 0 msb#5
+A1 cond#4 0111110 msb#5 Rd#4 lsb#5 001 Rn#4
+
+BIC (immediate)
+T1 11110 i#1 00001 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0011110 S#1 Rn#4 Rd#4 imm12#12
+
+BIC (register)
+T1 0100001110 Rm#3 Rdn#3
+T2 11101010001 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0001110 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+BIC (register-shifted register)
+A1 cond#4 0001110 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+BKPT
+T1 10111110 imm8#8
+A1 cond#4 00010010 imm12#12 0111 imm4#4
+
+BL, BLX (immediate)
+T1 11110 S#1 imm10#10 11 J1#1 1 J2#1 imm11#11
+T2 11110 S#1 immH#10 11 J1#1 0 J2#1 immL#10 H#1
+A1 cond#4 1011 imm2#24
+A2 1111101 H#1 imm2#24
+
+BLX (register)
+T1 010001111 Rm#4 000
+A1 cond#4 000100101111111111110011 Rm#4
+
+BX
+T1 010001110 Rm#4 000
+A1 cond#4 000100101111111111110001 Rm#4
+
+BXJ
+T1 111100111100 Rm#4 1000111100000000
+A1 cond#4 000100101111111111110010 Rm#4
+
+CBNZ, CBZ
+T1 1011 op#1 0 i#1 1 imm5#5 Rn#3
+
+CDP, CDP2
+T1 11101110 opc1#4 CRn#4 CRd#4 coproc#4 opc2#3 0 CRm#4
+A1 cond#4 1110 opc1#4 CRn#4 CRd#4 coproc#4 opc2#3 0 CRm#4
+T2 11111110 opc1#4 CRn#4 CRd#4 coproc#4 opc2#3 0 CRm#4
+A2 11111110 opc1#4 CRn#4 CRd#4 coproc#4 opc2#3 0 CRm#4
+
+CLREX
+T1 11110011101111111000111100101111
+A1 11110101011111111111000000011111
+
+CLREX
+T1 11110011101111111000111100101111
+A1 11110101011111111111000000011111
+
+CLZ
+T1 111110101011 Rm#4 1111 Rd#4 1000 Rm#4
+A1 cond#4 000101101111 Rd#4 11110001 Rm#4
+
+CMN (immediate)
+T1 11110 i#1 010001 Rn#4 0 imm3#3 1111 imm8#8
+A1 cond#4 00110111 Rn#4 0000 imm12#12
+
+CMN (register)
+T1 0100001011 Rm#3 Rn#3
+T2 111010110001 Rn#4 0 imm3#3 1111 imm2#2 type#2 Rm#4
+A1 cond#4 00010111 Rn#4 0000 imm5#5 type#2 0 Rm#4
+
+CMN (register-shifted register)
+A1 cond#4 00010111 Rn#4 0000 Rs#4 0 type#2 1 Rm#4
+
+CMP (immediate)
+T1 00101 Rn#3 imm8#8
+T2 11110 i#1 011011 Rn#4 0 imm3#3 1111 imm8#8
+A1 cond#4 00110101 Rn#4 0000 imm12#12
+
+CMP (register)
+T1 0100001010 Rm#3 Rn#3
+T2 01000101 N#1 Rm#4 Rn#3
+T3 111010111011 Rn#4 0 imm3#3 1111 imm2#2 type#2 Rm#4
+A1 cond#4 00010101 Rn#4 0000 imm5#5 type#2 0 Rm#4
+
+CMP (register-shifted register)
+A1 cond#4 00010101 Rn#4 0000 Rs#4 0 type#2 1 Rm#4
+
+DBG
+T1 1111001110101111100000001111 option#4
+A1 cond#4 001100100000111100001111 option#4
+
+DMB
+T1 1111001110111111100011110101 option#4
+A1 1111010101111111111100000101 option#4
+
+DSB
+T1 1111001110111111100011110100 option#4
+A1 1111010101111111111100000100 option#4
+
+EOR (immediate)
+T1 11110 i#1 00100 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0010001 S#1 Rn#4 Rd#4 imm12#12
+
+EOR (register)
+T1 0100000001 Rm#3 Rdn#3
+T2 11101010100 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0000001 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+EOR (register-shifted register)
+A1 cond#4 0000001 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+ISB
+T1 1111001110111111100011110110 option#4
+A1 1111010101111111111100000110 option#4
+
+IT
+T1 10111111 firstcond#4 mask#4
+
+LDC, LDC2 (immediate)
+T1 1110110 P#1 U#1 D#1 W#1 1 Rn#4 CRd#4 coproc#4 imm8#8
+A1 cond#4 110 P#1 U#1 D#1 W#1 1 Rn#4 CRd#4 coproc#4 imm8#8
+T2 1111110 P#1 U#1 D#1 W#1 1 Rn#4 CRd#4 coproc#4 imm8#8
+A2 1111110 P#1 U#1 D#1 W#1 1 Rn#4 CRd#4 coproc#4 imm8#8
+
+LDC, LDC2 (literal)
+T1 1110110 P#1 U#1 D#1 W#1 11111 CRd#4 coproc#4 imm8#8
+A1 cond#4 110 P#1 U#1 D#1 W#1 11111 CRd#4 coproc#4 imm8#8
+T2 1111110 P#1 U#1 D#1 W#1 11111 CRd#4 coproc#4 imm8#8
+A2 1111110 P#1 U#1 D#1 W#1 11111 CRd#4 coproc#4 imm8#8
+
+LDM/LDMIA/LDMFD (Thumb)
+T1 11001 Rn#3 register_list#8
+T2 1110100010 W#1 1 Rn#4 P#1 M#1 0 register_list#13
+
+LDM/LDMIA/LDMFD (ARM)
+A1 cond#4 100010 W#1 1 Rn#4 register_list#16
+
+LDMDA/LDMFA
+A1 cond#4 100000 W#1 1 Rn#4 register_list#16
+
+LDMDB/LDMEA
+T1 1110100100 W#1 1 Rn#4 P#1 M#1 0 register_list#13
+A1 cond#4 100100 W#1 1 Rn#4 register_list#16
+
+LDMIB/LDMED
+A1 cond#4 100110 W#1 1 Rn#4 register_list#16
+
+LDR (immediate, Thumb)
+T1 01101 imm5#5 Rn#3 Rt#3 
+T2 10011 Rt#3 imm8#8
+T3 111110001101 Rn#4 Rt#4 imm12#12
+T4 111110000101 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+
+LDR (immediate, ARM)
+A1 cond#4 010 P#1 U#1 0 W#1 1 Rn#4 Rt#4 imm12#12
+
+LDR (literal)
+T1 01001 Rt#3 imm8#8
+T2 11111000 U#1 1011111 Rt#4 imm12#12
+A1 cond#4 0101 U#1 0011111 Rt#4 imm12#12
+
+LDR (register, Thumb)
+T1 0101100 Rm#3 Rn#3 Rt#3
+T2 111110000101 Rn#4 Rt#4 000000 imm2#2 Rm#4
+
+LDR (register, ARM)
+A1 cond#4 011 P#1 U#1 0 W#1 1 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+LDRB (immediate, Thumb)
+T1 01111 imm5#5 Rn#3 Rt#3
+T2 111110001001 Rn#4 Rt#4 imm12#12
+T3 111110000001 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+
+LDRB (immediate, ARM)
+A1 cond#4 010 P#1 U#1 1 W#1 1 Rn#4 Rt#4 imm12#12
+
+LDRB (literal)
+T1 11111000 U#1 0011111 Rt#4 imm12#12
+A1 cond#4 0101 U#1 1011111 Rt#4 imm12#12
+
+LDRB (register)
+T1 0101110 Rm#3 Rn#3 Rt#3
+T2 111110000001 Rn#4 Rt#4 000000 imm2#2 Rm#4
+A1 cond#4 011 P#1 U#1 1 W#1 1 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+LDRBT
+T1 111110000001 Rn#4 Rt#4 1110 imm8#8
+A1 cond#4 0100 U#1 111 Rn#4 Rt#4 imm12#12
+A2 cond#4 0110 U#1 111 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+LDRD (immediate)
+T1 1110100 P#1 U#1 1 W#1 1 Rn#4 Rt#4 Rt2#4 imm8#8
+A1 cond#4 000 P#1 U#1 1 W#1 0 Rn#4 Rt#4 imm4H#4 1101 imm4L#4
+
+LDRD (literal)
+T1 1110100 P#1 U#1 1 W#1 11111 Rt#4 Rt2#4 imm8#8
+A1 cond#4 0001 U#1 1001111 Rt#4 imm4H#4 1101 imm4L#4
+
+LDRD (register)
+A1 cond#4 000 P#1 U#1 0 W#1 0 Rn#4 Rt#4 00001101 Rm#4
+
+LDREX
+T1 111010000101 Rn#4 Rt#4 1111 imm8#8
+A1 cond#4 00011001 Rn#4 Rt#4 111110011111
+
+LDREXB
+T1 111010001101 Rn#4 Rt#4 111101001111
+A1 cond#4 00011101 Rn#4 Rt#4 111110011111
+
+LDREXD
+T1 111010001101 Rn#4 Rt#4 Rt2#4 01111111
+A1 cond#4 00011011 Rn#4 Rt#4 111110011111
+
+LDREXH
+T1 111010001101 Rn#4 Rt#4 111101011111
+A1 cond#4 00011111 Rn#4 Rt#4 111110011111
+
+LDRH (immediate, Thumb)
+T1 10001 imm5#5 Rn#3 Rt#3 
+T2 111110001011 Rn#4 Rt#4 imm12#12
+T3 111110000011 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+
+LDRH (immediate, ARM)
+A1 cond#4 000 P#1 U#1 1 W#1 1 Rn#4 Rt#4 imm4H#4 1011 imm4L#4 
+
+LDRH (literal)
+T1 11111000 U#1 0111111 Rt#4 imm12#12
+A1 cond#4 0001 U#1 1011111 Rt#4 imm4H#4 1011 imm4L#4
+
+LDRH (register)
+T1 0101101 Rm#3 Rn#3 Rt#3
+T2 111110000011 Rn#4 Rt#4 000000 imm2#2 Rm#4
+A1 cond#4 000 P#1 U#1 0 W#1 1 Rn#4 Rt#4 00001011 Rm#4
+
+LDRHT
+T1 111110000011 Rn#4 Rt#4 1110 imm8#8
+A1 cond#4 0000 U#1 111 Rn#4 Rt#4 imm4H#4 1011 imm4L#4
+A2 cond#4 0000 U#1 011 Rn#4 Rt#4 imm4H#4 1011 imm4L#4
+
+LDRSB (immediate)
+T1 111110011001 Rn#4 Rt#4 imm12#12
+T2 111110010001 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+A1 cond#4 000 P#1 U#1 1 W#1 1 Rn#4 Rt#4 imm4H#4 1101 imm4L#4 
+
+LDRSB (literal)
+T1 11111001 U#1 0011111 Rt#4 imm12#12
+A1 cond#4 0001 U#1 1011111 Rt#4 imm4H#4 1101 imm4L#4
+
+LDRSB (register)
+T1 0101011 Rm#3 Rn#3 Rt#3
+T2 111110010001 Rn#4 Rt#4 000000 imm2#2 Rm#4 
+A1 cond#4 000 P#1 U#1 0 W#1 1 Rn#4 Rt#4 00001101 Rm#4
+
+LDRSBT
+T1 111110010001 Rn#4 Rt#4 1110 imm8#8
+A1 cond#4 0000 U#1 111 Rn#4 Rt#4 imm4H#4 1101 imm4L#4 
+A2 cond#4 0000 U#1 011 Rn#4 Rt#4 00001101 Rm#4
+
+LDRSH (immediate)
+T1 111110011011 Rn#4 Rt#4 imm12#12
+T2 111110010011 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+A1 cond#4 000 P#1 U#1 1 W#1 1 Rn#4 Rt#4 imm4H#4 1111 imm4L#4
+
+LDRSH (literal)
+T1 11111001 U#1 0111111 Rt#4 imm12#12
+A1 cond#4 0001 U#1 1011111 Rt#4 imm4H#4 1111 imm4L#4
+
+LDRSH (register)
+T1 0101111 Rm#3 Rn#3 Rt#3
+T2 111110010011 Rn#4 Rt#4 000000 imm2#2 Rm#4 
+A1 cond#4 000 P#1 U#1 0 W#1 1 Rn#4 Rt#4 00001111 Rm#4 
+
+LDRSHT
+T1 111110010011 Rn#4 Rt#4 1110 imm8#8
+A1 cond#4 0000 U#1 111 Rn#4 Rt#4 imm4H#4 1111 imm4L#4
+A2 cond#4 0000 U#1 011 Rn#4 Rt#4 00001111 Rm#4
+
+LDRT
+T1 111110000101 Rn#4 Rt#4 1110 imm8#8
+A1 cond#4 0100 U#1 011 Rn#4 Rt#4 imm12#12
+A2 cond#4 0110 U#1 011 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+LSL (immediate)
+T1 00000 imm5#5 Rm#3 Rd#3
+T2 11101010010 S#1 11110 imm3#3 Rd#4 imm2#2 00 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 imm5#5 000 Rm#4
+
+LSL (register)
+T1 0100000010 Rm#3 Rdn#3
+T2 11111010000 S#1 Rn#4 1111 Rd#4 0000 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 Rm#4 0001 Rn#4
+
+LSR (immediate)
+T1 00001 imm5#5 Rm#3 Rd#3
+T2 11101010010 S#1 11110 imm3#3 Rd#4 imm2#2 01 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 imm5#5 010 Rm#4
+
+LSR (register)
+T1 0100000011 Rm#3 Rdn#3 
+T2 11111010001 S#1 Rn#4 1111 Rd#4 0000 Rm#4 
+A1 cond#4 0001101 S#1 0000 Rd#4 Rm#4 0011 Rn#4
+
+MCR, MCR2
+T1 11101110 opc1#3 0 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+A1 cond#4 1110 opc1#3 0 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+T2 11111110 opc1#3 0 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+A2 11111110 opc1#3 0 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+
+MCRR, MCRR2
+T1 111011000100 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+A1 cond#4 11000100 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+T2 111011000100 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+A2 111111000100 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+
+MLA
+T1 111110110000 Rn#4 Ra#4 Rd#4 0000 Rm#4
+A1 cond#4 0000001 S#1 Rd#4 Ra#4 Rm#4 1001 Rn#4
+
+MLS
+T1 111110110000 Rn#4 Ra#4 Rd#4 0001 Rm#4 
+A1 cond#4 00000110 Rd#4 Ra#4 Rm#4 1001 Rn#4
+
+MOV (immediate)
+T1 00100 Rd#3 imm8#8
+T2 11110 i#1 00010 S#1 11110 imm3#3 Rd#4 imm8#8
+T3 11110 i#1 100100 imm4#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0011101 S#1 0000 Rd#4 imm12#12
+A2 cond#4 00110000 imm4#4 Rd#4 imm12#12
+
+MOV (register, Thumb)
+T1 01000110 D#1 Rm#4 Rd#3
+T2 0000000000 Rm#3 Rd#3
+T3 11101010010 S#1 11110000 Rd#4 0000 Rm#4 
+
+MOV (register, ARM)
+A1 cond#4 0001101 S#1 0000 Rd#4 00000000 Rm#4
+
+MOVT
+T1 11110 i#1 101100 imm4#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 00110100 imm4#4 Rd#4 imm12#12
+
+MRC, MRC2
+T1 11101110 opc1#3 1 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+A1 cond#4 1110 opc1#3 1 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+T2 11111110 opc1#3 1 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+A2 11111110 opc1#3 1 CRn#4 Rt#4 coproc#4 opc2#3 1 CRm#4
+
+MRRC, MRRC2
+T1 111011000101 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+A1 cond#4 11000101 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+T2 111111000101 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+A2 111111000101 Rt2#4 Rt#4 coproc#4 opc1#4 CRm#4
+
+MRS
+T1 11110011111011111000 Rd#4 00000000
+A1 cond#4 000100001111 Rd#4 000000000000
+
+MSR (immediate)
+A1 cond#4 00110010 mask#2 001111 imm12#12
+
+MSR (register)
+T1 111100111000 Rn#4 1000 mask#2 0000000000
+A1 cond#4 00010010 mask#2 00111100000000 Rn#4
+
+MUL
+T1 0100001101 Rn#3 Rdm#3
+T2 111110110000 Rn#4 1111 Rd#4 0000 Rm#4
+A1 cond#4 0000000 S#1 Rd#4 0000 Rm#4 1001 Rn#4
+
+MVN (immediate)
+T1 11110 i#1 00011 S#1 11110 imm3#3 Rd#4 imm8#8
+A1 cond#4 0011111 S#1 0000 Rd#4 imm12#12
+
+MVN (register)
+T1 0100001111 Rm#3 Rd#3
+T2 11101010011 S#1 11110 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0001111 S#1 0000 Rd#4 imm5#5 type#2 0 Rm#4
+
+MVN (register-shifted register)
+A1 cond#4 0001111 S#1 0000 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+NOP
+T1 1011111100000000
+T2 11110011101011111000000000000000
+A1 cond#4 0011001000001111000000000000
+
+ORN (immediate)
+T1 11110 i#1 00011 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+
+ORN (register)
+T1 11101010011 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+
+ORR (immediate)
+T1 11110 i#1 00010 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0011100 S#1 Rn#4 Rd#4 imm12#12
+
+ORR (register)
+T1 0100001100 Rm#3 Rdn#3
+T2 11101010010 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0001100 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4 
+
+ORR (register-shifted register)
+A1 cond#4 0001100 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+PKH
+T1 11101010110 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 tb#1 T#1 Rm#4 
+A1 cond#4 01101000 Rn#4 Rd#4 imm5#5 tb#1 01 Rm#4
+
+PLD, PLDW (immediate)
+T1 1111100010 W#1 1 Rn#4 1111 imm12#12
+T2 1111100000 W#1 1 Rn#4 11111100 imm8#8
+A1 11110101 U#1 R#1 01 Rn#4 1111 imm12#12
+
+PLD (literal)
+T1 11111000 U#1 00111111111 imm12#12
+A1 11110101 U#1 10111111111 imm12#12
+
+PLD, PLDW (register)
+T1 1111100000 W#1 1 Rn#4 1111000000 imm2#2 Rm#4
+A1 11110111 U#1 R#1 01 Rn#4 1111 imm5#5 type#2 0 Rm#4
+
+PLI (immediate, literal)
+T1 111110011001 Rn#4 1111 imm12#12
+T2 111110010001 Rn#4 11111100 imm8#8
+T3 11111001 U#1 00111111111 imm12#12
+A1 11110100 U#1 101 Rn#4 1111 imm12#12
+
+PLI (register)
+T1 111110010001 Rn#4 1111000000 imm2#2 Rm#4
+A1 11110110 U#1 101 Rn#4 1111 imm5#5 type#2 0 Rm#4
+
+POP (Thumb)
+T1 1011110 P#1 register_list#8
+T2 1110100010111101 P#1 M#1 0 register_list#13
+T3 1111100001011101 Rt#4 101100000100
+
+POP (ARM)
+A1 cond#4 100010111101 register_list#16
+A2 cond#4 010010011101 Rt#4 000000000100
+
+PUSH
+T1 1011010 M#1 register_list#8
+T2 11101001001011010 M#1 0 register_list#13
+T3 1111100001001101 Rt#4 110100000100
+A1 cond#4 100100101101 register_list#16
+A2 cond#4 010100101101 Rt#4 000000000100
+
+QADD
+T1 111110101000 Rn#4 1111 Rd#4 1000 Rm#4 
+A1 cond#4 00010000 Rn#4 Rd#4 00000101 Rm#4
+
+QADD16
+T1 111110101001 Rn#4 1111 Rd#4 0001 Rm#4
+A1 cond#4 01100010 Rn#4 Rd#4 11110001 Rm#4
+
+QADD8
+T1 111110101000 Rn#4 1111 Rd#4 0001 Rm#4
+A1 cond#4 01100010 Rn#4 Rd#4 11111001 Rm#4
+
+QASX
+T1 111110101010 Rn#4 1111 Rd#4 0001 Rm#4
+A1 cond#4 01100010 Rn#4 Rd#4 11110011 Rm#4
+
+QDADD
+T1 111110101000 Rn#4 1111 Rd#4 1001 Rm#4
+A1 cond#4 00010100 Rn#4 Rd#4 00000101 Rm#4
+
+QDSUB
+T1 111110101000 Rn#4 1111 Rd#4 1011 Rm#4
+A1 cond#4 00010110 Rn#4 Rd#4 00000101 Rm#4
+
+QSAX
+T1 111110101110 Rn#4 1111 Rd#4 0001 Rm#4
+A1 cond#4 01100010 Rn#4 Rd#4 11110101 Rm#4
+
+QSUB
+T1 111110101000 Rn#4 1111 Rd#4 1010 Rm#4
+A1 cond#4 00010010 Rn#4 Rd#4 00000101 Rm#4
+
+QSUB16
+T1 111110101101 Rn#4 1111 Rd#4 0001 Rm#4
+A1 cond#4 01100010 Rn#4 Rd#4 11110111 Rm#4
+
+QSUB8
+T1 111110101100 Rn#4 1111 Rd#4 0001 Rm#4
+A1 cond#4 01100010 Rn#4 Rd#4 11111111 Rm#4 
+
+RBIT
+T1 111110101001 Rm#4 1111 Rd#4 1010 Rm#4
+A1 cond#4 011011111111 Rd#4 11110011 Rm#4
+
+REV
+T1 1011101000 Rm#3 Rd#3
+T2 111110101001 Rm#4 1111 Rd#4 1000 Rm#4
+A1 cond#4 011010111111 Rd#4 11110011 Rm#4
+
+REV16
+T1 1011101001 Rm#3 Rd#3
+T2 111110101001 Rm#4 1111 Rd#4 1001 Rm#4
+A1 cond#4 011010111111 Rd#4 11111011 Rm#4
+
+REVSH
+T1 1011101011 Rm#3 Rd#3
+T2 111110101001 Rm#4 1111 Rd#4 1011 Rm#4
+A1 cond#4 011011111111 Rd#4 11111011 Rm#4 
+
+ROR (immediate)
+T1 11101010010 S#1 11110 imm3#3 Rd#4 imm2#2 11 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 imm5#5 110 Rm#4
+
+ROR (register)
+T1 0100000111 Rm#3 Rdn#3 
+T2 11111010011 S#1 Rn#4 1111 Rd#4 0000 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 Rm#4 0111 Rn#4
+
+RRX
+T1 11101010010 S#1 11110000 Rd#4 0011 Rm#4
+A1 cond#4 0001101 S#1 0000 Rd#4 00000110 Rm#4
+
+RSB (immediate)
+T1 0 1 0 0 0 0 1 0 0 1 Rn#3 Rd#3
+T2 1 1 1 1 0 i#1 0 1 1 1 0 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0 0 1 0 0 1 1 S#1 Rn#4 Rd#4 imm12#12
+
+RSB (register)
+T1 1 1 1 0 1 0 1 1 1 1 0 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0 0 0 0 0 1 1 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+RSB (register-shifted register)
+A1 cond#4 0 0 0 0 0 1 1 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+RSC (immediate)
+A1 cond#4 0 0 1 0 1 1 1 S#1 Rn#4 Rd#4 imm12#12
+
+RSC (register)
+A1 cond#4 0 0 0 0 1 1 1 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+RSC (register-shifted register)
+A1 cond#4 0 0 0 0 1 1 1 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+SADD16
+T1 1 1 1 1 1 0 1 0 1 0 0 1 Rn#4 1 1 1 1 Rd#4 0 0 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 0 1 Rn#4 Rd#4 1 1 1 1 0 0 0 1 Rm#4
+
+SADD8
+T1 1 1 1 1 1 0 1 0 1 0 0 0 Rn#4 1 1 1 1 Rd#4 0 0 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 0 1 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rm#4
+
+SASX
+T1 1 1 1 1 1 0 1 0 1 0 1 0 Rn#4 1 1 1 1 Rd#4 0 0 0 0 Rm#4 
+A1 cond#4 0 1 1 0 0 0 0 1 Rn#4 Rd#4 1 1 1 1 0 0 1 1 Rm#4
+
+SBC (immediate)
+T1 1 1 1 1 0 i#1 0 1 0 1 1 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0 0 1 0 1 1 0 S#1 Rn#4 Rd#4 imm12#12
+
+SBC (register)
+T1 0 1 0 0 0 0 0 1 1 0 Rm#3 Rdn#3
+T2 1 1 1 0 1 0 1 1 0 1 1 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0 0 0 0 1 1 0 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+SBC (register-shifted register)
+A1 cond#4 0 0 0 0 1 1 0 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+SBFX
+T1 1 1 1 1 0 0 1 1 0 1 0 0 Rn#4 0 imm3#3 Rd#4 imm2#2 0 widthm1#5
+A1 cond#4 0 1 1 1 1 0 1 widthm1#5 Rd#4 lsb#5 1 0 1 Rn#4
+
+SDIV
+T1 1 1 1 1 1 0 1 1 1 0 0 1 Rn#4 1 1 1 1 Rd#4 1 1 1 1 Rm#4
+A1 cond#4 0 1 1 1 0 0 0 1 Rd#4 1 1 1 1 Rm#4 0 0 0 1 Rn#4
+
+SEL
+T1 1 1 1 1 1 0 1 0 1 0 1 0 Rn#4 1 1 1 1 Rd#4 1 0 0 0 Rm#4
+A1 cond#4 0 1 1 0 1 0 0 0 Rn#4 Rd#4 1 1 1 1 1 0 1 1 Rm#4
+
+SETEND
+T1 1 0 1 1 0 1 1 0 0 1 0 1 E#1 0 0 0
+A1 1 1 1 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 E#1 0 0 0 0 0 0 0 0 0
+
+SEV
+T1 1 0 1 1 1 1 1 1 0 1 0 0 0 0 0 0
+T2 1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0
+A1 cond#4 0 0 1 1 0 0 1 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 1 0 0
+
+SHADD16
+T1 1 1 1 1 1 0 1 0 1 0 0 1 Rn#4 1 1 1 1 Rd#4 0 0 1 0 Rm#4 
+A1 cond#4 0 1 1 0 0 0 1 1 Rn#4 Rd#4 1 1 1 1 0 0 0 1 Rm#4
+
+SHADD8
+T1 1 1 1 1 1 0 1 0 1 0 0 0 Rn#4 1 1 1 1 Rd#4 0 0 1 0 Rm#4 
+A1 cond#4 0 1 1 0 0 0 1 1 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rm#4
+
+SHASX
+T1 1 1 1 1 1 0 1 0 1 0 1 0 Rn#4 1 1 1 1 Rd#4 0 0 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 1 1 Rn#4 Rd#4 1 1 1 1 0 0 1 1 Rm#4
+
+SHSAX
+T1 1 1 1 1 1 0 1 0 1 1 1 0 Rn#4 1 1 1 1 Rd#4 0 0 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 1 1 Rn#4 Rd#4 1 1 1 1 0 1 0 1 Rm#4
+
+SHSUB16
+T1 1 1 1 1 1 0 1 0 1 1 0 1 Rn#4 1 1 1 1 Rd#4 0 0 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 1 1 Rn#4 Rd#4 1 1 1 1 0 1 1 1 Rm#4
+
+SHSUB8
+T1 1 1 1 1 1 0 1 0 1 1 0 0 Rn#4 1 1 1 1 Rd#4 0 0 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 1 1 Rn#4 Rd#4 1 1 1 1 1 1 1 1 Rm#4
+
+SMLABB, SMLABT, SMLATB, SMLATT
+T1 1 1 1 1 1 0 1 1 0 0 0 1 Rn#4 Ra#4 Rd#4 0 0 N#1 M#1 Rm#4 
+A1 cond#4 0 0 0 1 0 0 0 0 Rd#4 Ra#4 Rm#4 1 M#1 N#1 0 Rn#4
+
+SMLAD
+T1 1 1 1 1 1 0 1 1 0 0 1 0 Rn#4 Ra#4 Rd#4 0 0 0 M#1 Rm#4 
+A1 cond#4 0 1 1 1 0 0 0 0 Rd#4 Ra#4 Rm#4 0 0 M#1 1 Rn#4
+
+SMLAL
+T1 1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4
+A1 cond#4 0 0 0 0 1 1 1 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4
+
+SMLALBB, SMLALBT, SMLALTB, SMLALTT
+T1 1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 1 0 N#1 M#1 Rm#4
+A1 cond#4 0 0 0 1 0 1 0 0 RdHi#4 RdLo#4 Rm#4 1 M#1 N#1 0 Rn#4
+
+SMLALD
+T1 1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 1 1 0 M#1 Rm#4
+A1 cond#4 0 1 1 1 0 1 0 0 RdHi#4 RdLo#4 Rm#4 0 0 M#1 1 Rn#4
+
+SMLAWB, SMLAWT
+T1 1 1 1 1 1 0 1 1 0 0 1 1 Rn#4 Ra#4 Rd#4 0 0 0 M#1 Rm#4
+A1 cond#4 0 0 0 1 0 0 1 0 Rd#4 Ra#4 Rm#4 1 M#1 0 0 Rn#4
+
+SMLSD
+T1 1 1 1 1 1 0 1 1 0 1 0 0 Rn#4 Ra#4 Rd#4 0 0 0 M#1 Rm#4
+A1 cond#4 0 1 1 1 0 0 0 0 Rd#4 Ra#4 Rm#4 0 1 M#1 1 Rn#4
+
+SMLSLD
+T1 1 1 1 1 1 0 1 1 1 1 0 1 Rn#4 RdLo#4 RdHi#4 1 1 0 M#1 Rm#4
+A1 cond#4 0 1 1 1 0 1 0 0 RdHi#4 RdLo#4 Rm#4 0 1 M#1 1 Rn#4
+
+SMMLA
+T1 1 1 1 1 1 0 1 1 0 1 0 1 Rn#4 Ra#4 Rd#4 0 0 0 R#1 Rm#4
+A1 cond#4 0 1 1 1 0 1 0 1 Rd#4 Ra#4 Rm#4 0 0 R#1 1 Rn#4
+
+SMMLS
+T1 1 1 1 1 1 0 1 1 0 1 1 0 Rn#4 Ra#4 Rd#4 0 0 0 R#1 Rm#4
+A1 cond#4 0 1 1 1 0 1 0 1 Rd#4 Ra#4 Rm#4 1 1 R#1 1 Rn#4
+
+SMMUL
+T1 1 1 1 1 1 0 1 1 0 1 0 1 Rn#4 1 1 1 1 Rd#4 0 0 0 R#1 Rm#4
+A1 cond#4 0 1 1 1 0 1 0 1 Rd#4 1 1 1 1 Rm#4 0 0 R#1 1 Rn#4
+
+SMUAD
+T1 1 1 1 1 1 0 1 1 0 0 1 0 Rn#4 1 1 1 1 Rd#4 0 0 0 M#1 Rm#4
+A1 cond#4 0 1 1 1 0 0 0 0 Rd#4 1 1 1 1 Rm#4 0 0 M#1 1 Rn#4
+
+SMULBB, SMULBT, SMULTB, SMULTT
+T1 1 1 1 1 1 0 1 1 0 0 0 1 Rn#4 1 1 1 1 Rd#4 0 0 N#1 M#1 Rm#4
+A1 cond#4 0 0 0 1 0 1 1 0 Rd#4 0 0 0 0 Rm#4 1 M#1 N#1 0 Rn#4
+
+SMULL
+T1 1 1 1 1 1 0 1 1 1 0 0 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4
+A1 cond#4 0 0 0 0 1 1 0 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4
+
+SMULWB, SMULWT
+T1 1 1 1 1 1 0 1 1 0 0 1 1 Rn#4 1 1 1 1 Rd#4 0 0 0 M#1 Rm#4
+A1 cond#4 0 0 0 1 0 0 1 0 Rd#4 0 0 0 0 Rm#4 1 M#1 1 0 Rn#4
+
+SMUSD
+T1 1 1 1 1 1 0 1 1 0 1 0 0 Rn#4 1 1 1 1 Rd#4 0 0 0 M#1 Rm#4 
+A1 cond#4 0 1 1 1 0 0 0 0 Rd#4 1 1 1 1 Rm#4 0 1 M#1 1 Rn#4
+
+SRS
+T1 1 1 1 1 0 0 1 1 0 0 sh#1 0 Rn#4 0 imm3#3 Rd#4 imm2#2 0 sat_imm5#5
+A1 cond#4 0 1 1 0 1 0 1 sat_imm5#5 Rd#4 imm5#5 sh#1 0 1 Rn#4
+
+SSAT16
+T1 1 1 1 1 0 0 1 1 0 0 1 0 Rn#4 0 0 0 0 Rd#4 0 0 0 0 sat_imm#4
+A1 cond#4 0 1 1 0 1 0 1 0 sat_imm#4 Rd#4 1 1 1 1 0 0 1 1 Rn#4
+
+SSAX
+T1 1 1 1 1 1 0 1 0 1 1 1 0 Rn#4 1 1 1 1 Rd#4 0 0 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 0 1 Rn#4 Rd#4 1 1 1 1 0 1 0 1 Rm#4
+
+SSUB16
+T1 1 1 1 1 1 0 1 0 1 1 0 1 Rn#4 1 1 1 1 Rd#4 0 0 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 0 1 Rn#4 Rd#4 1 1 1 1 0 1 1 1 Rm#4
+
+SSUB8
+T1 1 1 1 1 1 0 1 0 1 1 0 0 Rn#4 1 1 1 1 Rd#4 0 0 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 0 0 1 Rn#4 Rd#4 1 1 1 1 1 1 1 1 Rm#4
+
+STC, STC2
+T1 1 1 1 0 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 CRd#4 coproc#4 imm8#8
+A1 cond#4 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 CRd#4 coproc#4 imm8#8
+T2 1 1 1 1 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 CRd#4 coproc#4 imm8#8
+A2 1 1 1 1 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 CRd#4 coproc#4 imm8#8
+
+STM (STMIA, STMEA)
+T1 1 1 0 0 0 Rn#3 register_list#8
+T2 1 1 1 0 1 0 0 0 1 0 W#1 0 Rn#4 0 M#1 0 register_list#13
+A1 cond#4 1 0 0 0 1 0 W#1 0 Rn#4 register_list#16
+
+STMDA (STMED)
+A1 cond#4 1 0 0 0 0 0 W#1 0 Rn#4 register_list#16
+
+STMDB (STMFD)
+T1 1 1 1 0 1 0 0 1 0 0 W#1 0 Rn#4 0 M#1 0 register_list#13
+A1 cond#4 1 0 0 1 0 0 W#1 0 Rn#4 register_list#16
+
+STMIB (STMFA)
+A1 cond#4 1 0 0 1 1 0 W#1 0 Rn#4 register_list#16
+
+STR (immediate, Thumb)
+T1 0 1 1 0 0 imm5#5 Rn#3 Rt#3
+T2 1 0 0 1 0 Rt#3 imm8#8
+T3 1 1 1 1 1 0 0 0 1 1 0 0 Rn#4 Rt#4 imm12#12
+T4 1 1 1 1 1 0 0 0 0 1 0 0 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+
+STR (immediate, ARM)
+A1 cond#4 0 1 0 P#1 U#1 0 W#1 0 Rn#4 Rt#4 imm12#12
+
+STR (register)
+T1 0 1 0 1 0 0 0 Rm#3 Rn#3 Rt#3
+T2 1 1 1 1 1 0 0 0 0 1 0 0 Rn#4 Rt#4 0 0 0 0 0 0 imm2#2 Rm#4
+A1 cond#4 0 1 1 P#1 U#1 0 W#1 0 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+STRB (immediate, Thumb)
+T1 0 1 1 1 0 imm5#5 Rn#3 Rt#3
+T2 1 1 1 1 1 0 0 0 1 0 0 0 Rn#4 Rt#4 imm12#12
+T3 1 1 1 1 1 0 0 0 0 0 0 0 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+
+STRB (immediate, ARM)
+A1 cond#4 0 1 0 P#1 U#1 1 W#1 0 Rn#4 Rt#4 imm12#12
+
+STRB (register)
+T1 0 1 0 1 0 1 0 Rm#3 Rn#3 Rt#3
+T2 1 1 1 1 1 0 0 0 0 0 0 0 Rn#4 Rt#4 0 0 0 0 0 0 imm2#2 Rm#4
+A1 cond#4 0 1 1 P#1 U#1 1 W#1 0 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+STRBT
+T1 1 1 1 1 1 0 0 0 0 0 0 0 Rn#4 Rt#4 1 1 1 0 imm8#8
+A1 cond#4 0 1 0 0 U#1 1 1 0 Rn#4 Rt#4 imm12#12
+A2 cond#4 0 1 1 0 U#1 1 1 0 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+STRD (immediate)
+T1 1 1 1 0 1 0 0 P#1 U#1 1 W#1 0 Rn#4 Rt#4 Rt2#4 imm8#8
+A1 cond#4 0 0 0 P#1 U#1 1 W#1 0 Rn#4 Rt#4 imm4H#4 1 1 1 1 imm4L#4
+
+STRD (register)
+A1 cond#4 0 0 0 P#1 U#1 0 W#1 0 Rn#4 Rt#4 0 0 0 0 1 1 1 1 Rm#4
+
+STREX
+T1 1 1 1 0 1 0 0 0 0 1 0 0 Rn#4 Rt#4 Rd#4 imm8#8
+A1 cond#4 0 0 0 1 1 0 0 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rt#4
+
+STREXB
+T1 1 1 1 0 1 0 0 0 1 1 0 0 Rn#4 Rt#4 1 1 1 1 0 1 0 0 Rd#4
+A1 cond#4 0 0 0 1 1 1 0 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rt#4
+
+STREXD
+T1 1 1 1 0 1 0 0 0 1 1 0 0 Rn#4 Rt#4 Rt2#4 0 1 1 1 Rd#4
+A1 cond#4 0 0 0 1 1 0 1 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rt#4
+
+STREXH
+T1 1 1 1 0 1 0 0 0 1 1 0 0 Rn#4 Rt#4 1 1 1 1 0 1 0 1 Rd#4
+A1 cond#4 0 0 0 1 1 1 1 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rt#4
+
+STRH (immediate, Thumb)
+T1 1 0 0 0 0 imm5#5 Rn#3 Rt#3
+T2 1 1 1 1 1 0 0 0 1 0 1 0 Rn#4 Rt#4 imm12#12
+T3 1 1 1 1 1 0 0 0 0 0 1 0 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8
+
+STRH (immediate, ARM)
+A1 cond#4 0 0 0 P#1 U#1 1 W#1 0 Rn#4 Rt#4 imm4H#4 1 0 1 1 imm4L#4
+
+STRH (register)
+T1 0 1 0 1 0 0 1 Rm#3 Rn#3 Rt#3
+T2 1 1 1 1 1 0 0 0 0 0 1 0 Rn#4 Rt#4 0 0 0 0 0 0 imm2#2 Rm#4
+A1 cond#4 0 0 0 P#1 U#1 0 W#1 0 Rn#4 Rt#4 0 0 0 0 1 0 1 1 Rm#4
+
+STRHT
+T1 1 1 1 1 1 0 0 0 0 0 1 0 Rn#4 Rt#4 1 1 1 0 imm8#8
+A1 cond#4 0 0 0 0 U#1 1 1 0 Rn#4 Rt#4 imm4H#4 1 0 1 1 imm4L#4
+A2 cond#4 0 0 0 0 U#1 0 1 0 Rn#4 Rt#4 0 0 0 0 1 0 1 1 Rm#4
+
+STRT
+T1 1 1 1 1 1 0 0 0 0 1 0 0 Rn#4 Rt#4 1 1 1 0 imm8#8
+A1 cond#4 0 1 0 0 U#1 0 1 0 Rn#4 Rt#4 imm12#12
+A2 cond#4 0 1 1 0 U#1 0 1 0 Rn#4 Rt#4 imm5#5 type#2 0 Rm#4
+
+SUB (immediate, Thumb)
+T1 0 0 0 1 1 1 1 imm3#3 Rn#3 Rd#3
+T2 0 0 1 1 1 Rdn#3 imm8#8
+T3 1 1 1 1 0 i#1 0 1 1 0 1 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8
+T4 1 1 1 1 0 i#1 1 0 1 0 1 0 Rn#4 0 imm3#3 Rd#4 imm8#8
+
+SUB (immediate, ARM)
+A1 cond#4 0 0 1 0 0 1 0 S#1 Rn#4 Rd#4 imm12#12
+
+SUB (register)
+T1 0 0 0 1 1 0 1 Rm#3 Rn#3 Rd#3
+T2 1 1 1 0 1 0 1 1 1 0 1 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0 0 0 0 0 1 0 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4
+
+SUB (register-shifted register)
+A1 cond#4 0 0 0 0 0 1 0 S#1 Rn#4 Rd#4 Rs#4 0 type#2 1 Rm#4
+
+SUB (SP minus immediate)
+T1 1 0 1 1 0 0 0 0 1 imm7#7
+T2 1 1 1 1 0 i#1 0 1 1 0 1 S#1 1 1 0 1 0 imm3#3 Rd#4 imm8#8
+T3 1 1 1 1 0 i#1 1 0 1 0 1 0 1 1 0 1 0 imm3#3 Rd#4 imm8#8
+A1 cond#4 0 0 1 0 0 1 0 S#1 1 1 0 1 Rd#4 imm12#12
+
+SUB (SP minus register)
+T1 1 1 1 0 1 0 1 1 1 0 1 S#1 1 1 0 1 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4
+A1 cond#4 0 0 0 0 0 1 0 S#1 1 1 0 1 Rd#4 imm5#5 type#2 0 Rm#4
+
+SVC
+T1 1 1 0 1 1 1 1 1 imm8#8
+A1 cond#4 1 1 1 1 imm2#24
+
+SWP, SWPB
+A1 cond#4 0 0 0 1 0 B#1 0 0 Rn#4 Rt#4 0 0 0 0 1 0 0 1 Rt2#4
+
+SXTAB
+T1 1 1 1 1 1 0 1 0 0 1 0 0 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 0 1 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+SXTAB16
+T1 1 1 1 1 1 0 1 0 0 0 1 0 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 0 0 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+SXTAH
+T1 1 1 1 1 1 0 1 0 0 0 0 0 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 0 1 1 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+SXTB
+T1 1 0 1 1 0 0 1 0 0 1 Rm#3 Rd#3
+T2 1 1 1 1 1 0 1 0 0 1 0 0 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 0 1 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+SXTB16
+T1 1 1 1 1 1 0 1 0 0 0 1 0 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 0 0 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+SXTH
+T1 1 0 1 1 0 0 1 0 0 0 Rm#3 Rd#3
+T2 1 1 1 1 1 0 1 0 0 0 0 0 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 0 1 1 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+TBB, TBH
+T1 1 1 1 0 1 0 0 0 1 1 0 1 Rn#4 1 1 1 1 0 0 0 0 0 0 0 H#1 Rm#4
+
+TEQ (immediate)
+T1 1 1 1 1 0 i#1 0 0 1 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm8#8
+A1 cond#4 0 0 1 1 0 0 1 1 Rn#4 0 0 0 0 imm12#12
+
+TEQ (register)
+T1 1 1 1 0 1 0 1 0 1 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm2#2 type#2 Rm#4
+A1 cond#4 0 0 0 1 0 0 1 1 Rn#4 0 0 0 0 imm5#5 type#2 0 Rm#4
+
+TEQ (register-shifted register)
+A1 cond#4 0 0 0 1 0 0 1 1 Rn#4 0 0 0 0 Rs#4 0 type#2 1 Rm#4
+
+TST (immediate)
+T1 1 1 1 1 0 i#1 0 0 0 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm8#8
+A1 cond#4 0 0 1 1 0 0 0 1 Rn#4 0 0 0 0 imm12#12
+
+TST (register)
+T1 0 1 0 0 0 0 1 0 0 0 Rm#3 Rn#3
+T2 1 1 1 0 1 0 1 0 0 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm2#2 type#2 Rm#4
+A1 cond#4 0 0 0 1 0 0 0 1 Rn#4 0 0 0 0 imm5#5 type#2 0 Rm#4
+
+TST (register-shifted register)
+A1 cond#4 0 0 0 1 0 0 0 1 Rn#4 0 0 0 0 Rs#4 0 type#2 1 Rm#4
+
+UADD16
+T1 1 1 1 1 1 0 1 0 1 0 0 1 Rn#4 1 1 1 1 Rd#4 0 1 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 0 1 Rn#4 Rd#4 1 1 1 1 0 0 0 1 Rm#4
+
+UADD8
+T1 1 1 1 1 1 0 1 0 1 0 0 0 Rn#4 1 1 1 1 Rd#4 0 1 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 0 1 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rm#4
+
+UASX
+T1 1 1 1 1 1 0 1 0 1 0 1 0 Rn#4 1 1 1 1 Rd#4 0 1 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 0 1 Rn#4 Rd#4 1 1 1 1 0 0 1 1 Rm#4
+
+UBFX
+T1 1 1 1 1 0 0 1 1 1 1 0 0 Rn#4 0 imm3#3 Rd#4 imm2#2 0 widthm1#5
+A1 cond#4 0 1 1 1 1 1 1 widthm1#5 Rd#4 lsb#5 1 0 1 Rn#4
+
+UDF
+T1 1 1 0 1 1 1 1 0 imm8#8
+T2 1 1 1 1 0 1 1 1 1 1 1 1 imm4#4 1 0 1 0 imm12#12
+A1 1 1 1 0 0 1 1 1 1 1 1 1 imm12#12 1 1 1 1 imm4#4
+
+UDIV
+T1 1 1 1 1 1 0 1 1 1 0 1 1 Rn#4 1 1 1 1 Rd#4 1 1 1 1 Rm#4
+A1 cond#4 0 1 1 1 0 0 1 1 Rd#4 1 1 1 1 Rm#4 0 0 0 1 Rn#4
+
+UHADD16
+T1 1 1 1 1 1 0 1 0 1 0 0 1 Rn#4 1 1 1 1 Rd#4 0 1 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 1 Rn#4 Rd#4 1 1 1 1 0 0 0 1 Rm#4
+
+UHADD8
+T1 1 1 1 1 1 0 1 0 1 0 0 0 Rn#4 1 1 1 1 Rd#4 0 1 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 1 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rm#4
+
+UHASX
+T1 1 1 1 1 1 0 1 0 1 0 1 0 Rn#4 1 1 1 1 Rd#4 0 1 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 1 Rn#4 Rd#4 1 1 1 1 0 0 1 1 Rm#4
+
+UHSAX
+T1 1 1 1 1 1 0 1 0 1 1 1 0 Rn#4 1 1 1 1 Rd#4 0 1 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 1 Rn#4 Rd#4 1 1 1 1 0 1 0 1 Rm#4
+
+UHSUB16
+T1 1 1 1 1 1 0 1 0 1 1 0 1 Rn#4 1 1 1 1 Rd#4 0 1 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 1 Rn#4 Rd#4 1 1 1 1 0 1 1 1 Rm#4
+
+UHSUB8
+T1 1 1 1 1 1 0 1 0 1 1 0 0 Rn#4 1 1 1 1 Rd#4 0 1 1 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 1 Rn#4 Rd#4 1 1 1 1 1 1 1 1 Rm#4
+
+UMAAL
+T1 1 1 1 1 1 0 1 1 1 1 1 0 Rn#4 RdLo#4 RdHi#4 0 1 1 0 Rm#4
+A1 cond#4 0 0 0 0 0 1 0 0 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4
+
+UMLAL
+T1 1 1 1 1 1 0 1 1 1 1 1 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4
+A1 cond#4 0 0 0 0 1 0 1 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4
+
+UMULL
+T1 1 1 1 1 1 0 1 1 1 0 1 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4
+A1 cond#4 0 0 0 0 1 0 0 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4
+
+UQADD16
+T1 1 1 1 1 1 0 1 0 1 0 0 1 Rn#4 1 1 1 1 Rd#4 0 1 0 1 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 0 Rn#4 Rd#4 1 1 1 1 0 0 0 1 Rm#4
+
+UQADD8
+T1 1 1 1 1 1 0 1 0 1 0 0 0 Rn#4 1 1 1 1 Rd#4 0 1 0 1 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rm#4
+
+UQASX
+T1 1 1 1 1 1 0 1 0 1 0 1 0 Rn#4 1 1 1 1 Rd#4 0 1 0 1 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 0 Rn#4 Rd#4 1 1 1 1 0 0 1 1 Rm#4
+
+UQSAX
+T1 1 1 1 1 1 0 1 0 1 1 1 0 Rn#4 1 1 1 1 Rd#4 0 1 0 1 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 0 Rn#4 Rd#4 1 1 1 1 0 1 0 1 Rm#4
+
+UQSUB16
+T1 1 1 1 1 1 0 1 0 1 1 0 1 Rn#4 1 1 1 1 Rd#4 0 1 0 1 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 0 Rn#4 Rd#4 1 1 1 1 0 1 1 1 Rm#4
+
+UQSUB8
+T1 1 1 1 1 1 0 1 0 1 1 0 0 Rn#4 1 1 1 1 Rd#4 0 1 0 1 Rm#4
+A1 cond#4 0 1 1 0 0 1 1 0 Rn#4 Rd#4 1 1 1 1 1 1 1 1 Rm#4
+
+USAD8
+T1 1 1 1 1 1 0 1 1 0 1 1 1 Rn#4 1 1 1 1 Rd#4 0 0 0 0 Rm#4
+A1 cond#4 0 1 1 1 1 0 0 0 Rd#4 1 1 1 1 Rm#4 0 0 0 1 Rn#4
+
+USADA8
+T1 1 1 1 1 1 0 1 1 0 1 1 1 Rn#4 Ra#4 Rd#4 0 0 0 0 Rm#4
+A1 cond#4 0 1 1 1 1 0 0 0 Rd#4 Ra#4 Rm#4 0 0 0 1 Rn#4
+
+USAT
+T1 1 1 1 1 0 0 1 1 1 0 sh#1 0 Rn#4 0 imm3#3 Rd#4 imm2#2 0 sat_imm5#5
+A1 cond#4 0 1 1 0 1 1 1 sat_imm5#5 Rd#4 imm5#5 sh#1 0 1 Rn#4
+
+USAT16
+T1 1 1 1 1 0 0 1 1 1 0 1 0 Rn#4 0 0 0 0 Rd#4 0 0 0 0 sat_imm#4
+A1 cond#4 0 1 1 0 1 1 1 0 sat_imm#4 Rd#4 1 1 1 1 0 0 1 1 Rn#4
+
+USAX
+T1 1 1 1 1 1 0 1 0 1 1 1 0 Rn#4 1 1 1 1 Rd#4 0 1 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 0 1 Rn#4 Rd#4 1 1 1 1 0 1 0 1 Rm#4
+
+USUB16
+T1 1 1 1 1 1 0 1 0 1 1 0 1 Rn#4 1 1 1 1 Rd#4 0 1 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 0 1 Rn#4 Rd#4 1 1 1 1 0 1 1 1 Rm#4
+
+USUB8
+T1 1 1 1 1 1 0 1 0 1 1 0 0 Rn#4 1 1 1 1 Rd#4 0 1 0 0 Rm#4
+A1 cond#4 0 1 1 0 0 1 0 1 Rn#4 Rd#4 1 1 1 1 1 1 1 1 Rm#4
+
+UXTAB
+T1 1 1 1 1 1 0 1 0 0 1 0 1 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 1 1 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+UXTAB16
+T1 1 1 1 1 1 0 1 0 0 0 1 1 Rd#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 1 0 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+UXTAH
+T1 1 1 1 1 1 0 1 0 0 0 0 1 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 1 1 1 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+UXTB
+T1 1 0 1 1 0 0 1 0 1 1 Rm#3 Rd#3
+T2 1 1 1 1 1 0 1 0 0 1 0 1 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 1 1 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+UXTB16
+T1 1 1 1 1 1 0 1 0 0 0 1 1 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 1 0 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+UXTH
+T1 1 0 1 1 0 0 1 0 1 0 Rm#3 Rd#3
+T2 1 1 1 1 1 0 1 0 0 0 0 1 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4
+A1 cond#4 0 1 1 0 1 1 1 1 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4
+
+VABA, VABAL
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 0 1 N#1 0 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 0 1 0 1 N#1 0 M#1 0 Vm#4
+
+VABD, VABDL (integer)
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 0 Vm#4
+T2 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 0 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 0 M#1 0 Vm#4
+
+VABD (floating-point)
+T1 1 1 1 1 1 1 1 1 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4 
+A1 1 1 1 1 0 0 1 1 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4
+
+VABS
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 1 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 1 0 Q#1 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 0 1 D#1 1 1 0 0 0 0 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 1 D#1 1 1 0 0 0 0 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4
+
+VACGE, VACGT, VACLE, VACLT
+T1 1 1 1 1 1 1 1 1 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 1 Vm#4
+
+VADD
+T1 1 1 1 0 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 0 Vm#4
+
+VADD (floating-point)
+T1 1 1 1 0 1 1 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 0 0 D#1 1 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 0 D#1 1 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4
+
+VADDHN
+T1 1 1 1 0 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 0 M#1 0 Vm#4
+
+VADDL, VADDW
+T1 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 0 0 op#1 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 0 0 0 op#1 N#1 0 M#1 0 Vm#4
+
+VAND (register)
+T1 1 1 1 0 1 1 1 1 0 D#1 0 0 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 0 0 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+
+VBIC (immediate)
+T1 1 1 1 i#1 1 1 1 1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 1 1 imm4#4
+A1 1 1 1 1 0 0 1 i#1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 1 1 imm4#4
+
+VBIC (register)
+T1 1 1 1 0 1 1 1 1 0 D#1 0 1 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 0 1 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+
+VBIF, VBIT, VBSL
+T1 1 1 1 1 1 1 1 1 0 D#1 op#2 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 op#2 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+
+VCEQ (register)
+T1 1 1 1 1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 0 1 1 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 0 Vm#4 
+A2 1 1 1 1 0 0 1 0 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 0 Vm#4
+
+VCEQ (immediate #0)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 0 Q#1 M#1 0 Vm#4
+
+VCGE (register)
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 1 1 1 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 0 Vm#4
+
+VCGE (immediate #0)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 1 Q#1 M#1 0 Vm#4
+
+VCGT (register)
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 0 Vm#4
+T2 1 1 1 1 1 1 1 1 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 1 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 1 0 N#1 Q#1 M#1 0 Vm#4
+
+VCGT (immediate #0)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 0 Q#1 M#1 0 Vm#4
+
+VCLE (immediate #0)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 1 Q#1 M#1 0 Vm#4
+
+VCLS
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 0 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 0 0 Q#1 M#1 0 Vm#4 
+
+VCLT (immediate #0)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 0 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 0 0 Q#1 M#1 0 Vm#4
+
+VCLZ
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 0 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 0 1 Q#1 M#1 0 Vm#4
+
+VCMP, VCMPE
+T1 1 1 1 0 1 1 1 0 1 D#1 1 1 0 1 0 0 Vd#4 1 0 1 sz#1 E#1 1 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 1 D#1 1 1 0 1 0 0 Vd#4 1 0 1 sz#1 E#1 1 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 0 1 D#1 1 1 0 1 0 1 Vd#4 1 0 1 sz#1 E#1 1 0 0 0 0 0 0 
+A2 cond#4 1 1 1 0 1 D#1 1 1 0 1 0 1 Vd#4 1 0 1 sz#1 E#1 1 0 0 0 0 0 0 
+
+VCNT
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 1 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 1 0 Q#1 M#1 0 Vm#4
+
+VCVT (between floating-point and integer, Advanced SIMD)
+T1 111111111 D#1 11 size#2 11 Vd#4 011 op#2 Q#1 M#1 0 Vm#4
+A1 111100111 D#1 11 size#2 11 Vd#4 011 op#2 Q#1 M#1 0 Vm#4
+
+VCVT, VCVTR (between floating-point and integer, Floating-point)
+T1 1 1 1 0 1 1 1 0 1 D#1 1 1 1 opc2#3 Vd#4 1 0 1 sz#1 op#1 1 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 1 D#1 1 1 1 opc2#3 Vd#4 1 0 1 sz#1 op#1 1 M#1 0 Vm#4
+
+VCVT (between floating-point and fixed-point, Advanced SIMD)
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 1 1 1 op#1 0 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 1 1 1 op#1 0 Q#1 M#1 1 Vm#4
+
+VCVT (between floating-point and fixed-point, Floating-point)
+T1 1 1 1 0 1 1 1 0 1 D#1 1 1 1 op#1 1 U#1 Vd#4 1 0 1 sf#1 sx#1 1 i#1 0 imm4#4
+A1 cond#4 1 1 1 0 1 D#1 1 1 1 op#1 1 U#1 Vd#4 1 0 1 sf#1 sx#1 1 i#1 0 imm4#4
+
+VCVT (between double-precision and single-precision)
+T1 1 1 1 0 1 1 1 0 1 D#1 1 1 0 1 1 1 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 1 D#1 1 1 0 1 1 1 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4
+
+VCVT (between half-precision and single-precision, Advanced SIMD)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 1 1 op#1 0 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 1 1 op#1 0 0 M#1 0 Vm#4
+
+VCVTB, VCVTT
+T1 1 1 1 0 1 1 1 0 1 D#1 1 1 0 0 1 op#1 Vd#4 1 0 1 0 T#1 1 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 1 D#1 1 1 0 0 1 op#1 Vd#4 1 0 1 0 T#1 1 M#1 0 Vm#4
+
+VDIV
+T1 1 1 1 0 1 1 1 0 1 D#1 0 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 1 D#1 0 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4
+
+VDUP (scalar)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 imm4#4 Vd#4 1 1 0 0 0 Q#1 M#1 0 Vm#4 
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 imm4#4 Vd#4 1 1 0 0 0 Q#1 M#1 0 Vm#4
+
+VDUP (ARM core register)
+T1 1 1 1 0 1 1 1 0 1 b#1 Q#1 0 Vd#4 Rt#4 1 0 1 1 D#1 0 e#1 1 0 0 0 0
+A1 cond#4 1 1 1 0 1 b#1 Q#1 0 Vd#4 Rt#4 1 0 1 1 D#1 0 e#1 1 0 0 0 0
+
+VEOR
+T1 1 1 1 1 1 1 1 1 0 D#1 0 0 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 0 0 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+
+VEXT
+T1 1 1 1 0 1 1 1 1 1 D#1 1 1 Vn#4 Vd#4 imm4#4 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 1 1 Vn#4 Vd#4 imm4#4 N#1 Q#1 M#1 0 Vm#4
+
+VFMA, VFMS
+T1 1 1 1 0 1 1 1 1 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 0 0 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 0 0 N#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 0 1 1 1 0 1 D#1 1 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 1 D#1 1 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+
+VFNMA, VFNMS
+T1 1 1 1 0 1 1 1 0 1 D#1 0 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 1 D#1 0 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+
+VHADD, VHSUB
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 op#1 0 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 op#1 0 N#1 Q#1 M#1 0 Vm#4
+
+VLD1 (multiple single elements)
+T1 1 1 1 1 1 0 0 1 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VLD1 (single element to one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 size#2 0 0 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 size#2 0 0 index_align#4 Rm#4
+
+VLD1 (single element to all lanes)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 1 1 0 0 size#2 T#1 a#1 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 1 1 0 0 size#2 T#1 a#1 Rm#4
+
+VLD2 (multiple 2-element structures)
+T1 1 1 1 1 1 0 0 1 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VLD2 (single 2-element structure to one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 size#2 0 1 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 size#2 0 1 index_align#4 Rm#4
+
+VLD2 (single 2-element structure to all lanes)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 1 1 0 1 size#2 T#1 a#1 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 1 1 0 1 size#2 T#1 a#1 Rm#4
+
+VLD3 (multiple 3-element structures)
+T1 1 1 1 1 1 0 0 1 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VLD3 (single 3-element structure to one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 size#2 1 0 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 size#2 1 0 index_align#4 Rm#4
+
+VLD3 (single 3-element structure to all lanes)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 1 1 1 0 size#2 T#1 a#1 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 1 1 1 0 size#2 T#1 a#1 Rm#4
+
+VLD4 (multiple 4-element structures)
+T1 1 1 1 1 1 0 0 1 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VLD4 (single 4-element structure to one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 size#2 1 1 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 size#2 1 1 index_align#4 Rm#4
+
+VLD4 (single 4-element structure to all lanes)
+T1 1 1 1 1 1 0 0 1 1 D#1 1 0 Rn#4 Vd#4 1 1 1 1 size#2 T#1 a#1 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 1 0 Rn#4 Vd#4 1 1 1 1 size#2 T#1 a#1 Rm#4
+
+VLDM
+T1 1 1 1 0 1 1 0 P#1 U#1 D#1 W#1 1 Rn#4 Vd#4 1 0 1 1 imm8#8
+A1 cond#4 1 1 0 P#1 U#1 D#1 W#1 1 Rn#4 Vd#4 1 0 1 1 imm8#8
+T2 1 1 1 0 1 1 0 P#1 U#1 D#1 W#1 1 Rn#4 Vd#4 1 0 1 0 imm8#8
+A2 cond#4 1 1 0 P#1 U#1 D#1 W#1 1 Rn#4 Vd#4 1 0 1 0 imm8#8
+
+VLDR
+T1 1 1 1 0 1 1 0 1 U#1 D#1 0 1 Rn#4 Vd#4 1 0 1 1 imm8#8
+A1 cond#4 1 1 0 1 U#1 D#1 0 1 Rn#4 Vd#4 1 0 1 1 imm8#8
+T2 1 1 1 0 1 1 0 1 U#1 D#1 0 1 Rn#4 Vd#4 1 0 1 0 imm8#8
+A2 cond#4 1 1 0 1 U#1 D#1 0 1 Rn#4 Vd#4 1 0 1 0 imm8#8
+
+VMAX, VMIN (integer)
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 0 N#1 Q#1 M#1 op#1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 0 N#1 Q#1 M#1 op#1 Vm#4
+
+VMAX, VMIN (floating-point)
+T1 1 1 1 0 1 1 1 1 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 0 Vm#4
+
+VMLA, VMLAL, VMLS, VMLSL (integer)
+T1 1 1 1 op#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 op#1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 1 N#1 Q#1 M#1 0 Vm#4
+T2 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 0 op#1 0 N#1 0 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 1 0 op#1 0 N#1 0 M#1 0 Vm#4
+
+VMLA, VMLS (floating-point)
+T1 1 1 1 0 1 1 1 1 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 0 1 1 1 0 0 D#1 0 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 0 D#1 0 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+
+VMLA, VMLAL, VMLS, VMLSL (by scalar)
+T1 1 1 1 Q#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 op#1 0 F#1 N#1 1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 Q#1 1 D#1 size#2 Vn#4 Vd#4 0 op#1 0 F#1 N#1 1 M#1 0 Vm#4
+T2 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 op#1 1 0 N#1 1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 0 op#1 1 0 N#1 1 M#1 0 Vm#4
+
+VMOV (immediate)
+T1 1 1 1 i#1 1 1 1 1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 op#1 1 imm4#4
+A1 1 1 1 1 0 0 1 i#1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 op#1 1 imm4#4
+T2 1 1 1 0 1 1 1 0 1 D#1 1 1 imm4H#4 Vd#4 1 0 1 sz#1 0 0 0 0 imm4L#4 
+A2 cond#4 1 1 1 0 1 D#1 1 1 imm4H#4 Vd#4 1 0 1 sz#1 0 0 0 0 imm4L#4
+
+VMOV (register)
+T1 1 1 1 0 1 1 1 1 0 D#1 1 0 Vm#4 Vd#4 0 0 0 1 M#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 1 0 Vm#4 Vd#4 0 0 0 1 M#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 0 1 1 1 0 1 D#1 1 1 0 0 0 0 Vd#4 1 0 1 sz#1 0 1 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 1 D#1 1 1 0 0 0 0 Vd#4 1 0 1 sz#1 0 1 M#1 0 Vm#4
+
+VMOV (ARM core register to scalar)
+T1 1 1 1 0 1 1 1 0 0 opc1#2 0 Vd#4 Rt#4 1 0 1 1 D#1 opc2#2 1 0 0 0 0
+A1 cond#4 1 1 1 0 0 opc1#2 0 Vd#4 Rt#4 1 0 1 1 D#1 opc2#2 1 0 0 0 0
+
+VMOV (scalar to ARM core register)
+T1 1 1 1 0 1 1 1 0 U#1 opc1#2 1 Vn#4 Rt#4 1 0 1 1 N#1 opc2#2 1 0 0 0 0 
+A1 cond#4 1 1 1 0 U#1 opc1#2 1 Vn#4 Rt#4 1 0 1 1 N#1 opc2#2 1 0 0 0 0
+
+VMOV (between ARM core register and single-precision register)
+T1 1 1 1 0 1 1 1 0 0 0 0 op#1 Vn#4 Rt#4 1 0 1 0 N#1 0 0 1 0 0 0 0
+A1 cond#4 1 1 1 0 0 0 0 op#1 Vn#4 Rt#4 1 0 1 0 N#1 0 0 1 0 0 0 0 
+
+VMOV (between two ARM core registers and two single-precision registers)
+T1 1 1 1 0 1 1 0 0 0 1 0 op#1 Rt2#4 Rt#4 1 0 1 0 0 0 M#1 1 Vm#4
+A1 cond#4 1 1 0 0 0 1 0 op#1 Rt2#4 Rt#4 1 0 1 0 0 0 M#1 1 Vm#4
+
+VMOV (between two ARM core registers and a doubleword extension register)
+T1 1 1 1 0 1 1 0 0 0 1 0 op#1 Rt2#4 Rt#4 1 0 1 1 0 0 M#1 1 Vm#4
+A1 cond#4 1 1 0 0 0 1 0 op#1 Rt2#4 Rt#4 1 0 1 1 0 0 M#1 1 Vm#4
+
+VMOVL
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm3#3 0 0 0 Vd#4 1 0 1 0 0 0 M#1 1 Vm#4 
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm3#3 0 0 0 Vd#4 1 0 1 0 0 0 M#1 1 Vm#4
+
+VMOVN
+T1 111111111 D#1 11 size#2 10 Vd#4 001000 M#1 0 Vm#4
+A1 111100111 D#1 11 size#2 10 Vd#4 001000 M#1 0 Vm#4
+
+VMRS
+T1 1 1 1 0 1 1 1 0 1 1 1 1 0 0 0 1 Rt#4 1 0 1 0 0 0 0 1 0 0 0 0 
+A1 cond#4 1 1 1 0 1 1 1 1 0 0 0 1 Rt#4 1 0 1 0 0 0 0 1 0 0 0 0
+
+VMSR
+T1 1 1 1 0 1 1 1 0 1 1 1 0 0 0 0 1 Rt#4 1 0 1 0 0 0 0 1 0 0 0 0
+A1 cond#4 1 1 1 0 1 1 1 0 0 0 0 1 Rt#4 1 0 1 0 0 0 0 1 0 0 0 0
+
+VMUL, VMULL (integer and polynomial)
+T1 1 1 1 op#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 op#1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 1 N#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 1 op#1 0 N#1 0 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 1 1 op#1 0 N#1 0 M#1 0 Vm#4
+
+VMUL (floating-point)
+T1 1 1 1 1 1 1 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 1 Vm#4
+T2 1 1 1 0 1 1 1 0 0 D#1 1 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 0 D#1 1 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4
+
+VMUL, VMULL (by scalar)
+T1 1 1 1 Q#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 0 0 F#1 N#1 1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 Q#1 1 D#1 size#2 Vn#4 Vd#4 1 0 0 F#1 N#1 1 M#1 0 Vm#4
+T2 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 0 1 0 N#1 1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 1 0 1 0 N#1 1 M#1 0 Vm#4
+
+VMVN (immediate)
+T1 1 1 1 i#1 1 1 1 1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 1 1 imm4#4
+A1 1 1 1 1 0 0 1 i#1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 1 1 imm4#4
+
+VMVN (register)
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 1 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 0 1 1 Q#1 M#1 0 Vm#4
+
+VNEG
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 1 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 1 1 Q#1 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 0 1 D#1 1 1 0 0 0 1 Vd#4 1 0 1 sz#1 0 1 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 1 D#1 1 1 0 0 0 1 Vd#4 1 0 1 sz#1 0 1 M#1 0 Vm#4
+
+VNMLA, VNMLS, VNMUL
+T1 1 1 1 0 1 1 1 0 0 D#1 0 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 0 D#1 0 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 0 0 D#1 1 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 1 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 0 D#1 1 0 Vn#4 Vd#4 1 0 1 sz#1 N#1 1 M#1 0 Vm#4
+
+VORN (register)
+T1 1 1 1 0 1 1 1 1 0 D#1 1 1 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 1 1 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+
+VORR (immediate)
+T1 1 1 1 i#1 1 1 1 1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 0 1 imm4#4
+A1 1 1 1 1 0 0 1 i#1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 0 1 imm4#4
+
+VORR (register)
+T1 1 1 1 0 1 1 1 1 0 D#1 1 0 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 1 0 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 1 Vm#4
+
+VPADAL
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 0 op#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 0 op#1 Q#1 M#1 0 Vm#4
+
+VPADD (integer)
+T1 1 1 1 0 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 Q#1 M#1 1 Vm#4
+
+VPADD (floating-point)
+T1 1 1 1 1 1 1 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4
+
+VPADDL
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 0 1 0 op#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 0 1 0 op#1 Q#1 M#1 0 Vm#4
+
+VPMAX, VPMIN (integer)
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 1 0 N#1 Q#1 M#1 op#1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 1 0 1 0 N#1 Q#1 M#1 op#1 Vm#4
+
+VPMAX, VPMIN (floating-point)
+T1 1 1 1 1 1 1 1 1 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 op#1 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 0 Vm#4
+
+VPOP
+T1 1 1 1 0 1 1 0 0 1 D#1 1 1 1 1 0 1 Vd#4 1 0 1 1 imm8#8
+A1 cond#4 1 1 0 0 1 D#1 1 1 1 1 0 1 Vd#4 1 0 1 1 imm8#8
+T2 1 1 1 0 1 1 0 0 1 D#1 1 1 1 1 0 1 Vd#4 1 0 1 0 imm8#8
+A2 cond#4 1 1 0 0 1 D#1 1 1 1 1 0 1 Vd#4 1 0 1 0 imm8#8
+
+VPUSH
+T1 1 1 1 0 1 1 0 1 0 D#1 1 0 1 1 0 1 Vd#4 1 0 1 1 imm8#8
+A1 cond#4 1 1 0 1 0 D#1 1 0 1 1 0 1 Vd#4 1 0 1 1 imm8#8
+T2 1 1 1 0 1 1 0 1 0 D#1 1 0 1 1 0 1 Vd#4 1 0 1 0 imm8#8
+A2 cond#4 1 1 0 1 0 D#1 1 0 1 1 0 1 Vd#4 1 0 1 0 imm8#8
+
+VQABS
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 1 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 1 0 Q#1 M#1 0 Vm#4
+
+VQADD
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 0 0 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 0 0 N#1 Q#1 M#1 1 Vm#4
+
+VQDMLAL, VQDMLSL
+T1 1 1 1 0 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 0 op#1 1 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 size#2 Vn#4 Vd#4 1 0 op#1 1 N#1 0 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 op#1 1 1 N#1 1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 0 1 D#1 size#2 Vn#4 Vd#4 0 op#1 1 1 N#1 1 M#1 0 Vm#4
+
+VQDMULH
+T1 1 1 1 0 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 Q#1 M#1 0 Vm#4
+T2 1 1 1 Q#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 1 0 0 N#1 1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 Q#1 1 D#1 size#2 Vn#4 Vd#4 1 1 0 0 N#1 1 M#1 0 Vm#4
+
+VQDMULL
+T1 1 1 1 0 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 1 0 1 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 size#2 Vn#4 Vd#4 1 1 0 1 N#1 0 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 0 1 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 1 M#1 0 Vm#4
+
+VQMOVN, VQMOVUN
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 1 0 op#2 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 1 0 op#2 M#1 0 Vm#4
+
+VQNEG
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 1 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 1 1 Q#1 M#1 0 Vm#4
+
+VQRDMULH
+T1 1 1 1 1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 1 1 N#1 Q#1 M#1 0 Vm#4
+T2 1 1 1 Q#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 1 1 0 1 N#1 1 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 Q#1 1 D#1 size#2 Vn#4 Vd#4 1 1 0 1 N#1 1 M#1 0 Vm#4
+
+VQRSHL
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 1 N#1 Q#1 M#1 1 Vm#4
+
+VQRSHRN, VQRSHRUN
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 1 0 0 op#1 0 1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 1 0 0 op#1 0 1 M#1 1 Vm#4
+
+VQSHL (register)
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 Q#1 M#1 1 Vm#4
+
+VQSHL, VQSHLU (immediate)
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 0 1 1 op#1 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 0 1 1 op#1 L#1 Q#1 M#1 1 Vm#4 
+
+VQSHRN, VQSHRUN
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 1 0 0 op#1 0 0 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 1 0 0 op#1 0 0 M#1 1 Vm#4
+
+VQSUB
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 0 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 0 N#1 Q#1 M#1 1 Vm#4
+
+VRADDHN
+T1 1 1 1 1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 0 M#1 0 Vm#4
+
+VRECPE
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 1 Vd#4 0 1 0 F#1 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 1 Vd#4 0 1 0 F#1 0 Q#1 M#1 0 Vm#4
+
+VRECPS
+T1 1 1 1 0 1 1 1 1 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 0 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 1 Vm#4
+
+VREV16, VREV32, VREV64
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 0 0 op#2 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 0 0 op#2 Q#1 M#1 0 Vm#4
+
+VRHADD
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 0 1 N#1 Q#1 M#1 0 Vm#4
+
+VRSHL
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 1 N#1 Q#1 M#1 0 Vm#4
+
+VRSHR
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 0 0 1 0 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 0 0 1 0 L#1 Q#1 M#1 1 Vm#4
+
+VRSHRN
+T1 1 1 1 0 1 1 1 1 1 D#1 imm6#6 Vd#4 1 0 0 0 0 1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 imm6#6 Vd#4 1 0 0 0 0 1 M#1 1 Vm#4
+
+VRSQRTE
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 1 Vd#4 0 1 0 F#1 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 1 Vd#4 0 1 0 F#1 1 Q#1 M#1 0 Vm#4
+
+VRSQRTS
+T1 1 1 1 0 1 1 1 1 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 1 1 N#1 Q#1 M#1 1 Vm#4
+
+VRSRA
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 0 0 1 1 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 0 0 1 1 L#1 Q#1 M#1 1 Vm#4
+
+VRSUBHN
+T1 1 1 1 1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 1 0 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 1 0 N#1 0 M#1 0 Vm#4
+
+VSHL (immediate)
+T1 1 1 1 0 1 1 1 1 1 D#1 imm6#6 Vd#4 0 1 0 1 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 imm6#6 Vd#4 0 1 0 1 L#1 Q#1 M#1 1 Vm#4
+
+VSHL (register)
+T1 1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 Q#1 M#1 0 Vm#4
+
+VSHLL
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 1 0 1 0 0 0 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 1 0 1 0 0 0 M#1 1 Vm#4
+T2 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 1 1 0 0 M#1 0 Vm#4
+A2 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 1 1 0 0 M#1 0 Vm#4
+
+VSHR
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 0 0 0 0 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 0 0 0 0 L#1 Q#1 M#1 1 Vm#4
+
+VSHRN
+T1 1 1 1 0 1 1 1 1 1 D#1 imm6#6 Vd#4 1 0 0 0 0 0 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 imm6#6 Vd#4 1 0 0 0 0 0 M#1 1 Vm#4
+
+VSLI
+T1 1 1 1 1 1 1 1 1 1 D#1 imm6#6 Vd#4 0 1 0 1 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 imm6#6 Vd#4 0 1 0 1 L#1 Q#1 M#1 1 Vm#4
+
+VSQRT
+T1 1 1 1 0 1 1 1 0 1 D#1 1 1 0 0 0 1 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4
+A1 cond#4 1 1 1 0 1 D#1 1 1 0 0 0 1 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4
+
+VSRA
+T1 1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 0 0 0 1 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 0 0 0 1 L#1 Q#1 M#1 1 Vm#4
+
+VSRI
+T1 1 1 1 1 1 1 1 1 1 D#1 imm6#6 Vd#4 0 1 0 0 L#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 imm6#6 Vd#4 0 1 0 0 L#1 Q#1 M#1 1 Vm#4
+
+VST1 (multiple single elements)
+T1 1 1 1 1 1 0 0 1 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VST1 (single element from one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 0 0 Rn#4 Vd#4 size#2 0 0 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 0 0 Rn#4 Vd#4 size#2 0 0 index_align#4 Rm#4
+
+VST2 (multiple 2-element structures)
+T1 1 1 1 1 1 0 0 1 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VST2 (single 2-element structure from one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 0 0 Rn#4 Vd#4 size#2 0 1 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 0 0 Rn#4 Vd#4 size#2 0 1 index_align#4 Rm#4
+
+VST3 (multiple 3-element structures)
+T1 1 1 1 1 1 0 0 1 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VST3 (single 3-element structure from one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 0 0 Rn#4 Vd#4 size#2 1 0 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 0 0 Rn#4 Vd#4 size#2 1 0 index_align#4 Rm#4
+
+VST4 (multiple 4-element structures)
+T1 1 1 1 1 1 0 0 1 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+A1 1 1 1 1 0 1 0 0 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4
+
+VST4 (single 4-element structure from one lane)
+T1 1 1 1 1 1 0 0 1 1 D#1 0 0 Rn#4 Vd#4 size#2 1 1 index_align#4 Rm#4
+A1 1 1 1 1 0 1 0 0 1 D#1 0 0 Rn#4 Vd#4 size#2 1 1 index_align#4 Rm#4
+
+VSTM
+T1 1 1 1 0 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 Vd#4 1 0 1 1 imm8#8
+A1 cond#4 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 Vd#4 1 0 1 1 imm8#8
+T2 1 1 1 0 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 Vd#4 1 0 1 0 imm8#8
+A2 cond#4 1 1 0 P#1 U#1 D#1 W#1 0 Rn#4 Vd#4 1 0 1 0 imm8#8
+
+VSTR
+T1 1 1 1 0 1 1 0 1 U#1 D#1 0 0 Rn#4 Vd#4 1 0 1 1 imm8#8
+A1 cond#4 1 1 0 1 U#1 D#1 0 0 Rn#4 Vd#4 1 0 1 1 imm8#8
+T2 1 1 1 0 1 1 0 1 U#1 D#1 0 0 Rn#4 Vd#4 1 0 1 0 imm8#8
+A2 cond#4 1 1 0 1 U#1 D#1 0 0 Rn#4 Vd#4 1 0 1 0 imm8#8
+
+VSUB (integer)
+T1 1 1 1 1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 0 Vm#4
+
+VSUB (floating-point)
+T1 1 1 1 0 1 1 1 1 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 0 D#1 1 sz#1 Vn#4 Vd#4 1 1 0 1 N#1 Q#1 M#1 0 Vm#4
+T2 1 1 1 0 1 1 1 0 0 D#1 1 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 1 M#1 0 Vm#4
+A2 cond#4 1 1 1 0 0 D#1 1 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 1 M#1 0 Vm#4
+
+VSUBHN
+T1 1 1 1 0 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 1 0 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 0 1 D#1 size#2 Vn#4 Vd#4 0 1 1 0 N#1 0 M#1 0 Vm#4
+
+VSUBL, VSUBW
+T1 1 1 1 U#1 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 0 1 op#1 N#1 0 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 U#1 1 D#1 size#2 Vn#4 Vd#4 0 0 1 op#1 N#1 0 M#1 0 Vm#4
+
+VSWP
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 0 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 0 0 Q#1 M#1 0 Vm#4
+
+VTBL, VTBX
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 Vn#4 Vd#4 1 0 len#2 N#1 op#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 Vn#4 Vd#4 1 0 len#2 N#1 op#1 M#1 0 Vm#4
+
+VTRN
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 0 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 0 1 Q#1 M#1 0 Vm#4
+
+VTST
+T1 1 1 1 0 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 1 Vm#4
+A1 1 1 1 0 0 0 1 0 0 D#1 size#2 Vn#4 Vd#4 1 0 0 0 N#1 Q#1 M#1 1 Vm#4
+
+VUZP
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 1 0 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 1 0 Q#1 M#1 0 Vm#4
+
+VZIP
+T1 1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 1 1 Q#1 M#1 0 Vm#4
+A1 1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 1 0 Vd#4 0 0 0 1 1 Q#1 M#1 0 Vm#4
+
+WFE
+T1 1 0 1 1 1 1 1 1 0 0 1 0 0 0 0 0
+T2 1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0
+A1 cond#4 0 0 1 1 0 0 1 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0 1 0
+
+WFI
+T1 1 0 1 1 1 1 1 1 0 0 1 1 0 0 0 0
+T2 1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1
+A1 cond#4 0 0 1 1 0 0 1 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0 1 1
+
+YIELD
+T1 1 0 1 1 1 1 1 1 0 0 0 1 0 0 0 0
+T2 1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1
+A1 cond#4 0011001000001111000000000001
