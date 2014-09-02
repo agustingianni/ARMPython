@@ -53,6 +53,18 @@ Enumeration = namedtuple("Enumeration", ["values"])
 UnaryExpression = namedtuple("UnaryExpression", ["type", "expr"])
 BinaryExpression = namedtuple("BinaryExpression", ["type", "left_expr", "right_expr"])
 ProcedureCall = namedtuple("ProcedureCall", ["name", "arguments"])
+RepeatUntil = namedtuple("RepeatUntil", ["statements", "condition"])
+While = namedtuple("While", ["condition", "statements"])
+For = namedtuple("For", ["from_", "to", "statements"])
+
+def decode_repeat_until(x):
+    return RepeatUntil(x[1], x[3])
+
+def decode_for(x):
+    return For(x[1], x[3], x[4])
+
+def decode_while(x):
+    return While(x[1], x[3])
 
 def decode_unary(x):
     print "AAAA:", x
@@ -149,17 +161,17 @@ if_statement = \
     Optional(ELSE + statement_list)
 
 # Repeat until statement.
-repeat_until_statement = REPEAT + statement_list + UNTIL + expr 
+repeat_until_statement = (REPEAT + statement_list + UNTIL + expr ).setParseAction(decode_repeat_until)
 
 # While statement.
-while_statement = WHILE + expr + DO + statement_list
+while_statement = (WHILE + expr + DO + statement_list).setParseAction(decode_while)
 
 # For statement.
-for_statement = FOR + expr + EQUALS + expr + TO + expr + statement_list
+for_statement = (FOR + assignment_statement + TO + expr + statement_list).setParseAction(decode_for)
 
 # Collect all statements. We have two kinds, the ones that end with a semicolon and if, for and other statements that do not.
-statement << Group(((undefined_statement ^ unpredictable_statement ^ see_statement ^ \
-    implementation_defined_statement ^ return_statement ^ assignment_statement) + SEMI) ^ \
+statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statement ^ \
+    implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^ assignment_statement) + SEMI) ^ \
     if_statement ^ repeat_until_statement ^ while_statement ^ for_statement)
 
 # Define a basic program.
