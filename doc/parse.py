@@ -117,22 +117,20 @@ def decode_binary(x):
         "<<" : "lshift", ">>" : "rshift", "DIV" : "div", "MOD" : "mod", \
         "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne", \
         ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in"}
-    
     return BinaryExpression(op_name[x[1]], x[0], x[2])
 
 # Define a binary expression.
 binary_expr = Forward()
-binary_expr <<= (unary_expr ^ (unary_expr + binary_operator + binary_expr))
+binary_expr <<= unary_expr ^ (unary_expr + binary_operator + binary_expr).setParseAction(decode_binary)
 
 # Define a boolean expression.
 boolean_expr = Forward()
-boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr)
-boolean_expr.setParseAction(decode_binary)
+boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).setParseAction(decode_binary)
 
 # Generic expression, comprising all the combinations of the preceeding definitions.
 expr = boolean_expr ^ (LPAR + boolean_expr + RPAR)
 
-print expr.parseString("1 + 2 + 3")
+print expr.parseString("1 + 2 - 3 * 4", parseAll=True)
 import sys
 sys.exit()
 
