@@ -67,7 +67,6 @@ def decode_while(x):
     return While(x[1], x[3])
 
 def decode_unary(x):
-    print "AAAA:", x
     op_name = {"!" : "negate", "-" : "minus", "~" : "invert", "+" : "plus"}
     op = op_name[x[0]]
     return UnaryExpression(op, x[1])
@@ -87,7 +86,8 @@ unary_operator = oneOf("! - ~ +")
 
 # Binary Operators. 
 integer_operators = oneOf("+ - / * << >> DIV MOD ^")
-boolean_operator = oneOf("|| && == != > < >= <= IN")
+boolean_operator = oneOf("|| && == != > < >= <=")
+in_operator = Literal("IN")
 bitstring_operator = Literal(":")
 assignment_operator = Literal("=")
 binary_operator = (integer_operators ^ boolean_operator ^ bitstring_operator)
@@ -130,7 +130,7 @@ unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_una
 
 # Define a binary expression.
 binary_expr = Forward()
-binary_expr <<= unary_expr ^ (unary_expr + binary_operator + binary_expr).setParseAction(decode_binary)
+binary_expr <<= unary_expr ^ ((unary_expr + binary_operator + binary_expr) ^ (unary_expr + in_operator + enum_expr)).setParseAction(decode_binary)
 
 # Define a boolean expression.
 boolean_expr = Forward()
@@ -177,9 +177,8 @@ statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statem
 # Define a basic program.
 program = statement_list
 
-print program.parseString("setflags = (S == '1');")
+print program.parseString("if AAAA IN {1111} && BBBB IN {2222} then a=TRUE;")
 print program.parseString("d = UInt(Rd);")
-print program.parseString("n = UInt(Rn);")
-print program.parseString("setflags = (S == '1');")
+print program.parseString("setflags = (S == '111');")
 print program.parseString("imm32 = ThumbExpandImm(i:imm3:imm8);")
 print program.parseString("if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;")
