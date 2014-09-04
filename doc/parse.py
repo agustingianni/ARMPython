@@ -6,6 +6,9 @@ from pyparsing import *
 from collections import namedtuple
 import string
 
+# Enable optimizations.
+ParserElement.enablePackrat()
+
 # Define basic tokens.
 LPAR, RPAR, LBRACK, RBRACK, LBRACE, RBRACE, SEMI, COMMA, COLON, EQUALS, LANGLE, RANGLE = map(Suppress, "()[]{};,:=<>")
 
@@ -76,11 +79,12 @@ def decode_binary(x):
     op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul", \
         "<<" : "lshift", ">>" : "rshift", "DIV" : "div", "MOD" : "mod", \
         "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne", \
-        ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in", "=" : "assign"}
+        ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in", \
+        "=" : "assign", "EOR" : "xor", ":" : "concatenation"}
     return BinaryExpression(op_name[x[1]], x[0], x[2])
 
 def decode_if(x):
-    return If(x[1], x[3][:])
+    return If(x[1], x[3])
 
 boolean_value = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
 identifier = Word(alphas + "_", alphanums + "_").setParseAction(lambda x: Identifier(x[0]))
@@ -90,7 +94,7 @@ unary_operator = oneOf("! - ~ +")
 
 # Binary Operators. 
 integer_operators = oneOf("+ - / * << >> DIV MOD ^")
-boolean_operator = oneOf("|| && == != > < >= <=")
+boolean_operator = oneOf("|| && == != > < >= <= EOR")
 in_operator = Literal("IN")
 bitstring_operator = Literal(":")
 assignment_operator = Literal("=")
@@ -115,13 +119,11 @@ enum_expr = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enum
 
 # An atom is either an identifier or a number. Atoms are the most basic elements of expressions.
 expr = Forward()
-atom = identifier ^ number ^ enum_expr ^ boolean_value ^ (LPAR + expr + RPAR)
+parenthized_expr = (LPAR + expr + RPAR)
+atom = identifier ^ number ^ enum_expr ^ boolean_value ^ parenthized_expr
 
-# Procedure call expression, arguments cannot be complex expressions as they were not needed.
-concat_expr = Forward()
-concat_expr <<= atom ^ Group(atom + COLON + concat_expr).setParseAction(lambda x: BinaryExpression("concatenation", x[0][0], x[0][1]))
-
-procedure_argument = number ^ identifier ^ concat_expr
+# Define a procedure call and its allowed arguments.
+procedure_argument = number ^ identifier ^ expr
 procedure_arguments = delimitedList(procedure_argument)
 procedure_call_expr = Group(identifier + LPAR + Optional(procedure_arguments) + RPAR).setParseAction(lambda x: ProcedureCall(x[0][0],x[0][1:]))
 
@@ -179,15 +181,22 @@ for_statement = (FOR + assignment_statement + TO + expr + statement_list).setPar
 
 # Collect all statements. We have two kinds, the ones that end with a semicolon and if, for and other statements that do not.
 statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statement ^ \
-    implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^ procedure_call_statement ^ assignment_statement) + SEMI) ^ \
+    implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^ \
+    procedure_call_statement ^ assignment_statement) + SEMI) ^ \
     if_statement ^ repeat_until_statement ^ while_statement ^ for_statement)
 
 # Define a basic program.
 program = statement_list
 
-print program.parseString("a = 1;\nb = 2;\npepe();")
-print program.parseString("if 1 == 1 then\nUNPREDICTABLE;\nUNPREDICTABLE;")
-print program.parseString("d = UInt(Rd);")
-print program.parseString("setflags = (S == '111');")
+# TODO: 
+# if cond<3:1> == '111' then SEE "Related encodings";
+# (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
+# if coproc IN "101x" then SEE "Floating-point instructions";
+# if wback && registers<n> == '1' then UNPREDICTABLE;
+# registers = P:M:'0':register_list;
+
+#print program.parseString("I1 = NOT(J1 EOR S); I2 = NOT(J2 EOR S);")
+#print program.parseString("d = UInt(Rd);")
+#print program.parseString("setflags = (S == '111');")
 print program.parseString("imm32 = ThumbExpandImm(i:imm3:imm8);")
-print program.parseString("if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;")
+#print program.parseString("if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;")
