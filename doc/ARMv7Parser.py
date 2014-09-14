@@ -11,6 +11,7 @@ ParserElement.enablePackrat()
 
 # Define basic tokens.
 LPAR, RPAR, LBRACK, RBRACK, LBRACE, RBRACE, SEMI, COMMA, COLON, EQUALS, LANGLE, RANGLE = map(Suppress, "()[]{};,:=<>")
+QUOTE = Suppress("'") ^ Suppress('"')
 
 # Define basic keywords.
 IF = Keyword("if")
@@ -61,6 +62,7 @@ While = namedtuple("While", ["condition", "statements"])
 For = namedtuple("For", ["from_", "to", "statements"])
 If = namedtuple("If", ["condition", "statements"])
 BitExtraction = namedtuple("BitExtraction", ["identifier", "range"])
+MaskedBinary = namedtuple("MaskedBinary", ["value"])
 
 def decode_repeat_until(x):
     return RepeatUntil(x[1], x[3])
@@ -90,6 +92,9 @@ def decode_if(x):
 def decode_bit_extract(x):
     return BitExtraction(x[0], list(x[1]))
 
+def decode_masked_base2(x):
+    return MaskedBinary(x[0])
+
 boolean_value = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
 identifier = Word(alphas + "_", alphanums + "_").setParseAction(lambda x: Identifier(x[0]))
 
@@ -108,18 +113,20 @@ binary_operator = (integer_operators ^ boolean_operator ^ bitstring_operator)
 comment = cppStyleComment
 
 # Define an integer for base 2, 10 and 16 and make sure it is 32 bits long.
-base2_integer = (Literal("'") + Word("01") + Literal("'")).setParseAction(lambda s, l, t: int(t[1], 2) & 0xffffffff)
-base10_integer = Word(initChars=string.digits).setParseAction(lambda s, l, t: int(t[0]) & 0xffffffff)
-base16_integer = Regex("0x[a-fA-F0-9]+").setParseAction(lambda s, l, t: int(t[0], 16) & 0xffffffff)
-number = (base2_integer ^ base10_integer ^ base16_integer).setParseAction(lambda x: NumberValue(x[0]))
+base_2_masked = (QUOTE + Word("01x") + QUOTE).setParseAction(decode_masked_base2)
+base2_integer = (Literal("'") + Word("01") + Literal("'")).setParseAction(lambda s, l, t: NumberValue(int(t[1], 2) & 0xffffffff))
+base10_integer = Word(initChars=string.digits).setParseAction(lambda s, l, t: NumberValue(int(t[0]) & 0xffffffff))
+base16_integer = Regex("0x[a-fA-F0-9]+").setParseAction(lambda s, l, t: NumberValue(int(t[0], 16) & 0xffffffff))
+
+number = (base2_integer ^ base10_integer ^ base16_integer ^ base_2_masked)
 
 # List.
 list_elements = delimitedList(number ^ identifier ^ Literal("-"))
 list_expr = Group(LPAR + list_elements + RPAR).setParseAction(lambda x: List(x[0][:]))
 
-# Enumeration.
+# Enumeration, an special case of enumeration is the 'base_2_masked' that expresses a list of numbers in a special way.
 enum_elements = delimitedList(identifier ^ number)
-enum_expr = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumeration(x[0][:]))
+enum_expr = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumeration(x[0][:])) ^ base_2_masked
 
 # An atom is either an identifier or a number. Atoms are the most basic elements of expressions.
 expr = Forward()
@@ -210,7 +217,7 @@ program = statement_list
 from doc.ARMv7DecodingSpec import instructions
 
 def main():
-    #print program.parseString("""if cond<3:1> == '111' then SEE "Related encodings";""")
+    print program.parseString("""if coproc IN '101x' then SEE "Floating-point instructions";""")
     #return 
 
     i = -1
