@@ -152,9 +152,10 @@ statement_list = OneOrMore(statement)
 # Simple statements.
 undefined_statement = UNDEFINED
 unpredictable_statement = UNPREDICTABLE
-see_statement = Group(SEE + Word(printables + " "))
-implementation_defined_statement = Group(IMPLEMENTATION_DEFINED + Word(printables + " "))
-subarchitecture_defined_statement = Group(SUBARCHITECTURE_DEFINED + Word(printables + " "))
+see_allowed = string.letters + string.digits + " -()/\","
+see_statement = Group(SEE + Word(see_allowed + " "))
+implementation_defined_statement = Group(IMPLEMENTATION_DEFINED + Word(see_allowed))
+subarchitecture_defined_statement = Group(SUBARCHITECTURE_DEFINED + Word(see_allowed))
 return_statement = Group(RETURN ^ (RETURN + expr))
 procedure_call_statement = procedure_call_expr
 
@@ -168,7 +169,7 @@ assignment_statement = (expr + assignment_operator + expr).setParseAction(decode
 #    Optional(ELSE + statement_list)
 #
 # Define a simplified if statement. TODO: In the future we ma want to extend it.
-if_statement = (IF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list).setParseAction(decode_if)
+if_statement = (IF +  expr + THEN + statement_list).setParseAction(decode_if)
 
 # Repeat until statement.
 repeat_until_statement = (REPEAT + statement_list + UNTIL + expr ).setParseAction(decode_repeat_until)
@@ -198,12 +199,38 @@ program = statement_list
 # if Rn == '1111' then SEE LDRB literal;
 # t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32); // Zero offset
 # d = UInt(Rd); m = UInt(Rm); setflags = !InITBlock(); (-, shift_n) = DecodeImmShift('10', imm5);
+# if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
 
-print program.parseString("registers = P:M:'0':register_list;")
-print program.parseString("if !Consistent(Rm) then UNPREDICTABLE;")
-print program.parseString("(shift_t, shift_n) = (SRType_LSL, 0);")
-print program.parseString("registers = P:M:'0':register_list;")
-print program.parseString("registers = P:M:'0':register_list;")
-print program.parseString("registers = P:M:'0':register_list;")
-print program.parseString("registers = P:M:'0':register_list;")
+from doc.ARMv7DecodingSpec import instructions
 
+def main():
+    # Aca falla el parentesis.
+    print program.parseString("if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);")
+    #return 
+
+    i = -1
+    for ins in instructions:
+        i += 1
+        print i 
+        try:
+            program.parseString(ins["decoder"])
+        except ParseException:
+            print "FAIL:"
+            print ins["decoder"]
+            break    
+    
+    return
+
+    print program.parseString("registers = P:M:'0':register_list;")
+    print program.parseString("if !Consistent(Rm) then UNPREDICTABLE;")
+    print program.parseString("(shift_t, shift_n) = (SRType_LSL, 0);")
+    print program.parseString("registers = P:M:'0':register_list;")
+    print program.parseString("registers = P:M:'0':register_list;")
+    print program.parseString("registers = P:M:'0':register_list;")
+    print program.parseString("registers = P:M:'0':register_list;")
+
+    return
+
+if __name__ == '__main__':        
+    main() 
+    
