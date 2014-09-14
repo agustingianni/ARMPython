@@ -19,7 +19,7 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "CUSTOM",
     "pattern" : "0100000101 Rm#3 Rdn#3",
-    "decoder" : """"""
+    "decoder" : """d = UInt(Rdn); n = UInt(Rdn); m = UInt(Rm); setflags = !InITBlock(); (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
     "name" : "ADC Register",
     "encoding" : "T2",
@@ -585,14 +585,14 @@ instructions = [
     "version" : "ARMv7",
     "format" : "CLREX<c>",
     "pattern" : "11110011101111111000111100101111",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "CLREX",
     "encoding" : "A1",
     "version" : "ARMv6K, ARMv7",
     "format" : "CLREX",
     "pattern" : "11110101011111111111000000011111",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "CLZ",
     "encoding" : "T1",
@@ -724,42 +724,42 @@ instructions = [
     "version" : "ARMv7",
     "format" : "DBG<c> #<option>",
     "pattern" : "1111001110101111100000001111 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "DBG",
     "encoding" : "A1",
     "version" : "ARMv7",
     "format" : "DBG<c> #<option>",
     "pattern" : "cond#4 001100100000111100001111 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "DMB",
     "encoding" : "T1",
     "version" : "ARMv7",
     "format" : "DMB<c> <option>",
     "pattern" : "1111001110111111100011110101 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "DMB",
     "encoding" : "A1",
     "version" : "ARMv7",
     "format" : "DMB <option>",
     "pattern" : "1111010101111111111100000101 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "DSB",
     "encoding" : "T1",
     "version" : "ARMv7",
     "format" : "DSB<c> <option>",
     "pattern" : "1111001110111111100011110100 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "DSB",
     "encoding" : "A1",
     "version" : "ARMv7",
     "format" : "DSB <option>",
     "pattern" : "1111010101111111111100000100 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "EOR (immediate)",
     "encoding" : "T1",
@@ -816,14 +816,14 @@ instructions = [
     "version" : "ARMv7",
     "format" : "ISB<c> <option>",
     "pattern" : "1111001110111111100011110110 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "ISB",
     "encoding" : "A1",
     "version" : "ARMv7",
     "format" : "ISB <option>",
     "pattern" : "1111010101111111111100000110 option#4",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "IT",
     "encoding" : "T1",
@@ -2116,21 +2116,21 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "NOP<c>",
     "pattern" : "1011111100000000",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "NOP",
     "encoding" : "T2",
     "version" : "ARMv6T2, ARMv7",
     "format" : "NOP<c>.W",
     "pattern" : "11110011101011111000000000000000",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "NOP",
     "encoding" : "A1",
     "version" : "ARMv6K, ARMv6T2, ARMv7",
     "format" : "NOP<c>",
     "pattern" : "cond#4 0011001000001111000000000000",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "ORN (immediate)",
     "encoding" : "T1",
@@ -2920,21 +2920,21 @@ instructions = [
     "version" : "ARMv7",
     "format" : "SEV<c>",
     "pattern" : "1 0 1 1 1 1 1 1 0 1 0 0 0 0 0 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "SEV",
     "encoding" : "T2",
     "version" : "ARMv7",
     "format" : "SEV<c>.W",
     "pattern" : "1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "SEV",
     "encoding" : "A1",
     "version" : "ARMv6K, ARMv7",
     "format" : "SEV<c>",
     "pattern" : "cond#4 0 0 1 1 0 0 1 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 1 0 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "SHADD16",
     "encoding" : "T1",
@@ -8886,61 +8886,61 @@ instructions = [
     "version" : "ARMv7",
     "format" : "WFE<c>",
     "pattern" : "1 0 1 1 1 1 1 1 0 0 1 0 0 0 0 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "WFE",
     "encoding" : "T2",
     "version" : "ARMv7",
     "format" : "WFE<c>.W",
     "pattern" : "1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "WFE",
     "encoding" : "A1",
     "version" : "ARMv6K, ARMv7",
     "format" : "WFE<c>",
     "pattern" : "cond#4 0 0 1 1 0 0 1 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0 1 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "WFI",
     "encoding" : "T1",
     "version" : "ARMv7",
     "format" : "WFI<c>",
     "pattern" : "1 0 1 1 1 1 1 1 0 0 1 1 0 0 0 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "WFI",
     "encoding" : "T2",
     "version" : "ARMv7",
     "format" : "WFI<c>.W",
     "pattern" : "1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "WFI",
     "encoding" : "A1",
     "version" : "ARMv6K, ARMv7",
     "format" : "WFI<c>",
     "pattern" : "cond#4 0 0 1 1 0 0 1 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0 1 1",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "YIELD",
     "encoding" : "T1",
     "version" : "ARMv7",
     "format" : "YIELD<c>",
     "pattern" : "1 0 1 1 1 1 1 1 0 0 0 1 0 0 0 0",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "YIELD",
     "encoding" : "T2",
     "version" : "ARMv7",
     "format" : "YIELD<c>.W",
     "pattern" : "1 1 1 1 0 0 1 1 1 0 1 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , {
     "name" : "YIELD",
     "encoding" : "A1",
     "version" : "ARMv6K, ARMv7",
     "format" : "YIELD<c>",
     "pattern" : "cond#4 0011001000001111000000000001",
-    "decoder" : """"""
+    "decoder" : """NOP();"""
 } , ]
