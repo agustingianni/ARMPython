@@ -60,6 +60,7 @@ RepeatUntil = namedtuple("RepeatUntil", ["statements", "condition"])
 While = namedtuple("While", ["condition", "statements"])
 For = namedtuple("For", ["from_", "to", "statements"])
 If = namedtuple("If", ["condition", "statements"])
+BitExtraction = namedtuple("BitExtraction", ["identifier", "range"])
 
 def decode_repeat_until(x):
     return RepeatUntil(x[1], x[3])
@@ -85,6 +86,9 @@ def decode_binary(x):
 
 def decode_if(x):
     return If(x[1], x[3])
+
+def decode_bit_extract(x):
+    return BitExtraction(x[0], list(x[1]))
 
 boolean_value = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
 identifier = Word(alphas + "_", alphanums + "_").setParseAction(lambda x: Identifier(x[0]))
@@ -130,9 +134,12 @@ procedure_call_expr = Group(identifier + LPAR + Optional(procedure_arguments) + 
 # We define a primary to be either an atom or a procedure call.
 primary = (atom ^ procedure_call_expr)
 
+# Define a bit extraction expression.
+bitextraction_expr = (primary + LANGLE + Group(primary + Optional(COLON + primary)) + RANGLE).setParseAction(decode_bit_extract)
+
 # Define a unary expression.
 unary_expr = Forward()
-unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_unary)
+unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_unary) ^ bitextraction_expr
 
 # Define a binary expression.
 binary_expr = Forward()
@@ -190,22 +197,20 @@ statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statem
 program = statement_list
 
 # TODO: 
-# if cond<3:1> == '111' then SEE "Related encodings";
 # (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
 # if coproc IN "101x" then SEE "Floating-point instructions";
 # if wback && registers<n> == '1' then UNPREDICTABLE;
 # (shift_t, shift_n) = (SRType_LSL, 0);
 # (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
 # if Rn == '1111' then SEE LDRB literal;
-# t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32); // Zero offset
+# t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32);
 # d = UInt(Rd); m = UInt(Rm); setflags = !InITBlock(); (-, shift_n) = DecodeImmShift('10', imm5);
 # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
 
 from doc.ARMv7DecodingSpec import instructions
 
 def main():
-    # Aca falla el parentesis.
-    print program.parseString("if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);")
+    #print program.parseString("""if cond<3:1> == '111' then SEE "Related encodings";""")
     #return 
 
     i = -1
