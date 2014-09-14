@@ -26,4 +26,34 @@ def validate_decoding_length():
             print i
             print line[:-1], "->", s
 
-validate_decoding_length()
+def convert():
+    entry_template = """{
+    "name" : "%s",
+    "encoding" : "%s",
+    "version" : "",
+    "format" : "",
+    "pattern" : "%s",
+    "decoder" : \"\"\"\"\"\"
+}"""
+    ins_name = None
+    i = 0
+    skip = True
+    print "instructions = ["
+    for line in open(name):
+        i += 1
+        if line == "\n":
+            skip = True
+            continue
+
+        if skip:
+            ins_name = line.strip()
+            skip = False
+            continue
+
+        print entry_template % (ins_name, line[:2], line[3:].strip()), ",",
+
+        if i == 10:
+            break
+
+    print "]"
+convert()

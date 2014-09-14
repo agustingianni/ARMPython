@@ -193,10 +193,17 @@ program = statement_list
 # (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
 # if coproc IN "101x" then SEE "Floating-point instructions";
 # if wback && registers<n> == '1' then UNPREDICTABLE;
-# registers = P:M:'0':register_list;
+# (shift_t, shift_n) = (SRType_LSL, 0);
+# (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
+# if Rn == '1111' then SEE LDRB literal;
+# t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32); // Zero offset
+# d = UInt(Rd); m = UInt(Rm); setflags = !InITBlock(); (-, shift_n) = DecodeImmShift('10', imm5);
 
-#print program.parseString("I1 = NOT(J1 EOR S); I2 = NOT(J2 EOR S);")
-#print program.parseString("d = UInt(Rd);")
-#print program.parseString("setflags = (S == '111');")
-print program.parseString("imm32 = ThumbExpandImm(i:imm3:imm8);")
-#print program.parseString("if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;")
+print program.parseString("registers = P:M:'0':register_list;")
+print program.parseString("if !Consistent(Rm) then UNPREDICTABLE;")
+print program.parseString("(shift_t, shift_n) = (SRType_LSL, 0);")
+print program.parseString("registers = P:M:'0':register_list;")
+print program.parseString("registers = P:M:'0':register_list;")
+print program.parseString("registers = P:M:'0':register_list;")
+print program.parseString("registers = P:M:'0':register_list;")
+
