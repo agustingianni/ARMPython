@@ -234,13 +234,13 @@ case type of
     """
     # TODO: 
     # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
-    # if wback && registers<n> == '1' then UNPREDICTABLE;
-    # if Rn == '1111' then SEE LDRB literal;
     
-    p = """(-, shift_n) = DecodeImmShift('10', imm5);"""
-    
+    # We need to fix the precedence issues.
+    p = """if var1 == '1' || var2 == '1' then SEE ADD (SP plus register);"""
+
     for s in program.parseString(p):
         print s
+
     return 
 
     i = -1
