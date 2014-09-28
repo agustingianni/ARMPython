@@ -64,6 +64,7 @@ If = namedtuple("If", ["condition", "statements"])
 BitExtraction = namedtuple("BitExtraction", ["identifier", "range"])
 MaskedBinary = namedtuple("MaskedBinary", ["value"])
 Case = namedtuple("Case", ["cases"])
+Ignore = namedtuple("Ignore", [])
 
 def decode_case(x):
     return x
@@ -124,18 +125,16 @@ base16_integer = Regex("0x[a-fA-F0-9]+").setParseAction(lambda s, l, t: NumberVa
 
 number = (base2_integer ^ base10_integer ^ base16_integer ^ base_2_masked)
 
-# List.
-list_elements = delimitedList(number ^ identifier ^ Literal("-"))
-list_expr = Group(LPAR + list_elements + RPAR).setParseAction(lambda x: List(x[0][:]))
-
 # Enumeration ::= {var0, 1, 2} | "01x"
 enum_elements = delimitedList(identifier ^ number)
 enum_expr = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumeration(x[0][:])) ^ base_2_masked
 
+ignore_value = Literal("-").setParseAction(lambda x: Ignore())
+
 # Atoms are the most basic elements of expressions.
 expr = Forward()
 parenthized_expr = (LPAR + expr + RPAR)
-atom = identifier ^ number ^ enum_expr ^ boolean_value ^ parenthized_expr ^ list_expr
+atom = identifier ^ number ^ enum_expr ^ boolean_value ^ parenthized_expr ^ ignore_value
 
 # Define a procedure call and its allowed arguments.
 procedure_argument = number ^ identifier ^ expr
@@ -160,8 +159,13 @@ binary_expr <<= unary_expr ^ ((unary_expr + binary_operator + binary_expr) ^ (un
 boolean_expr = Forward()
 boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).setParseAction(decode_binary)
 
+# List expression.
+list_elements = delimitedList(boolean_expr)
+list_expr = Forward()
+list_expr <<= boolean_expr ^ Group(LPAR + list_elements + RPAR).setParseAction(lambda x: List(x[0][:]))
+
 # Generic expression, comprising all the combinations of the preceeding definitions.
-expr <<= boolean_expr
+expr <<= list_expr
 
 # Forward declaration of a generic statement.
 statement = Forward()
@@ -229,18 +233,14 @@ case type of
         regs = 3;
     """
     # TODO: 
-    # if coproc IN "101x" then SEE "Floating-point instructions";
-    # if wback && registers<n> == '1' then UNPREDICTABLE;
-    # (shift_t, shift_n) = (SRType_LSL, 0);
-    # (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
-    # if Rn == '1111' then SEE LDRB literal;
-    # t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32);
-    # d = UInt(Rd); m = UInt(Rm); setflags = !InITBlock(); (-, shift_n) = DecodeImmShift('10', imm5);
     # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
+    # if wback && registers<n> == '1' then UNPREDICTABLE;
+    # if Rn == '1111' then SEE LDRB literal;
     
-    p = "(imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);"
+    p = """(-, shift_n) = DecodeImmShift('10', imm5);"""
     
-    print program.parseString(p)
+    for s in program.parseString(p):
+        print s
     return 
 
     i = -1
