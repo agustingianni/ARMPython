@@ -862,7 +862,7 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "CUSTOM",
     "pattern" : "1111110 P#1 U#1 D#1 W#1 1 Rn#4 CRd#4 coproc#4 imm8#8",
-    "decoder" : """f Rn == '1111' then SEE LDC (literal);
+    "decoder" : """if Rn == '1111' then SEE LDC (literal);
     if P == '0' && U == '0' && D == '0' && W == '0' then UNDEFINED;
     if P == '0' && U == '0' && D == '1' && W == '0' then SEE MRRC, MRRC2;
     if coproc IN "101x" then UNDEFINED;
@@ -874,7 +874,7 @@ instructions = [
     "version" : "ARMv5T*, ARMv6*, ARMv7",
     "format" : "CUSTOM",
     "pattern" : "1111110 P#1 U#1 D#1 W#1 1 Rn#4 CRd#4 coproc#4 imm8#8",
-    "decoder" : """f Rn == '1111' then SEE LDC (literal);
+    "decoder" : """if Rn == '1111' then SEE LDC (literal);
     if P == '0' && U == '0' && D == '0' && W == '0' then UNDEFINED;
     if P == '0' && U == '0' && D == '1' && W == '0' then SEE MRRC, MRRC2;
     if coproc IN "101x" then UNDEFINED;
