@@ -63,6 +63,10 @@ For = namedtuple("For", ["from_", "to", "statements"])
 If = namedtuple("If", ["condition", "statements"])
 BitExtraction = namedtuple("BitExtraction", ["identifier", "range"])
 MaskedBinary = namedtuple("MaskedBinary", ["value"])
+Case = namedtuple("Case", ["cases"])
+
+def decode_case(x):
+    return x
 
 def decode_repeat_until(x):
     return RepeatUntil(x[1], x[3])
@@ -96,7 +100,7 @@ def decode_masked_base2(x):
     return MaskedBinary(x[0])
 
 boolean_value = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
-identifier = Word(alphas + "_", alphanums + "_").setParseAction(lambda x: Identifier(x[0]))
+identifier = Word(alphas + "_", alphanums + "_.").setParseAction(lambda x: Identifier(x[0]))
 
 # Unary operators.
 unary_operator = oneOf("! - ~ +")
@@ -124,14 +128,14 @@ number = (base2_integer ^ base10_integer ^ base16_integer ^ base_2_masked)
 list_elements = delimitedList(number ^ identifier ^ Literal("-"))
 list_expr = Group(LPAR + list_elements + RPAR).setParseAction(lambda x: List(x[0][:]))
 
-# Enumeration, an special case of enumeration is the 'base_2_masked' that expresses a list of numbers in a special way.
+# Enumeration ::= {var0, 1, 2} | "01x"
 enum_elements = delimitedList(identifier ^ number)
 enum_expr = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumeration(x[0][:])) ^ base_2_masked
 
-# An atom is either an identifier or a number. Atoms are the most basic elements of expressions.
+# Atoms are the most basic elements of expressions.
 expr = Forward()
 parenthized_expr = (LPAR + expr + RPAR)
-atom = identifier ^ number ^ enum_expr ^ boolean_value ^ parenthized_expr
+atom = identifier ^ number ^ enum_expr ^ boolean_value ^ parenthized_expr ^ list_expr
 
 # Define a procedure call and its allowed arguments.
 procedure_argument = number ^ identifier ^ expr
@@ -185,6 +189,11 @@ assignment_statement = (expr + assignment_operator + expr).setParseAction(decode
 # Define a simplified if statement. TODO: In the future we ma want to extend it.
 if_statement = (IF +  expr + THEN + statement_list).setParseAction(decode_if)
 
+# Define a case statement.
+case_list = Group(OneOrMore(WHEN + expr + statement_list))
+otherwise_case = Group(OTHERWISE + statement_list)
+case_statement = (CASE + expr + OF + case_list + Optional(otherwise_case)).setParseAction(decode_case)
+
 # Repeat until statement.
 repeat_until_statement = (REPEAT + statement_list + UNTIL + expr ).setParseAction(decode_repeat_until)
 
@@ -198,37 +207,56 @@ for_statement = (FOR + assignment_statement + TO + expr + statement_list).setPar
 statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statement ^ \
     implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^ \
     procedure_call_statement ^ assignment_statement) + SEMI) ^ \
-    if_statement ^ repeat_until_statement ^ while_statement ^ for_statement)
+    if_statement ^ repeat_until_statement ^ while_statement ^ for_statement ^ case_statement)
 
 # Define a basic program.
 program = statement_list
 
-# TODO: 
-# (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
-# if coproc IN "101x" then SEE "Floating-point instructions";
-# if wback && registers<n> == '1' then UNPREDICTABLE;
-# (shift_t, shift_n) = (SRType_LSL, 0);
-# (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
-# if Rn == '1111' then SEE LDRB literal;
-# t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32);
-# d = UInt(Rd); m = UInt(Rm); setflags = !InITBlock(); (-, shift_n) = DecodeImmShift('10', imm5);
-# if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
-
 from doc.ARMv7DecodingSpec import instructions
 
 def main():
-    print program.parseString("""if coproc IN '101x' then SEE "Floating-point instructions";""")
-    #return 
+    #print case_statement.parseString("case val of\nwhen 1\npepe();\nwhen 1\npepe();\notherwise\npepe();")
+    #print program.parseString("case val of\nwhen 1\npepe();\nwhen 1\npepe();\notherwise\npepe();")
+    #print program.parseString("case val of\nwhen '1'\npepe();\nwhen '1'\npepe();\notherwise\npepe();")
+
+    p = """
+case type of
+    when '1'
+        regs = 1;
+    when '2'
+        regs = 2;
+    otherwise
+        regs = 3;
+    """
+    # TODO: 
+    # if coproc IN "101x" then SEE "Floating-point instructions";
+    # if wback && registers<n> == '1' then UNPREDICTABLE;
+    # (shift_t, shift_n) = (SRType_LSL, 0);
+    # (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
+    # if Rn == '1111' then SEE LDRB literal;
+    # t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32);
+    # d = UInt(Rd); m = UInt(Rm); setflags = !InITBlock(); (-, shift_n) = DecodeImmShift('10', imm5);
+    # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
+    
+    p = "(imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);"
+    
+    print program.parseString(p)
+    return 
 
     i = -1
     for ins in instructions:
         i += 1
+        
+        if i < 678:
+            continue
+        
         print i 
         try:
             program.parseString(ins["decoder"])
-        except ParseException:
-            print "FAIL:"
+        except ParseException, e:
+            print "FAIL: ", ins["name"]
             print ins["decoder"]
+            print e
             break    
     
     return
