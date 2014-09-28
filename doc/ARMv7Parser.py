@@ -100,7 +100,10 @@ def decode_bit_extract(x):
 def decode_masked_base2(x):
     return MaskedBinary(x[0])
 
-boolean_value = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
+# Define the boolean values.
+boolean = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
+
+# An identifier is a name.
 identifier = Word(alphas + "_", alphanums + "_.").setParseAction(lambda x: Identifier(x[0]))
 
 # Unary operators.
@@ -112,7 +115,7 @@ boolean_operator = oneOf("|| && == != > < >= <= EOR")
 in_operator = Literal("IN")
 bitstring_operator = Literal(":")
 assignment_operator = Literal("=")
-binary_operator = (integer_operators ^ boolean_operator ^ bitstring_operator)
+binary_operator = (integer_operators ^ bitstring_operator)
 
 # Use the already defined C multiline comment and C++ inline comments.
 comment = cppStyleComment
@@ -127,45 +130,52 @@ number = (base2_integer ^ base10_integer ^ base16_integer ^ base_2_masked)
 
 # Enumeration ::= {var0, 1, 2} | "01x"
 enum_elements = delimitedList(identifier ^ number)
-enum_expr = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumeration(x[0][:])) ^ base_2_masked
+enum = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumeration(x[0][:])) ^ base_2_masked
 
-ignore_value = Literal("-").setParseAction(lambda x: Ignore())
+# Ignore '-' value.
+ignored = Literal("-").setParseAction(lambda: Ignore())
 
-# Atoms are the most basic elements of expressions.
-expr = Forward()
-parenthized_expr = (LPAR + expr + RPAR)
-atom = identifier ^ number ^ enum_expr ^ boolean_value ^ parenthized_expr ^ ignore_value
-
-# Define a procedure call and its allowed arguments.
-procedure_argument = number ^ identifier ^ expr
-procedure_arguments = delimitedList(procedure_argument)
-procedure_call_expr = Group(identifier + LPAR + Optional(procedure_arguments) + RPAR).setParseAction(lambda x: ProcedureCall(x[0][0],x[0][1:]))
-
-# We define a primary to be either an atom or a procedure call.
-primary = (atom ^ procedure_call_expr)
-
-# Define a bit extraction expression.
-bitextraction_expr = (primary + LANGLE + Group(primary + Optional(COLON + primary)) + RANGLE).setParseAction(decode_bit_extract)
-
-# Define a unary expression.
-unary_expr = Forward()
-unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_unary) ^ bitextraction_expr
-
-# Define a binary expression.
-binary_expr = Forward()
-binary_expr <<= unary_expr ^ ((unary_expr + binary_operator + binary_expr) ^ (unary_expr + in_operator + enum_expr)).setParseAction(decode_binary)
-
-# Define a boolean expression.
-boolean_expr = Forward()
-boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).setParseAction(decode_binary)
-
-# List expression.
-list_elements = delimitedList(boolean_expr)
-list_expr = Forward()
-list_expr <<= boolean_expr ^ Group(LPAR + list_elements + RPAR).setParseAction(lambda x: List(x[0][:]))
-
-# Generic expression, comprising all the combinations of the preceeding definitions.
-expr <<= list_expr
+if True:
+    # Forward initialization of expressions.
+    expr = Forward()
+    
+    # XXX: I've removed the parenthized_expr.
+    parenthized_expr = (LPAR + expr + RPAR)
+    atom = identifier ^ number ^ enum ^ boolean ^ parenthized_expr ^ ignored
+    
+    # Atoms are the most basic elements of expressions.
+    # atom = identifier ^ number ^ enum ^ boolean ^ ignored
+    
+    # Define a procedure call and its allowed arguments.
+    procedure_argument = expr
+    procedure_arguments = delimitedList(procedure_argument)
+    procedure_call_expr = Group(identifier + LPAR + Optional(procedure_arguments) + RPAR).setParseAction(lambda x: ProcedureCall(x[0][0],x[0][1:]))
+    
+    # We define a primary to be either an atom or a procedure call.
+    primary = (atom ^ procedure_call_expr)
+    
+    # Define a bit extraction expression.
+    bitextraction_expr = (primary + LANGLE + Group(primary + Optional(COLON + primary)) + RANGLE).setParseAction(decode_bit_extract)
+    
+    # Define a unary expression.
+    unary_expr = Forward()
+    unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_unary) ^ bitextraction_expr
+    
+    # Define a binary expression.
+    binary_expr = Forward()
+    binary_expr <<= unary_expr ^ ((unary_expr + binary_operator + binary_expr) ^ (unary_expr + in_operator + enum)).setParseAction(decode_binary)
+    
+    # Define a boolean expression.
+    boolean_expr = Forward()
+    boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).setParseAction(decode_binary)
+    
+    # List expression.
+    list_elements = delimitedList(boolean_expr)
+    list_expr = Forward()
+    list_expr <<= boolean_expr ^ Group(LPAR + list_elements + RPAR).setParseAction(lambda x: List(x[0][:]))
+    
+    # Generic expression, comprising all the combinations of the preceeding definitions.
+    expr <<= list_expr
 
 # Forward declaration of a generic statement.
 statement = Forward()
@@ -220,8 +230,9 @@ def test_specific():
     # TODO: 
     # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
     # We need to fix the precedence issues.
-    p = """if var1 == '1' || var2 == '1' then SEE ADD (SP plus register);"""
-
+    p = """if var1 == '1' || var2 == '0' then UNPREDICTABLE;"""
+    p = """caca(1+a);"""
+        
     for s in program.parseString(p):
         print s
 
@@ -249,8 +260,9 @@ def test_all():
     
 
 def main():
-    if not test_all():
-        print "Failed test of specification."
+    if False:
+        if not test_all():
+            print "Failed test of specification."
         
     if not test_specific():
         print "Failed individual test cases."
