@@ -216,60 +216,46 @@ statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statem
 # Define a basic program.
 program = statement_list
 
-from doc.ARMv7DecodingSpec import instructions
-
-def main():
-    #print case_statement.parseString("case val of\nwhen 1\npepe();\nwhen 1\npepe();\notherwise\npepe();")
-    #print program.parseString("case val of\nwhen 1\npepe();\nwhen 1\npepe();\notherwise\npepe();")
-    #print program.parseString("case val of\nwhen '1'\npepe();\nwhen '1'\npepe();\notherwise\npepe();")
-
-    p = """
-case type of
-    when '1'
-        regs = 1;
-    when '2'
-        regs = 2;
-    otherwise
-        regs = 3;
-    """
+def test_specific():
     # TODO: 
     # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
-    
     # We need to fix the precedence issues.
     p = """if var1 == '1' || var2 == '1' then SEE ADD (SP plus register);"""
 
     for s in program.parseString(p):
         print s
 
-    return 
+    return True
+
+def test_all():
+    from doc.ARMv7DecodingSpec import instructions
 
     i = -1
     for ins in instructions:
         i += 1
         
-        if i < 678:
-            continue
-        
-        print i 
+        if not i % 10:
+            print "Testing: %.4d - %.4d of %4d" % (i, i + 10, len(instructions))
+         
         try:
             program.parseString(ins["decoder"])
         except ParseException, e:
             print "FAIL: ", ins["name"]
             print ins["decoder"]
             print e
-            break    
+            return False    
     
-    return
+    return True
+    
 
-    print program.parseString("registers = P:M:'0':register_list;")
-    print program.parseString("if !Consistent(Rm) then UNPREDICTABLE;")
-    print program.parseString("(shift_t, shift_n) = (SRType_LSL, 0);")
-    print program.parseString("registers = P:M:'0':register_list;")
-    print program.parseString("registers = P:M:'0':register_list;")
-    print program.parseString("registers = P:M:'0':register_list;")
-    print program.parseString("registers = P:M:'0':register_list;")
-
-    return
+def main():
+    if not test_all():
+        print "Failed test of specification."
+        
+    if not test_specific():
+        print "Failed individual test cases."
+    
+    return 0
 
 if __name__ == '__main__':        
     main() 
