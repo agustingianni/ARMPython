@@ -138,13 +138,9 @@ ignored = Literal("-").setParseAction(lambda: Ignore())
 if True:
     # Forward initialization of expressions.
     expr = Forward()
-    
-    # XXX: I've removed the parenthized_expr.
-    parenthized_expr = (LPAR + expr + RPAR)
-    atom = identifier ^ number ^ enum ^ boolean ^ parenthized_expr ^ ignored
-    
+        
     # Atoms are the most basic elements of expressions.
-    # atom = identifier ^ number ^ enum ^ boolean ^ ignored
+    atom = identifier ^ number ^ enum ^ boolean ^ ignored
     
     # Define a procedure call and its allowed arguments.
     procedure_argument = expr
@@ -153,13 +149,17 @@ if True:
     
     # We define a primary to be either an atom or a procedure call.
     primary = (atom ^ procedure_call_expr)
-    
+        
     # Define a bit extraction expression.
     bitextraction_expr = (primary + LANGLE + Group(primary + Optional(COLON + primary)) + RANGLE).setParseAction(decode_bit_extract)
     
+    # Give room for expressions with parenthesis.
+    parenthized_expr = Forward()
+    parenthized_expr <<= primary ^ bitextraction_expr ^ (LPAR + expr + RPAR)
+
     # Define a unary expression.
     unary_expr = Forward()
-    unary_expr <<= primary ^ (unary_operator + unary_expr).setParseAction(decode_unary) ^ bitextraction_expr
+    unary_expr <<= parenthized_expr ^ (unary_operator + unary_expr).setParseAction(decode_unary)
     
     # Define a binary expression.
     binary_expr = Forward()
@@ -260,7 +260,7 @@ def test_all():
     
 
 def main():
-    if False:
+    if True:
         if not test_all():
             print "Failed test of specification."
         
