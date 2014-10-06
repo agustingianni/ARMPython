@@ -79,23 +79,36 @@ def decode_while(x):
     return While(x[1], x[3])
 
 def decode_unary(x):
+    x = x[0]
+
+    if len(x) != 2:
+        raise "Invalid unary operation: %r" % x
+
     op_name = {"!" : "negate", "-" : "minus", "~" : "invert", "+" : "plus"}
     op = op_name[x[0]]
     return UnaryExpression(op, x[1])
 
 def decode_binary(x):
     op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul", \
-        "<<" : "lshift", ">>" : "rshift", "DIV" : "div", "MOD" : "mod", \
+        "<<" : "lshift", ">>" : "rshift", "DIV" : "idiv", "MOD" : "imod", \
         "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne", \
         ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in", \
-        "=" : "assign", "EOR" : "xor", ":" : "concatenation"}
-    return BinaryExpression(op_name[x[1]], x[0], x[2])
+        "=" : "assign", "EOR" : "xor", ":" : "concatenation", "AND" : "and", "OR" : "or"}
+        
+    x = x[0]    
+    
+    prev_ = x[0]
+    for i in range(0, len(x) - 2, 2):
+        op, next_ = x[i + 1], x[i + 2]
+        prev_ = BinaryExpression(op_name[op], prev_, next_)
+        
+    return prev_
 
 def decode_if(x):
     return If(x[1], x[3])
 
 def decode_bit_extract(x):
-    return BitExtraction(x[0], list(x[1]))
+    return BitExtraction(x[0][0], list(x[0][1:]))
 
 def decode_masked_base2(x):
     return MaskedBinary(x[0])
@@ -109,13 +122,44 @@ identifier = Word(alphas + "_", alphanums + "_.").setParseAction(lambda x: Ident
 # Unary operators.
 unary_operator = oneOf("! - ~ +")
 
-# Binary Operators. 
-integer_operators = oneOf("+ - / * << >> DIV MOD ^")
-boolean_operator = oneOf("|| && == != > < >= <= EOR")
+# Bitstring concatenation operator.
+bit_concat_operator = Literal(":")
+
+# Product, division, etc.
+mul_div_mod_operator = oneOf("* / MOD DIV")
+
+# Binary add and sub.
+add_sub_operator = oneOf("+ -")
+
+# Binary shift operators.
+shift_operator = oneOf("<< >>")
+
+# Less than, less than or equal, etc.
+lt_lte_gt_gte_operator = oneOf("< <= > >=")
+
+# Equal or not equal operators.
+eq_neq_operator = oneOf("== !=")
+
+# Bitwise and operator.
+bit_and_operator = oneOf("& AND")
+
+# Bitwise eor operator.
+bit_eor_operator = oneOf("^ EOR")
+
+# Bitwise or operator.
+bit_or_operator = oneOf("| OR")
+
+# Logical and operator.
+logical_and_operator = Literal("&&")
+
+# Logical or operator.
+logical_or_operator = Literal("||")
+
+# Includes operator
 in_operator = Literal("IN")
-bitstring_operator = Literal(":")
-assignment_operator = Literal("=")
-binary_operator = (integer_operators ^ bitstring_operator)
+
+# Assignment operator.
+assignment_operator = Literal("=") 
 
 # Use the already defined C multiline comment and C++ inline comments.
 comment = cppStyleComment
@@ -126,6 +170,7 @@ base2_integer = (Literal("'") + Word("01") + Literal("'")).setParseAction(lambda
 base10_integer = Word(initChars=string.digits).setParseAction(lambda s, l, t: NumberValue(int(t[0]) & 0xffffffff))
 base16_integer = Regex("0x[a-fA-F0-9]+").setParseAction(lambda s, l, t: NumberValue(int(t[0], 16) & 0xffffffff))
 
+# Join all the supported numbers.
 number = (base2_integer ^ base10_integer ^ base16_integer ^ base_2_masked)
 
 # Enumeration ::= {var0, 1, 2} | "01x"
@@ -135,47 +180,49 @@ enum = Group(LBRACE + enum_elements + RBRACE).setParseAction(lambda x: Enumerati
 # Ignore '-' value.
 ignored = Literal("-").setParseAction(lambda: Ignore())
 
-if True:
-    # Forward initialization of expressions.
-    expr = Forward()
-        
-    # Atoms are the most basic elements of expressions.
-    atom = identifier ^ number ^ enum ^ boolean ^ ignored
-    
-    # Define a procedure call and its allowed arguments.
-    procedure_argument = expr
-    procedure_arguments = delimitedList(procedure_argument)
-    procedure_call_expr = Group(identifier + LPAR + Optional(procedure_arguments) + RPAR).setParseAction(lambda x: ProcedureCall(x[0][0],x[0][1:]))
-    
-    # We define a primary to be either an atom or a procedure call.
-    primary = (atom ^ procedure_call_expr)
-        
-    # Define a bit extraction expression.
-    bitextraction_expr = (primary + LANGLE + Group(primary + Optional(COLON + primary)) + RANGLE).setParseAction(decode_bit_extract)
-    
-    # Give room for expressions with parenthesis.
-    parenthized_expr = Forward()
-    parenthized_expr <<= primary ^ bitextraction_expr ^ (LPAR + expr + RPAR)
+# Forward declaration of a function call.
+procedure_call_expr = Forward()
 
-    # Define a unary expression.
-    unary_expr = Forward()
-    unary_expr <<= parenthized_expr ^ (unary_operator + unary_expr).setParseAction(decode_unary)
+# Forward declaration of a bit extraction call.
+bit_extract_expr = Forward()
+
+# Atoms are the most basic elements of expressions.
+atom = identifier ^ number ^ enum ^ boolean ^ ignored ^ procedure_call_expr ^ bit_extract_expr
+
+# Define the order of precedence.
+expr = operatorPrecedence(atom, [
+    (unary_operator         , 1, opAssoc.RIGHT, decode_unary ),
+    (bit_concat_operator    , 2, opAssoc.LEFT , decode_binary),
+    (mul_div_mod_operator   , 2, opAssoc.LEFT , decode_binary),
+    (add_sub_operator       , 2, opAssoc.LEFT , decode_binary),
+    (shift_operator         , 2, opAssoc.LEFT , decode_binary),
+    (in_operator            , 2, opAssoc.LEFT , decode_binary),
+    (lt_lte_gt_gte_operator , 2, opAssoc.LEFT , decode_binary),
+    (eq_neq_operator        , 2, opAssoc.LEFT , decode_binary),
+    (bit_and_operator       , 2, opAssoc.LEFT , decode_binary),
+    (bit_eor_operator       , 2, opAssoc.LEFT , decode_binary),
+    (logical_and_operator   , 2, opAssoc.LEFT , decode_binary),
+    (logical_or_operator    , 2, opAssoc.LEFT , decode_binary),
+])
+
+# Define a procedure call and its allowed arguments. We do this because things
+# break if we get too recursive.
+procedure_argument = operatorPrecedence(atom, [
+    (unary_operator         , 1, opAssoc.RIGHT, decode_unary ),
+    (bit_concat_operator    , 2, opAssoc.LEFT , decode_binary),
+    (mul_div_mod_operator   , 2, opAssoc.LEFT , decode_binary),
+    (add_sub_operator       , 2, opAssoc.LEFT , decode_binary),
+    (shift_operator         , 2, opAssoc.LEFT , decode_binary),
+    (bit_and_operator       , 2, opAssoc.LEFT , decode_binary),
+    (bit_eor_operator       , 2, opAssoc.LEFT , decode_binary),
+])
+
+# Define a bit extraction expression.
+bit_extract_expr <<= Group(identifier + LANGLE + number + Optional(COLON + number) + RANGLE).setParseAction(decode_bit_extract)
     
-    # Define a binary expression.
-    binary_expr = Forward()
-    binary_expr <<= unary_expr ^ ((unary_expr + binary_operator + binary_expr) ^ (unary_expr + in_operator + enum)).setParseAction(decode_binary)
-    
-    # Define a boolean expression.
-    boolean_expr = Forward()
-    boolean_expr <<= binary_expr ^ (binary_expr + boolean_operator + boolean_expr).setParseAction(decode_binary)
-    
-    # List expression.
-    list_elements = delimitedList(boolean_expr)
-    list_expr = Forward()
-    list_expr <<= boolean_expr ^ Group(LPAR + list_elements + RPAR).setParseAction(lambda x: List(x[0][:]))
-    
-    # Generic expression, comprising all the combinations of the preceeding definitions.
-    expr <<= list_expr
+# Define a procedure call.
+procedure_arguments = delimitedList(procedure_argument)
+procedure_call_expr <<= Group(identifier + LPAR + Optional(procedure_arguments) + RPAR).setParseAction(lambda x: ProcedureCall(x[0][0], x[0][1:]))
 
 # Forward declaration of a generic statement.
 statement = Forward()
@@ -192,7 +239,7 @@ return_statement = Group(RETURN ^ (RETURN + expr))
 procedure_call_statement = procedure_call_expr
 
 # Assignment statement.
-assignment_statement = (expr + assignment_operator + expr).setParseAction(decode_binary)
+assignment_statement = (expr + assignment_operator + expr).setParseAction(lambda x: decode_binary([x]))
 
 # Define the whole if (...) then ... [elsif (...) then ...] [else ...]
 # if_statement = \
@@ -229,9 +276,10 @@ program = statement_list
 def test_specific():
     # TODO: 
     # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
-    # We need to fix the precedence issues.
-    p = """if var1 == '1' || var2 == '0' then UNPREDICTABLE;"""
-    p = """caca(1+a);"""
+    # opc1<0>:opc2<1>
+    # imm4<3:2>
+
+    p = """if cond<3:1> == '111' then a = 1;"""
         
     for s in program.parseString(p):
         print s
@@ -259,13 +307,13 @@ def test_all():
     return True
     
 
-def main():
+def main():        
+    if not test_specific():
+        print "Failed individual test cases."
+
     if True:
         if not test_all():
             print "Failed test of specification."
-        
-    if not test_specific():
-        print "Failed individual test cases."
     
     return 0
 
