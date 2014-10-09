@@ -65,6 +65,7 @@ BitExtraction = namedtuple("BitExtraction", ["identifier", "range"])
 MaskedBinary = namedtuple("MaskedBinary", ["value"])
 Case = namedtuple("Case", ["cases"])
 Ignore = namedtuple("Ignore", [])
+IfExpression = namedtuple("IfExpression", ["condition", "trueValue", "falseValue"])
 
 def decode_case(x):
     return x
@@ -103,6 +104,9 @@ def decode_binary(x):
         prev_ = BinaryExpression(op_name[op], prev_, next_)
         
     return prev_
+
+def decode_if_expression(x):
+    return IfExpression(x[1], x[3], x[5])
 
 def decode_if(x):
     return If(x[1], x[3])
@@ -186,8 +190,11 @@ procedure_call_expr = Forward()
 # Forward declaration of a bit extraction call.
 bit_extract_expr = Forward()
 
+# Forward declaration of an if expression.
+if_expression = Forward()
+
 # Atoms are the most basic elements of expressions.
-atom = identifier ^ number ^ enum ^ boolean ^ ignored ^ procedure_call_expr ^ bit_extract_expr
+atom = identifier ^ number ^ enum ^ boolean ^ ignored ^ procedure_call_expr ^ bit_extract_expr ^ if_expression
 
 # Define the order of precedence.
 expr = operatorPrecedence(atom, [
@@ -223,6 +230,9 @@ bit_extract_expr <<= Group(identifier + LANGLE + number + Optional(COLON + numbe
 # Define a procedure call.
 procedure_arguments = delimitedList(procedure_argument)
 procedure_call_expr <<= Group(identifier + LPAR + Optional(procedure_arguments) + RPAR).setParseAction(lambda x: ProcedureCall(x[0][0], x[0][1:]))
+
+# Define an if expression. 
+if_expression <<= (IF +  expr + THEN + expr + ELSE + expr).setParseAction(decode_if_expression)
 
 # Forward declaration of a generic statement.
 statement = Forward()
@@ -274,15 +284,51 @@ statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statem
 program = statement_list
 
 def test_specific():
-    # TODO: 
-    # if (DN:Rdn) == '1101' || Rm == '1101' then SEE ADD (SP plus register);
-    # opc1<0>:opc2<1>
-    # imm4<3:2>
-
-    p = """if cond<3:1> == '111' then a = 1;"""
+    """
+    If x and y are two values of the same type and t is a value of type boolean, then
+    if t then x else y 
+    is an expression of the same type as x and y that produces x if t is TRUE and y if t is FALSE.
+    
+    Statements:
+        - Assignment              : OK
+        - Procedure calls         : OK
+        - Return statement        : OK
+        - Undefined               : OK
+        - Unpredictable           : OK
+        - See ...                 : OK
+        - IMPLEMENTATION_DEFINED  : OK
+        - SUBARCHITECTURE_DEFINED : OK
+        - if ... then ... else
+            - Multi-line
+            - Single-line
+            
+            if expression then
+                expr1;
+                ...
+                exprN;
+            elsif expression then
+                expr1;
+                ...
+                exprN;
+            else
+                expr1;
+                ...
+                exprN;
+    
+    Hasta ahora funcionan los inline pero que tienen statement
         
-    for s in program.parseString(p):
-        print s
+    """
+    
+    
+    
+    tests = []
+    tests.append("""a = if a == '0' then 1 else 8;""")
+        
+    for p in tests:
+        print "Testing: %s" % p
+        for s in program.parseString(p):
+            print s
+        print
 
     return True
 
@@ -311,7 +357,7 @@ def main():
     if not test_specific():
         print "Failed individual test cases."
 
-    if True:
+    if False:
         if not test_all():
             print "Failed test of specification."
     
