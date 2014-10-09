@@ -12,7 +12,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ADC{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "cond#4 0010101 S#1 Rn#4 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ARMExpandImm(imm12);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; 
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ARMExpandImm(imm12);"""
 } , {
     "name" : "ADC Register",
     "encoding" : "T1",
@@ -172,7 +173,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ADD{S}<c> <Rd>, SP, #<const>",
     "pattern" : "cond#4 0010100 S#1 1101 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); setflags = (S == '1'); imm32 = ARMExpandImm(imm12);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); setflags = (S == '1'); imm32 = ARMExpandImm(imm12);"""
 } , {
     "name" : "ADD (SP plus register, Thumb)",
     "encoding" : "T1",
@@ -180,7 +182,8 @@ instructions = [
     "format" : "ADD<c> <Rdm>, SP, <Rdm>",
     "pattern" : "01000100 DM#1 1101 Rdm#3",
     "decoder" : """d = UInt(DM:Rdm); m = UInt(DM:Rdm); setflags = FALSE;
-    if d == 15 && InITBlock() && !LastInITBlock() then UNPREDICTABLE; (shift_t, shift_n) = (SRType_LSL, 0);"""
+    if d == 15 && InITBlock() && !LastInITBlock() then UNPREDICTABLE;
+    (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
     "name" : "ADD (SP plus register, Thumb)",
     "encoding" : "T2",
@@ -206,7 +209,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ADD{S}<c> <Rd>, SP, <Rm>{, <shift>}",
     "pattern" : "cond#4 0000100 S#1 1101 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
 (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "ADR",
@@ -259,7 +263,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "AND{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "cond#4 0010000 S#1 Rn#4 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
     (imm32, carry) = ARMExpandImm_C(imm12, APSR.C);"""
 } , {
     "name" : "AND (register)",
@@ -284,7 +289,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "AND{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0000000 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "AND (register-shifted register)",
     "encoding" : "A1",
@@ -314,7 +320,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ASR{S}<c> <Rd>, <Rm>, #<imm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 imm5#5 100 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
     (-, shift_n) = DecodeImmShift('10', imm5);"""
 } , {
     "name" : "ASR (register)",
@@ -343,7 +350,10 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "B<c> <label>",
     "pattern" : "1101 cond#4 imm8#8",
-    "decoder" : """if cond == '1110' then UNDEFINED; if cond == '1111' then SEE SVC; imm32 = SignExtend(imm8:'0', 32); if InITBlock() then UNPREDICTABLE;"""
+    "decoder" : """if cond == '1110' then UNDEFINED;
+    if cond == '1111' then SEE SVC;
+    imm32 = SignExtend(imm8:'0', 32); 
+    if InITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "B",
     "encoding" : "T2",
@@ -358,7 +368,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "B<c>.W <label>",
     "pattern" : "11110 S#1 cond#4 imm6#6 10 J1#1 0 J2#1 imm11#11",
-    "decoder" : """if cond<3:1> == '111' then SEE "Related encodings"; imm32 = SignExtend(S:J2:J1:imm6:imm11:'0', 32);
+    "decoder" : """if cond<3:1> == '111' then SEE "Related encodings";
+    imm32 = SignExtend(S:J2:J1:imm6:imm11:'0', 32);
     if InITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "B",
@@ -417,7 +428,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "BIC{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "cond#4 0011110 S#1 Rn#4 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
     (imm32, carry) = ARMExpandImm_C(imm12, APSR.C);"""
 } , {
     "name" : "BIC (register)",
@@ -440,7 +452,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "BIC{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0001110 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "BIC (register-shifted register)",
     "encoding" : "A1",
@@ -557,14 +570,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "CDP<c> <coproc>, <opc1>, <CRd>, <CRn>, <CRm>, <opc2>",
     "pattern" : "11101110 opc1#4 CRn#4 CRd#4 coproc#4 opc2#3 0 CRm#4",
-    "decoder" : """if coproc IN "101x" then SEE "Floating-point instructions"; cp = UInt(coproc);"""
+    "decoder" : """if coproc IN "101x" then SEE "Floating-point instructions";
+    cp = UInt(coproc);"""
 } , {
     "name" : "CDP, CDP2",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "CDP<c> <coproc>, <opc1>, <CRd>, <CRn>, <CRm>, <opc2>",
     "pattern" : "cond#4 1110 opc1#4 CRn#4 CRd#4 coproc#4 opc2#3 0 CRm#4",
-    "decoder" : """if coproc IN "101x" then SEE "Floating-point instructions"; cp = UInt(coproc);"""
+    "decoder" : """if coproc IN "101x" then SEE "Floating-point instructions";
+    cp = UInt(coproc);"""
 } , {
     "name" : "CDP, CDP2",
     "encoding" : "T2",
@@ -776,7 +791,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "EOR{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "cond#4 0010001 S#1 Rn#4 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
     (imm32, carry) = ARMExpandImm_C(imm12, APSR.C);"""
 } , {
     "name" : "EOR (register)",
@@ -801,7 +817,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "EOR{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0000001 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "EOR (register-shifted register)",
     "encoding" : "A1",
@@ -831,7 +848,8 @@ instructions = [
     "format" : "IT{<x>{<y>{<z>}}} <firstcond>",
     "pattern" : "10111111 firstcond#4 mask#4",
     "decoder" : """if mask == '0000' then SEE "Related encodings";
-    if firstcond == '1111' || (firstcond == '1110' && BitCount(mask) != 1) then UNPREDICTABLE; if InITBlock() then UNPREDICTABLE;"""
+    if firstcond == '1111' || (firstcond == '1110' && BitCount(mask) != 1) then UNPREDICTABLE;
+    if InITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "LDC, LDC2 (immediate)",
     "encoding" : "T1",
@@ -936,7 +954,8 @@ instructions = [
     "pattern" : "1110100010 W#1 1 Rn#4 P#1 M#1 0 register_list#13",
     "decoder" : """if W == '1' && Rn == '1101' then SEE POP (Thumb);
     n = UInt(Rn); registers = P:M:'0':register_list; wback = (W == '1');
-    if n == 15 || BitCount(registers) < 2 || (P == '1' && M == '1') then UNPREDICTABLE; if registers<15> == '1' && InITBlock() && !LastInITBlock() then UNPREDICTABLE;
+    if n == 15 || BitCount(registers) < 2 || (P == '1' && M == '1') then UNPREDICTABLE; 
+    if registers<15> == '1' && InITBlock() && !LastInITBlock() then UNPREDICTABLE;
     if wback && registers<n> == '1' then UNPREDICTABLE;"""
 } , {
     "name" : "LDM/LDMIA/LDMFD (ARM)",
@@ -944,7 +963,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LDM<c> <Rn>{!}, <registers>",
     "pattern" : "cond#4 100010 W#1 1 Rn#4 register_list#16",
-    "decoder" : """if W == '1' && Rn == '1101' && BitCount(register_list) > 1 then SEE POP (ARM); n = UInt(Rn); registers = register_list; wback = (W == '1');
+    "decoder" : """if W == '1' && Rn == '1101' && BitCount(register_list) > 1 then SEE POP (ARM);
+    n = UInt(Rn); registers = register_list; wback = (W == '1');
     if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;
     if wback && registers<n> == '1' && ArchVersion() >= 7 then UNPREDICTABLE;"""
 } , {
@@ -963,7 +983,8 @@ instructions = [
     "format" : "LDMDB<c> <Rn>{!}, <registers>",
     "pattern" : "1110100100 W#1 1 Rn#4 P#1 M#1 0 register_list#13",
     "decoder" : """n = UInt(Rn); registers = P:M:'0':register_list; wback = (W == '1');
-    if n == 15 || BitCount(registers) < 2 || (P == '1' && M == '1') then UNPREDICTABLE; if registers<15> == '1' && InITBlock() && !LastInITBlock() then UNPREDICTABLE;
+    if n == 15 || BitCount(registers) < 2 || (P == '1' && M == '1') then UNPREDICTABLE;
+    if registers<15> == '1' && InITBlock() && !LastInITBlock() then UNPREDICTABLE;
     if wback && registers<n> == '1' then UNPREDICTABLE;"""
 } , {
     "name" : "LDMDB/LDMEA",
@@ -1013,7 +1034,8 @@ instructions = [
     "pattern" : "111110000101 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
     "decoder" : """if Rn == '1111' then SEE LDR (literal);
     if P == '1' && U == '1' && W == '0' then SEE LDRT;
-    if Rn == '1101' && P == '0' && U == '1' && W == '1' && imm8 == '00000100' then SEE POP; if P == '0' && W == '0' then UNDEFINED;
+    if Rn == '1101' && P == '0' && U == '1' && W == '1' && imm8 == '00000100' then SEE POP;
+    if P == '0' && W == '0' then UNDEFINED;
     t = UInt(Rt); n = UInt(Rn);
     imm32 = ZeroExtend(imm8, 32); index = (P == '1'); add = (U == '1'); wback = (W == '1'); if (wback && n == t) || (t == 15 && InITBlock() && !LastInITBlock()) then UNPREDICTABLE;"""
 } , {
@@ -1024,7 +1046,8 @@ instructions = [
     "pattern" : "cond#4 010 P#1 U#1 0 W#1 1 Rn#4 Rt#4 imm12#12",
     "decoder" : """if Rn == '1111' then SEE LDR (literal);
     if P == '0' && W == '1' then SEE LDRT;
-    if Rn == '1101' && P == '0' && U == '1' && W == '0' && imm12 == '000000000100' then SEE POP; t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
+    if Rn == '1101' && P == '0' && U == '1' && W == '0' && imm12 == '000000000100' then SEE POP;
+    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
     index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
     if wback && n == t then UNPREDICTABLE;"""
 } , {
@@ -1055,7 +1078,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LDR<c> <Rt>, [<Rn>, <Rm>]",
     "pattern" : "0101100 Rm#3 Rn#3 Rt#3",
-    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE"; t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE";
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
     (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
     "name" : "LDR (register, Thumb)",
@@ -1103,7 +1127,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "CUSTOM",
     "pattern" : "111110000001 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
-    "decoder" : """if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE PLD, PLDW (immediate); if Rn == '1111' then SEE LDRB (literal);
+    "decoder" : """if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE PLD, PLDW (immediate);
+    if Rn == '1111' then SEE LDRB (literal);
     if P == '1' && U == '1' && W == '0' then SEE LDRBT;
     if P == '0' && W == '0' then UNDEFINED;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32);
@@ -1118,7 +1143,7 @@ instructions = [
     "decoder" : """if Rn == '1111' then SEE LDRB (literal);
     if P == '0' && W == '1' then SEE LDRBT;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 || (wback && n == t) then UNPREDICTABLE;s"""
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "LDRB (literal)",
     "encoding" : "T1",
@@ -1221,7 +1246,8 @@ instructions = [
     "decoder" : """if P == '0' && W == '0' then SEE "Related encodings";
     t = UInt(Rt); t2 = UInt(Rt2);
     imm32 = ZeroExtend(imm8:'00', 32); add = (U == '1');
-    if t IN {13,15} || t2 IN {13,15} || t == t2 then UNPREDICTABLE; if W == '1' then UNPREDICTABLE;"""
+    if t IN {13,15} || t2 IN {13,15} || t == t2 then UNPREDICTABLE;
+    if W == '1' then UNPREDICTABLE;"""
 } , {
     "name" : "LDRD (literal)",
     "encoding" : "A1",
@@ -1328,7 +1354,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "111110000011 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
     "decoder" : """if Rn == '1111' then SEE LDRH (literal);
-    if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE "Related instructions"; if P == '1' && U == '1' && W == '0' then SEE LDRHT;
+    if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE "Related instructions";
+    if P == '1' && U == '1' && W == '0' then SEE LDRHT;
     if P == '0' && W == '0' then UNDEFINED;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32);
     index = (P == '1'); add = (U == '1'); wback = (W == '1');
@@ -1364,7 +1391,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LDRH<c> <Rt>, [<Rn>, <Rm>]",
     "pattern" : "0101101 Rm#3 Rn#3 Rt#3",
-    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE"; t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE";
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
     index = TRUE; add = TRUE; wback = FALSE;
     (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
@@ -1431,7 +1459,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "CUSTOM",
     "pattern" : "111110010001 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
-    "decoder" : """if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE PLI; if Rn == '1111' then SEE LDRSB (literal);
+    "decoder" : """if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE PLI;
+    if Rn == '1111' then SEE LDRSB (literal);
     if P == '1' && U == '1' && W == '0' then SEE LDRSBT;
     if P == '0' && W == '0' then UNDEFINED;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32);
@@ -1534,7 +1563,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "111110010011 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
     "decoder" : """if Rn == '1111' then SEE LDRSH (literal);
-    if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE "Related instructions"; if P == '1' && U == '1' && W == '0' then SEE LDRSHT;
+    if Rt == '1111' && P == '1' && U == '0' && W == '0' then SEE "Related instructions";
+    if P == '1' && U == '1' && W == '0' then SEE LDRSHT;
     if P == '0' && W == '0' then UNDEFINED;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32);
     index = (P == '1'); add = (U == '1'); wback = (W == '1');
@@ -1571,7 +1601,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LDRSH<c> <Rt>, [<Rn>, <Rm>]",
     "pattern" : "0101111 Rm#3 Rn#3 Rt#3",
-    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE"; t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE";
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
     index = TRUE; add = TRUE; wback = FALSE;
     (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
@@ -1581,7 +1612,8 @@ instructions = [
     "format" : "LDRSH<c>.W <Rt>, [<Rn>, <Rm>{, LSL #<imm2>}]",
     "pattern" : "111110010011 Rn#4 Rt#4 000000 imm2#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE LDRSH (literal);
-    if Rt == '1111' then SEE "Related instructions"; t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    if Rt == '1111' then SEE "Related instructions";
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "LDRSH (register)",
     "encoding" : "A1",
@@ -1668,7 +1700,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LSL{S}<c> <Rd>, <Rm>, #<imm5>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 imm5#5 000 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; if imm5 == '00000' then SEE MOV (register);
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    if imm5 == '00000' then SEE MOV (register);
     d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
     (-, shift_n) = DecodeImmShift('00', imm5);"""
 } , {
@@ -1713,7 +1746,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LSR{S}<c> <Rd>, <Rm>, #<imm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 imm5#5 010 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
     (-, shift_n) = DecodeImmShift('01', imm5);"""
 } , {
     "name" : "LSR (register)",
@@ -1910,7 +1944,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "MOV{S}<c> <Rd>, <Rm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 00000000 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');"""
 } , {
     "name" : "MOVT",
     "encoding" : "T1",
@@ -2078,7 +2113,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "MVN{S}<c> <Rd>, #<const>",
     "pattern" : "cond#4 0011111 S#1 0000 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); setflags = (S == '1');
     (imm32, carry) = ARMExpandImm_C(imm12, APSR.C);"""
 } , {
     "name" : "MVN (register)",
@@ -2100,7 +2136,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "MVN{S}<c> <Rd>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0001111 S#1 0000 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
     (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "MVN (register-shifted register)",
@@ -2162,7 +2199,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ORR{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "cond#4 0011100 S#1 Rn#4 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1');
     (imm32, carry) = ARMExpandImm_C(imm12, APSR.C);"""
 } , {
     "name" : "ORR (register)",
@@ -2186,7 +2224,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ORR{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0001100 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "ORR (register-shifted register)",
     "encoding" : "A1",
@@ -2304,7 +2343,8 @@ instructions = [
     "version" : "ARMv7",
     "format" : "PLI<c> [<Rn>, <Rm>{, LSL #<imm2>}]",
     "pattern" : "111110010001 Rn#4 1111000000 imm2#2 Rm#4",
-    "decoder" : """if Rn == '1111' then SEE PLI (immediate, literal); n = UInt(Rn); m = UInt(Rm); add = TRUE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
+    "decoder" : """if Rn == '1111' then SEE PLI (immediate, literal);
+    n = UInt(Rn); m = UInt(Rm); add = TRUE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
     if m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "PLI (register)",
@@ -2344,7 +2384,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "POP<c> <registers>",
     "pattern" : "cond#4 100010111101 register_list#16",
-    "decoder" : """if BitCount(register_list) < 2 then SEE LDM / LDMIA / LDMFD; registers = register_list; UnalignedAllowed = FALSE;
+    "decoder" : """if BitCount(register_list) < 2 then SEE LDM / LDMIA / LDMFD;
+    registers = register_list; UnalignedAllowed = FALSE;
     if registers<13> == '1' && ArchVersion() >= 7 then UNPREDICTABLE;"""
 } , {
     "name" : "POP (ARM)",
@@ -2380,7 +2421,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "PUSH<c> <registers>",
     "pattern" : "cond#4 100100101101 register_list#16",
-    "decoder" : """if BitCount(register_list) < 2 then SEE STMDB / STMFD; registers = register_list; UnalignedAllowed = FALSE;"""
+    "decoder" : """if BitCount(register_list) < 2 then SEE STMDB / STMFD;
+    registers = register_list; UnalignedAllowed = FALSE;"""
 } , {
     "name" : "PUSH",
     "encoding" : "A2",
@@ -2652,7 +2694,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ROR{S}<c> <Rd>, <Rm>, #<imm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 imm5#5 110 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; if imm5 == '00000' then SEE RRX;
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    if imm5 == '00000' then SEE RRX;
     d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
     (-, shift_n) = DecodeImmShift('11', imm5);"""
 } , {
@@ -2689,7 +2732,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "RRX{S}<c> <Rd>, <Rm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 00000110 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');"""
 } , {
     "name" : "RSB (immediate)",
     "encoding" : "T1",
@@ -2726,7 +2770,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "RSB{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0 0 0 0 0 1 1 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "RSB (register-shifted register)",
     "encoding" : "A1",
@@ -2749,7 +2794,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "RSC{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0 0 0 0 1 1 1 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "RSC (register-shifted register)",
     "encoding" : "A1",
@@ -2842,7 +2888,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "SBC{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0 0 0 0 1 1 0 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "SBC (register-shifted register)",
     "encoding" : "A1",
@@ -3074,7 +3121,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMLAL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLAL",
     "encoding" : "A1",
@@ -3092,7 +3140,8 @@ instructions = [
     "pattern" : "1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 1 0 N#1 M#1 Rm#4",
     "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm);
     n_high = (N == '1'); m_high = (M == '1');
-    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLALBB, SMLALBT, SMLALTB, SMLALTT",
     "encoding" : "A1",
@@ -3100,14 +3149,16 @@ instructions = [
     "format" : "SMLAL<x><y><c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 1 0 1 0 0 RdHi#4 RdLo#4 Rm#4 1 M#1 N#1 0 Rn#4",
     "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); n_high = (N == '1'); m_high = (M == '1');
-    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLALD",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMLALD{X}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 1 1 0 M#1 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLALD",
     "encoding" : "A1",
@@ -3153,7 +3204,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMLSLD{X}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 0 1 Rn#4 RdLo#4 RdHi#4 1 1 0 M#1 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLSLD",
     "encoding" : "A1",
@@ -3246,7 +3298,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMULL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 0 0 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMULL",
     "encoding" : "A1",
@@ -3417,7 +3470,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "STM<c> <Rn>!, <registers>",
     "pattern" : "1 1 0 0 0 Rn#3 register_list#8",
-    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "ThumbEE instructions"; n = UInt(Rn); registers = '00000000':register_list; wback = TRUE;
+    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "ThumbEE instructions";
+    n = UInt(Rn); registers = '00000000':register_list; wback = TRUE;
     if BitCount(registers) < 1 then UNPREDICTABLE;"""
 } , {
     "name" : "STM (STMIA, STMEA)",
@@ -3456,7 +3510,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "STMDB<c> <Rn>{!}, <registers>",
     "pattern" : "cond#4 1 0 0 1 0 0 W#1 0 Rn#4 register_list#16",
-    "decoder" : """if W == '1' && Rn == '1101' && BitCount(register_list) >= 2 then SEE PUSH; n = UInt(Rn); registers = register_list; wback = (W == '1');
+    "decoder" : """if W == '1' && Rn == '1101' && BitCount(register_list) >= 2 then SEE PUSH;
+    n = UInt(Rn); registers = register_list; wback = (W == '1');
     if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;"""
 } , {
     "name" : "STMIB (STMFA)",
@@ -3496,7 +3551,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 0 0 0 0 1 0 0 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
     "decoder" : """if P == '1' && U == '1' && W == '0' then SEE STRT;
-    if Rn == '1101' && P == '1' && U == '0' && W == '1' && imm8 == '00000100' then SEE PUSH; if Rn == '1111' || (P == '0' && W == '0') then UNDEFINED;
+    if Rn == '1101' && P == '1' && U == '0' && W == '1' && imm8 == '00000100' then SEE PUSH;
+    if Rn == '1111' || (P == '0' && W == '0') then UNDEFINED;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32);
     index = (P == '1'); add = (U == '1'); wback = (W == '1');
     if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
@@ -3507,7 +3563,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "cond#4 0 1 0 P#1 U#1 0 W#1 0 Rn#4 Rt#4 imm12#12",
     "decoder" : """if P == '0' && W == '1' then SEE STRT;
-    if Rn == '1101' && P == '1' && U == '0' && W == '1' && imm12 == '000000000100' then SEE PUSH; t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
+    if Rn == '1101' && P == '1' && U == '0' && W == '1' && imm12 == '000000000100' then SEE PUSH;
+    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
     index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1');
     if wback && (n == 15 || n == t) then UNPREDICTABLE;"""
 } , {
@@ -3516,7 +3573,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "STR<c> <Rt>, [<Rn>, <Rm>]",
     "pattern" : "0 1 0 1 0 0 0 Rm#3 Rn#3 Rt#3",
-    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE"; t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE";
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
     index = TRUE; add = TRUE; wback = FALSE;
     (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
@@ -3687,7 +3745,8 @@ instructions = [
     "format" : "STREXB<c> <Rd>, <Rt>, [<Rn>]",
     "pattern" : "1 1 1 0 1 0 0 0 1 1 0 0 Rn#4 Rt#4 1 1 1 1 0 1 0 0 Rd#4",
     "decoder" : """d = UInt(Rd); t = UInt(Rt); n = UInt(Rn);
-    if d IN {13,15} || t IN {13,15} || n == 15 then UNPREDICTABLE; if d == n || d == t then UNPREDICTABLE;"""
+    if d IN {13,15} || t IN {13,15} || n == 15 then UNPREDICTABLE;
+    if d == n || d == t then UNPREDICTABLE;"""
 } , {
     "name" : "STREXB",
     "encoding" : "A1",
@@ -3695,7 +3754,8 @@ instructions = [
     "format" : "STREXB<c> <Rd>, <Rt>, [<Rn>]",
     "pattern" : "cond#4 0 0 0 1 1 1 0 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rt#4",
     "decoder" : """d = UInt(Rd); t = UInt(Rt); n = UInt(Rn);
-    if d == 15 || t == 15 || n == 15 then UNPREDICTABLE; if d == n || d == t then UNPREDICTABLE;"""
+    if d == 15 || t == 15 || n == 15 then UNPREDICTABLE;
+    if d == n || d == t then UNPREDICTABLE;"""
 } , {
     "name" : "STREXD",
     "encoding" : "T1",
@@ -3703,7 +3763,8 @@ instructions = [
     "format" : "STREXD<c> <Rd>, <Rt>, <Rt2>, [<Rn>]",
     "pattern" : "1 1 1 0 1 0 0 0 1 1 0 0 Rn#4 Rt#4 Rt2#4 0 1 1 1 Rd#4",
     "decoder" : """d = UInt(Rd); t = UInt(Rt); t2 = UInt(Rt2); n = UInt(Rn);
-    if d IN {13,15} || t IN {13,15} || t2 IN {13,15} || n == 15 then UNPREDICTABLE; if d == n || d == t || d == t2 then UNPREDICTABLE;"""
+    if d IN {13,15} || t IN {13,15} || t2 IN {13,15} || n == 15 then UNPREDICTABLE;
+    if d == n || d == t || d == t2 then UNPREDICTABLE;"""
 } , {
     "name" : "STREXD",
     "encoding" : "A1",
@@ -3711,7 +3772,8 @@ instructions = [
     "format" : "STREXD<c> <Rd>, <Rt>, <Rt2>, [<Rn>]",
     "pattern" : "cond#4 0 0 0 1 1 0 1 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rt#4",
     "decoder" : """d = UInt(Rd); t = UInt(Rt); t2 = t+1; n = UInt(Rn);
-    if d == 15 || Rt<0> == '1' || Rt == '1110' || n == 15 then UNPREDICTABLE; if d == n || d == t || d == t2 then UNPREDICTABLE;"""
+    if d == 15 || Rt<0> == '1' || Rt == '1110' || n == 15 then UNPREDICTABLE;
+    if d == n || d == t || d == t2 then UNPREDICTABLE;"""
 } , {
     "name" : "STREXH",
     "encoding" : "T1",
@@ -3719,7 +3781,8 @@ instructions = [
     "format" : "STREXH<c> <Rd>, <Rt>, [<Rn>]",
     "pattern" : "1 1 1 0 1 0 0 0 1 1 0 0 Rn#4 Rt#4 1 1 1 1 0 1 0 1 Rd#4",
     "decoder" : """d = UInt(Rd); t = UInt(Rt); n = UInt(Rn);
-    if d IN {13,15} || t IN {13,15} || n == 15 then UNPREDICTABLE; if d == n || d == t then UNPREDICTABLE;"""
+    if d IN {13,15} || t IN {13,15} || n == 15 then UNPREDICTABLE;
+    if d == n || d == t then UNPREDICTABLE;"""
 } , {
     "name" : "STREXH",
     "encoding" : "A1",
@@ -3727,7 +3790,8 @@ instructions = [
     "format" : "STREXH<c> <Rd>, <Rt>, [<Rn>]",
     "pattern" : "cond#4 0 0 0 1 1 1 1 0 Rn#4 Rd#4 1 1 1 1 1 0 0 1 Rt#4",
     "decoder" : """d = UInt(Rd); t = UInt(Rt); n = UInt(Rn);
-    if d == 15 || t == 15 || n == 15 then UNPREDICTABLE; if d == n || d == t then UNPREDICTABLE;"""
+    if d == 15 || t == 15 || n == 15 then UNPREDICTABLE;
+    if d == n || d == t then UNPREDICTABLE;"""
 } , {
     "name" : "STRH (immediate, Thumb)",
     "encoding" : "T1",
@@ -3769,7 +3833,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "STRH<c> <Rt>, [<Rn>, <Rm>]",
     "pattern" : "0 1 0 1 0 0 1 Rm#3 Rn#3 Rt#3",
-    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE"; t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+    "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "Modified operation in ThumbEE";
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
     index = TRUE; add = TRUE; wback = FALSE;
     (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
@@ -3911,7 +3976,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "SUB{S}<c> <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "cond#4 0 0 0 0 0 1 0 S#1 Rn#4 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; if Rn == '1101' then SEE SUB (SP minus register);
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    if Rn == '1101' then SEE SUB (SP minus register);
     d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "SUB (register-shifted register)",
@@ -3949,7 +4015,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "SUB{S}<c> <Rd>, SP, #<const>",
     "pattern" : "cond#4 0 0 1 0 0 1 0 S#1 1 1 0 1 Rd#4 imm12#12",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); setflags = (S == '1'); imm32 = ARMExpandImm(imm12);"""
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); setflags = (S == '1'); imm32 = ARMExpandImm(imm12);"""
 } , {
     "name" : "SUB (SP minus register)",
     "encoding" : "T1",
@@ -3959,14 +4026,16 @@ instructions = [
     "decoder" : """if Rd == '1111' && S == '1' then SEE CMP (register);
     d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
     (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2);
-    if d == 13 && (shift_t != SRType_LSL || shift_n > 3) then UNPREDICTABLE; if (d == 15 && S == '0') || m IN {13,15} then UNPREDICTABLE;"""
+    if d == 13 && (shift_t != SRType_LSL || shift_n > 3) then UNPREDICTABLE;
+    if (d == 15 && S == '0') || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SUB (SP minus register)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "SUB{S}<c> <Rd>, SP, <Rm>{, <shift>}",
     "pattern" : "cond#4 0 0 0 0 0 1 0 S#1 1 1 0 1 Rd#4 imm5#5 type#2 0 Rm#4",
-    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions; d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
+    "decoder" : """if Rd == '1111' && S == '1' then SEE SUBS PC, LR and related instructions;
+    d = UInt(Rd); m = UInt(Rm); setflags = (S == '1');
     (shift_t, shift_n) = DecodeImmShift(type, imm5);"""
 } , {
     "name" : "SVC",
@@ -4395,21 +4464,24 @@ instructions = [
     "format" : "UMAAL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 1 0 Rn#4 RdLo#4 RdHi#4 0 1 1 0 Rm#4",
     "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm);
-    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "UMAAL",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "UMAAL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 0 0 1 0 0 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "UMLAL",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "UMLAL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 1 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "UMLAL",
     "encoding" : "A1",
@@ -4425,7 +4497,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "UMULL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 0 1 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE; if dHi == dLo then UNPREDICTABLE;"""
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "UMULL",
     "encoding" : "A1",
@@ -4754,7 +4827,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 1 Vm#4",
     "decoder" : """if size == '11' then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; unsigned = (U == '1'); long_destination = FALSE;
+    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    unsigned = (U == '1'); long_destination = FALSE;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -4764,7 +4838,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 1 Vm#4",
     "decoder" : """if size == '11' then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; unsigned = (U == '1'); long_destination = FALSE;
+    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    unsigned = (U == '1'); long_destination = FALSE;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -4796,7 +4871,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 0 Vm#4",
     "decoder" : """if size == '11' then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; unsigned = (U == '1'); long_destination = FALSE;
+    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    unsigned = (U == '1'); long_destination = FALSE;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -4806,7 +4882,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 1 1 1 N#1 Q#1 M#1 0 Vm#4",
     "decoder" : """if size == '11' then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; unsigned = (U == '1'); long_destination = FALSE;
+    if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    unsigned = (U == '1'); long_destination = FALSE;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -4857,7 +4934,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 1 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; advsimd = TRUE; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    advsimd = TRUE; floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -4866,7 +4945,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 1 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; advsimd = TRUE; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    advsimd = TRUE; floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -4875,7 +4956,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 0 1 1 1 0 1 D#1 1 1 0 0 0 0 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4",
-    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors"; advsimd = FALSE; dp_operation = (sz == '1');
+    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors";
+    advsimd = FALSE; dp_operation = (sz == '1');
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);"""
 } , {
@@ -4884,7 +4966,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "cond#4 1 1 1 0 1 D#1 1 1 0 0 0 0 Vd#4 1 0 1 sz#1 1 1 M#1 0 Vm#4",
-    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors"; advsimd = FALSE; dp_operation = (sz == '1');
+    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors";
+    advsimd = FALSE; dp_operation = (sz == '1');
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);"""
 } , {
@@ -4951,7 +5034,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 0 1 1 1 0 0 D#1 1 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4",
-    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors"; advsimd = FALSE; dp_operation = (sz == '1');
+    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors";
+    advsimd = FALSE; dp_operation = (sz == '1');
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     n = if dp_operation then UInt(N:Vn) else UInt(Vn:N);
     m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);"""
@@ -4961,7 +5045,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "cond#4 1 1 1 0 0 D#1 1 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 0 M#1 0 Vm#4",
-    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors"; advsimd = FALSE; dp_operation = (sz == '1');
+    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then SEE "VFP vectors";
+    advsimd = FALSE; dp_operation = (sz == '1');
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     n = if dp_operation then UInt(N:Vn) else UInt(Vn:N);
     m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);"""
@@ -4972,7 +5057,8 @@ instructions = [
     "format" : "VADDHN<c>.<dt> <Dd>, <Qn>, <Qm>",
     "pattern" : "1 1 1 0 1 1 1 1 1 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 0 M#1 0 Vm#4",
     "decoder" : """if size == '11' then SEE "Related encodings";
-    if Vn<0> == '1' || Vm<0> == '1' then UNDEFINED; esize = 8 << UInt(size); elements = 64 DIV esize; d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm);"""
+    if Vn<0> == '1' || Vm<0> == '1' then UNDEFINED;
+    esize = 8 << UInt(size); elements = 64 DIV esize; d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm);"""
 } , {
     "name" : "VADDHN",
     "encoding" : "A1",
@@ -4980,7 +5066,8 @@ instructions = [
     "format" : "VADDHN<c>.<dt> <Dd>, <Qn>, <Qm>",
     "pattern" : "1 1 1 1 0 0 1 0 1 D#1 size#2 Vn#4 Vd#4 0 1 0 0 N#1 0 M#1 0 Vm#4",
     "decoder" : """if size == '11' then SEE "Related encodings";
-    if Vn<0> == '1' || Vm<0> == '1' then UNDEFINED; esize = 8 << UInt(size); elements = 64 DIV esize; d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm);"""
+    if Vn<0> == '1' || Vm<0> == '1' then UNDEFINED;
+    esize = 8 << UInt(size); elements = 64 DIV esize; d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm);"""
 } , {
     "name" : "VADDL, VADDW",
     "encoding" : "T1",
@@ -5023,7 +5110,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 i#1 1 1 1 1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 1 1 imm4#4",
-    "decoder" : """if cmode<0> == '0' || cmode<3:2> == '11' then SEE "Related encodings"; if Q == '1' && Vd<0> == '1' then UNDEFINED;
+    "decoder" : """if cmode<0> == '0' || cmode<3:2> == '11' then SEE "Related encodings";
+    if Q == '1' && Vd<0> == '1' then UNDEFINED;
     imm64 = AdvSIMDExpandImm('1', cmode, i:imm3:imm4);
     d = UInt(D:Vd); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5032,7 +5120,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 i#1 1 D#1 0 0 0 imm3#3 Vd#4 cmode#4 0 Q#1 1 1 imm4#4",
-    "decoder" : """if cmode<0> == '0' || cmode<3:2> == '11' then SEE "Related encodings"; if Q == '1' && Vd<0> == '1' then UNDEFINED;
+    "decoder" : """if cmode<0> == '0' || cmode<3:2> == '11' then SEE "Related encodings";
+    if Q == '1' && Vd<0> == '1' then UNDEFINED;
     imm64 = AdvSIMDExpandImm('1', cmode, i:imm3:imm4);
     d = UInt(D:Vd); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5121,7 +5210,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5130,7 +5221,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5139,7 +5232,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 1 Vm#4",
-    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; if size == '11' then UNDEFINED;
+    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    if size == '11' then UNDEFINED;
     type = if U == '1' then VCGEtype_unsigned else VCGEtype_signed;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
@@ -5149,7 +5243,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 1 Vm#4",
-    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; if size == '11' then UNDEFINED;
+    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    if size == '11' then UNDEFINED;
     type = if U == '1' then VCGEtype_unsigned else VCGEtype_signed;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
@@ -5179,7 +5274,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 1 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5188,7 +5285,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 1 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5197,7 +5296,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 U#1 1 1 1 1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 0 Vm#4",
-    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; if size == '11' then UNDEFINED;
+    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    if size == '11' then UNDEFINED;
     type = if U == '1' then VCGTtype_unsigned else VCGTtype_signed;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
@@ -5207,7 +5307,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 U#1 0 D#1 size#2 Vn#4 Vd#4 0 0 1 1 N#1 Q#1 M#1 0 Vm#4",
-    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED; if size == '11' then UNDEFINED;
+    "decoder" : """if Q == '1' && (Vd<0> == '1' || Vn<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    if size == '11' then UNDEFINED;
     type = if U == '1' then VCGTtype_unsigned else VCGTtype_signed;
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
@@ -5237,7 +5338,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5246,7 +5349,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 0 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5255,7 +5360,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 1 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5264,7 +5371,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 0 1 1 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5293,7 +5402,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 0 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5302,7 +5413,9 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 1 Vd#4 0 F#1 1 0 0 Q#1 M#1 0 Vm#4",
-    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED; if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; floating_point = (F == '1');
+    "decoder" : """if size == '11' || (F == '1' && size != '10') then UNDEFINED;
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    floating_point = (F == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5447,7 +5560,7 @@ instructions = [
     "pattern" : "1 1 1 U#1 1 1 1 1 1 D#1 imm6#6 Vd#4 1 1 1 op#1 0 Q#1 M#1 1 Vm#4",
     "decoder" : """if imm6 IN "000xxx" then SEE "Related encodings";
     if imm6 IN "0xxxxx" then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; 
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
     to_fixed = (op == '1'); unsigned = (U == '1');
     if to_fixed then
         round_zero = TRUE;
@@ -5463,7 +5576,7 @@ instructions = [
     "pattern" : "1 1 1 1 0 0 1 U#1 1 D#1 imm6#6 Vd#4 1 1 1 op#1 0 Q#1 M#1 1 Vm#4",
     "decoder" : """if imm6 IN "000xxx" then SEE "Related encodings";
     if imm6 IN "0xxxxx" then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; 
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
     to_fixed = (op == '1'); unsigned = (U == '1');
     if to_fixed then
         round_zero = TRUE;
@@ -5727,7 +5840,8 @@ instructions = [
     "version" : "VFPv4",
     "format" : "CUSTOM",
     "pattern" : "1 1 1 0 1 1 1 0 1 D#1 0 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4",
-    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then UNPREDICTABLE; op1_neg = (op == '1');
+    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then UNPREDICTABLE;
+    op1_neg = (op == '1');
     dp_operation = (sz == '1');
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     n = if dp_operation then UInt(N:Vn) else UInt(Vn:N); m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);"""
@@ -5737,7 +5851,8 @@ instructions = [
     "version" : "VFPv4",
     "format" : "CUSTOM",
     "pattern" : "cond#4 1 1 1 0 1 D#1 0 1 Vn#4 Vd#4 1 0 1 sz#1 N#1 op#1 M#1 0 Vm#4",
-    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then UNPREDICTABLE; op1_neg = (op == '1');
+    "decoder" : """if FPSCR.LEN != '000' || FPSCR.STRIDE != '00' then UNPREDICTABLE;
+    op1_neg = (op == '1');
     dp_operation = (sz == '1');
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     n = if dp_operation then UInt(N:Vn) else UInt(Vn:N);
@@ -7113,7 +7228,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 1 1 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 0 op#1 Q#1 M#1 0 Vm#4",
     "decoder" : """if size == '11' then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; unsigned = (op == '1');
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    unsigned = (op == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -7123,7 +7239,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "1 1 1 1 0 0 1 1 1 D#1 1 1 size#2 0 0 Vd#4 0 1 1 0 op#1 Q#1 M#1 0 Vm#4",
     "decoder" : """if size == '11' then UNDEFINED;
-    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED; unsigned = (op == '1');
+    if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
+    unsigned = (op == '1');
     esize = 8 << UInt(size); elements = 64 DIV esize;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -7864,7 +7981,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "VRSHRN<c>.I<size> <Dd>, <Qm>, #<imm>",
     "pattern" : "1 1 1 0 1 1 1 1 1 D#1 imm6#6 Vd#4 1 0 0 0 0 1 M#1 1 Vm#4",
-    "decoder" : """if imm6 IN "000xxx" then SEE "Related encodings"; if Vm<0> == '1' then UNDEFINED;
+    "decoder" : """if imm6 IN "000xxx" then SEE "Related encodings";
+    if Vm<0> == '1' then UNDEFINED;
     case imm6 of
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
@@ -7876,7 +7994,8 @@ instructions = [
     "version" : "Advanced SIMD",
     "format" : "VRSHRN<c>.I<size> <Dd>, <Qm>, #<imm>",
     "pattern" : "1 1 1 1 0 0 1 0 1 D#1 imm6#6 Vd#4 1 0 0 0 0 1 M#1 1 Vm#4",
-    "decoder" : """if imm6 IN "000xxx" then SEE "Related encodings"; if Vm<0> == '1' then UNDEFINED;
+    "decoder" : """if imm6 IN "000xxx" then SEE "Related encodings";
+    if Vm<0> == '1' then UNDEFINED;
     case imm6 of
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
