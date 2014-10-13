@@ -1,10 +1,19 @@
 """
 Python parser for the ARM Architecture Reference Manual (ARMv7-A and ARMv7-R edition)
 pseudocode.
+
+
+TODO: 
+    - Handle this case -> (shift_t, shift_n) = DecodeImmShift(type, imm5);
+
 """
 from pyparsing import *
 from collections import namedtuple
 import string
+
+# Avoid treating newlines as whitespaces. " \n\t\r"
+ParserElement.setDefaultWhitespaceChars(" \t")
+#ParserElement.verbose_stacktrace = True
 
 # Enable optimizations.
 ParserElement.enablePackrat()
@@ -13,8 +22,12 @@ ParserElement.enablePackrat()
 LPAR, RPAR, LBRACK, RBRACK, LBRACE, RBRACE, SEMI, COMMA, COLON, EQUALS, LANGLE, RANGLE = map(Suppress, "()[]{};,:=<>")
 QUOTE = Suppress("'") ^ Suppress('"')
 
+# New line.
+EOL = Suppress(LineEnd())
+
 # Define basic keywords.
 IF = Keyword("if")
+ENDIF = Keyword("endif")
 THEN = Keyword("then")
 ELSE = Keyword("else")
 ELSIF = Keyword("elsif")
@@ -25,6 +38,7 @@ UNTIL = Keyword("until")
 FOR = Keyword("for")
 TO = Keyword("to")
 CASE = Keyword("case")
+ENDCASE = Keyword("endcase")
 OF = Keyword("of")
 WHEN = Keyword("when")
 OTHERWISE = Keyword("otherwise")
@@ -60,15 +74,34 @@ ProcedureCall = namedtuple("ProcedureCall", ["name", "arguments"])
 RepeatUntil = namedtuple("RepeatUntil", ["statements", "condition"])
 While = namedtuple("While", ["condition", "statements"])
 For = namedtuple("For", ["from_", "to", "statements"])
-If = namedtuple("If", ["condition", "statements"])
+If = namedtuple("If", ["condition", "if_statements", "then_statements"])
 BitExtraction = namedtuple("BitExtraction", ["identifier", "range"])
 MaskedBinary = namedtuple("MaskedBinary", ["value"])
-Case = namedtuple("Case", ["cases"])
 Ignore = namedtuple("Ignore", [])
 IfExpression = namedtuple("IfExpression", ["condition", "trueValue", "falseValue"])
 
+CaseElement = namedtuple("CaseElement", ["value", "statements"])
+Case = namedtuple("Case", ["expr", "cases"])
+
+Undefined = namedtuple("Undefined", [])
+Unpredictable = namedtuple("Unpredictable", [])
+See = namedtuple("See", ["msg"])
+ImplementationDefined = namedtuple("ImplementationDefined", [])
+SubArchitectureDefined = namedtuple("SubArchitectureDefined", [])
+Return = namedtuple("Return", ["value"])
+
+
 def decode_case(x):
-    return x
+    case_variable = x[1]
+    cases = x[3]
+
+    t = []
+    for case in cases:
+        value = case[1]
+        statements = case[2]
+        t.append(CaseElement(value, statements))
+
+    return Case(case_variable, t)
 
 def decode_repeat_until(x):
     return RepeatUntil(x[1], x[3])
@@ -90,10 +123,10 @@ def decode_unary(x):
     return UnaryExpression(op, x[1])
 
 def decode_binary(x):
-    op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul", \
-        "<<" : "lshift", ">>" : "rshift", "DIV" : "idiv", "MOD" : "imod", \
-        "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne", \
-        ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in", \
+    op_name = {"+" : "add", "-" : "sub", "/" : "div", "*" : "mul",
+        "<<" : "lshift", ">>" : "rshift", "DIV" : "idiv", "MOD" : "imod",
+        "^" : "xor", "||" : "or", "&&" : "and", "==" : "eq", "!=" : "ne",
+        ">" : "gt", "<" : "lt", ">=" : "gte", "<=" : "lte", "IN" : "in",
         "=" : "assign", "EOR" : "xor", ":" : "concatenation", "AND" : "and", "OR" : "or"}
         
     x = x[0]    
@@ -109,13 +142,19 @@ def decode_if_expression(x):
     return IfExpression(x[1], x[3], x[5])
 
 def decode_if(x):
-    return If(x[1], x[3])
+    return If(x[1], map(lambda x: x[0], list(x[3:])), [])
+
+def decode_if_else(x):
+    return If(x[1], list(x[3]), list(x[5]))
 
 def decode_bit_extract(x):
     return BitExtraction(x[0][0], list(x[0][1:]))
 
 def decode_masked_base2(x):
     return MaskedBinary(x[0])
+
+def decode_list(x):
+    return List(x[0:])
 
 # Define the boolean values.
 boolean = (TRUE ^ FALSE).setParseAction(lambda x: BooleanValue(x == "TRUE"))
@@ -165,7 +204,7 @@ in_operator = Literal("IN")
 # Assignment operator.
 assignment_operator = Literal("=") 
 
-# Use the already defined C multiline comment and C++ inline comments.
+# Use the already defined C multi-line comment and C++ inline comments.
 comment = cppStyleComment
 
 # Define an integer for base 2, 10 and 16 and make sure it is 32 bits long.
@@ -193,8 +232,12 @@ bit_extract_expr = Forward()
 # Forward declaration of an if expression.
 if_expression = Forward()
 
+# List: (a, b)
+list_elements = delimitedList(identifier ^ number ^ boolean ^ ignored ^ procedure_call_expr)
+list_expr = (LPAR + list_elements + RPAR).setParseAction(decode_list)
+
 # Atoms are the most basic elements of expressions.
-atom = identifier ^ number ^ enum ^ boolean ^ ignored ^ procedure_call_expr ^ bit_extract_expr ^ if_expression
+atom = identifier ^ number ^ enum ^ boolean ^ ignored ^ procedure_call_expr ^ bit_extract_expr ^ if_expression ^ list_expr
 
 # Define the order of precedence.
 expr = operatorPrecedence(atom, [
@@ -225,48 +268,51 @@ procedure_argument = operatorPrecedence(atom, [
 ])
 
 # Define a bit extraction expression.
-bit_extract_expr <<= Group(identifier + LANGLE + number + Optional(COLON + number) + RANGLE).setParseAction(decode_bit_extract)
+bit_extract_expr <<= Group(identifier + LANGLE + (identifier ^ number) + Optional(COLON + (identifier ^ number)) + RANGLE).setParseAction(decode_bit_extract)
     
 # Define a procedure call.
 procedure_arguments = delimitedList(procedure_argument)
 procedure_call_expr <<= Group(identifier + LPAR + Optional(procedure_arguments) + RPAR).setParseAction(lambda x: ProcedureCall(x[0][0], x[0][1:]))
 
 # Define an if expression. 
-if_expression <<= (IF +  expr + THEN + expr + ELSE + expr).setParseAction(decode_if_expression)
+if_expression <<= (IF + expr + THEN + expr + ELSE + expr).setParseAction(decode_if_expression)
 
 # Forward declaration of a generic statement.
 statement = Forward()
-statement_list = OneOrMore(statement)
+statement_list = OneOrMore(statement + Optional(EOL))
 
 # Simple statements.
-undefined_statement = UNDEFINED
-unpredictable_statement = UNPREDICTABLE
+undefined_statement = UNDEFINED.setParseAction(lambda: Undefined())
+unpredictable_statement = UNPREDICTABLE.setParseAction(lambda: Unpredictable())
 see_allowed = string.letters + string.digits + " -()/\","
-see_statement = Group(SEE + Word(see_allowed + " "))
-implementation_defined_statement = Group(IMPLEMENTATION_DEFINED + Word(see_allowed))
-subarchitecture_defined_statement = Group(SUBARCHITECTURE_DEFINED + Word(see_allowed))
-return_statement = Group(RETURN ^ (RETURN + expr))
+see_statement = Group(SEE + Word(see_allowed + " ")).setParseAction(lambda x: See(x[0][1]))
+implementation_defined_statement = Group(IMPLEMENTATION_DEFINED + Word(see_allowed)).setParseAction(lambda: ImplementationDefined())
+subarchitecture_defined_statement = Group(SUBARCHITECTURE_DEFINED + Word(see_allowed)).setParseAction(lambda: SubArchitectureDefined())
+return_statement = Group(RETURN + Optional(expr)).setParseAction(lambda x: Return(x[0][1]))
 procedure_call_statement = procedure_call_expr
 
 # Assignment statement.
 assignment_statement = (expr + assignment_operator + expr).setParseAction(lambda x: decode_binary([x]))
 
-# Define the whole if (...) then ... [elsif (...) then ...] [else ...]
-# if_statement = \
-#    IF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list + \
-#    ZeroOrMore(ELSIF + Optional(LPAR) + expr + Optional(RPAR) + THEN + statement_list) + \
-#    Optional(ELSE + statement_list)
-#
-# Define a simplified if statement. TODO: In the future we ma want to extend it.
-if_statement = (IF +  expr + THEN + statement_list).setParseAction(decode_if)
+# This is used for inline if statements with multiple statements.
+inline_statement_list = OneOrMore(statement)
+
+# Parse: if <cond> then st1; st2; st3; ... stn;
+single_line_if_statement = (IF + expr + THEN + inline_statement_list).setParseAction(decode_if)
+
+# Parse: if <cond> then <statements> else <statements> endif
+multiline_if_statement = (IF + expr + THEN + ZeroOrMore(EOL) + statement_list + ELSE + ZeroOrMore(EOL) + statement_list + ENDIF).setParseAction(decode_if_else)
+
+# Two types of if statements.
+if_statement = single_line_if_statement ^ multiline_if_statement
 
 # Define a case statement.
-case_list = Group(OneOrMore(WHEN + expr + statement_list))
-otherwise_case = Group(OTHERWISE + statement_list)
-case_statement = (CASE + expr + OF + case_list + Optional(otherwise_case)).setParseAction(decode_case)
+case_list = Group(OneOrMore(Group(WHEN + expr + Optional(EOL) + Group(statement_list))))
+otherwise_case = Group(OTHERWISE + Optional(EOL) + Group(statement_list))
+case_statement = (CASE + expr + OF + EOL + case_list + Optional(otherwise_case) + ENDCASE).setParseAction(decode_case)
 
 # Repeat until statement.
-repeat_until_statement = (REPEAT + statement_list + UNTIL + expr ).setParseAction(decode_repeat_until)
+repeat_until_statement = (REPEAT + statement_list + UNTIL + expr).setParseAction(decode_repeat_until)
 
 # While statement.
 while_statement = (WHILE + expr + DO + statement_list).setParseAction(decode_while)
@@ -275,60 +321,36 @@ while_statement = (WHILE + expr + DO + statement_list).setParseAction(decode_whi
 for_statement = (FOR + assignment_statement + TO + expr + statement_list).setParseAction(decode_for)
 
 # Collect all statements. We have two kinds, the ones that end with a semicolon and if, for and other statements that do not.
-statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statement ^ \
-    implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^ \
-    procedure_call_statement ^ assignment_statement) + SEMI) ^ \
-    if_statement ^ repeat_until_statement ^ while_statement ^ for_statement ^ case_statement)
+statement <<= Group(((undefined_statement ^ unpredictable_statement ^ see_statement ^
+    implementation_defined_statement ^ subarchitecture_defined_statement ^ return_statement ^
+    procedure_call_statement ^ assignment_statement) + SEMI) ^
+    if_statement ^ repeat_until_statement ^ while_statement ^ for_statement ^ case_statement) # ^ OneOrMore(EOL)
 
 # Define a basic program.
 program = statement_list
 
 def test_specific():
-    """
-    If x and y are two values of the same type and t is a value of type boolean, then
-    if t then x else y 
-    is an expression of the same type as x and y that produces x if t is TRUE and y if t is FALSE.
-    
-    Statements:
-        - Assignment              : OK
-        - Procedure calls         : OK
-        - Return statement        : OK
-        - Undefined               : OK
-        - Unpredictable           : OK
-        - See ...                 : OK
-        - IMPLEMENTATION_DEFINED  : OK
-        - SUBARCHITECTURE_DEFINED : OK
-        - if ... then ... else
-            - Multi-line
-            - Single-line
-            
-            if expression then
-                expr1;
-                ...
-                exprN;
-            elsif expression then
-                expr1;
-                ...
-                exprN;
-            else
-                expr1;
-                ...
-                exprN;
-    
-    Hasta ahora funcionan los inline pero que tienen statement
-        
-    """
-    
-    
-    
     tests = []
-    tests.append("""a = if a == '0' then 1 else 8;""")
-        
+
+    # PASS
+    # tests.append("""if var == 1 then a();""")
+    # tests.append("""if var == 1 then a(); b(); c(); d();""")
+    # tests.append("""if var == 1 then a();\nb();""")
+    # tests.append("""if var == 1 then a(); b();\nc();\nd();""")
+    # tests.append("""case var_name of\nwhen 1 a(); b();\nwhen 2 c(); d();\nendcase""")
+
     for p in tests:
-        print "Testing: %s" % p
-        for s in program.parseString(p):
-            print s
+        print "# Testing:"
+        print "--------------------------------"
+        print "%s" % p
+        print "--------------------------------"
+        for s in program.parseString(p, parseAll=True):
+            for a in s:
+                print a
         print
+
+    import sys
+    sys.exit()
 
     return True
 
@@ -343,7 +365,7 @@ def test_all():
             print "Testing: %.4d - %.4d of %4d" % (i, i + 10, len(instructions))
          
         try:
-            program.parseString(ins["decoder"])
+            program.parseString(ins["decoder"], parseAll=True)
         except ParseException, e:
             print "FAIL: ", ins["name"]
             print ins["decoder"]
@@ -351,13 +373,14 @@ def test_all():
             return False    
     
     return True
-    
 
-def main():        
-    if not test_specific():
-        print "Failed individual test cases."
 
-    if False:
+def main():
+    if True:
+        if not test_specific():
+            print "Failed individual test cases."
+
+    if True:
         if not test_all():
             print "Failed test of specification."
     
@@ -365,4 +388,3 @@ def main():
 
 if __name__ == '__main__':        
     main() 
-    

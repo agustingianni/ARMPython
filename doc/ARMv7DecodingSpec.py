@@ -5,7 +5,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "ADC{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "11110 i#1 01010 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8);
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "ADC Immediate",
     "encoding" : "A1",
@@ -20,14 +21,17 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "CUSTOM",
     "pattern" : "0100000101 Rm#3 Rdn#3",
-    "decoder" : """d = UInt(Rdn); n = UInt(Rdn); m = UInt(Rm); setflags = !InITBlock(); (shift_t, shift_n) = (SRType_LSL, 0);"""
+    "decoder" : """d = UInt(Rdn); n = UInt(Rdn); m = UInt(Rm); setflags = !InITBlock();
+    (shift_t, shift_n) = (SRType_LSL, 0);"""
 } , {
     "name" : "ADC Register",
     "encoding" : "T2",
     "version" : "ARMv6T2, ARMv7",
     "format" : "ADC{S}<c>.W <Rd>, <Rn>, <Rm>{, <shift>}",
     "pattern" : "11101011010 S#1 Rn#4 0 imm3#3 Rd#4 imm2#2 type#2 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1');
+    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "ADC Register",
     "encoding" : "A1",
@@ -68,8 +72,7 @@ instructions = [
     "pattern" : "11110 i#1 01000 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
     "decoder" : """if Rd == '1111' && S == '1' then SEE CMN (immediate);
     if Rn == '1101' then SEE ADD (SP plus immediate);
-    d = UInt(Rd); n = UInt(Rn);
-    setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8);
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8);
     if d == 13 || (d == 15 && S == '0') || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "ADD (immediate, Thumb)",
@@ -79,7 +82,8 @@ instructions = [
     "pattern" : "11110 i#1 100000 Rn#4 0 imm3#3 Rd#4 imm8#8",
     "decoder" : """if Rn == '1111' then SEE ADR;
     if Rn == '1101' then SEE ADD (SP plus immediate);
-    d = UInt(Rd); n = UInt(Rn); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32); if d IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32);
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "ADD (immediate, ARM)",
     "encoding" : "A1",
@@ -166,7 +170,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "ADDW<c> <Rd>, SP, #<imm12>",
     "pattern" : "11110 i#1 10000011010 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32); if d == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32); 
+    if d == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "ADD (SP plus immediate)",
     "encoding" : "A1",
@@ -225,14 +230,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "ADR<c>.W <Rd>, <label>",
     "pattern" : "11110 i#1 10101011110 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); imm32 = ZeroExtend(i:imm3:imm8, 32); add = FALSE; if d IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); imm32 = ZeroExtend(i:imm3:imm8, 32); add = FALSE;
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "ADR",
     "encoding" : "T3",
     "version" : "ARMv6T2, ARMv7",
     "format" : "ADR<c>.W <Rd>, <label>",
     "pattern" : "11110 i#1 10000011110 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); imm32 = ZeroExtend(i:imm3:imm8, 32); add = TRUE; if d IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); imm32 = ZeroExtend(i:imm3:imm8, 32); add = TRUE;
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "ADR",
     "encoding" : "A1",
@@ -336,14 +343,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "ASR{S}<c>.W <Rd>, <Rn>, <Rm>",
     "pattern" : "11111010010 S#1 Rn#4 1111 Rd#4 0000 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1');
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "ASR (register)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ASR{S}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 Rm#4 0101 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1');
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "B",
     "encoding" : "T1",
@@ -377,7 +386,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "B<c>.W <label>",
     "pattern" : "11110 S#1 imm10#10 10 J1#1 1 J2#1 imm11#11",
-    "decoder" : """I1 = NOT(J1 EOR S); I2 = NOT(J2 EOR S); imm32 = SignExtend(S:I1:I2:imm10:imm11:'0', 32); if InITBlock() && !LastInITBlock() then UNPREDICTABLE;"""
+    "decoder" : """I1 = NOT(J1 EOR S); I2 = NOT(J2 EOR S); imm32 = SignExtend(S:I1:I2:imm10:imm11:'0', 32); 
+    if InITBlock() && !LastInITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "B",
     "encoding" : "A1",
@@ -391,14 +401,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "BFC<c> <Rd>, #<lsb>, #<width>",
     "pattern" : "11110011011011110 imm3#3 Rd#4 imm2#2 0 msb#5",
-    "decoder" : """d = UInt(Rd); msbit = UInt(msb); lsbit = UInt(imm3:imm2); if d IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); msbit = UInt(msb); lsbit = UInt(imm3:imm2); 
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "BFC",
     "encoding" : "A1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "BFC<c> <Rd>, #<lsb>, #<width>",
     "pattern" : "cond#4 0111110 msb#5 Rd#4 lsb#5 0011111",
-    "decoder" : """d = UInt(Rd); msbit = UInt(msb); lsbit = UInt(lsb); if d == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); msbit = UInt(msb); lsbit = UInt(lsb); 
+    if d == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "BFI",
     "encoding" : "T1",
@@ -406,7 +418,8 @@ instructions = [
     "format" : "BFI<c> <Rd>, <Rn>, #<lsb>, #<width>",
     "pattern" : "111100110110 Rn#4 0 imm3#3 Rd#4 imm2#2 0 msb#5",
     "decoder" : """if Rn == '1111' then SEE BFC;
-    d = UInt(Rd); n = UInt(Rn); msbit = UInt(msb); lsbit = UInt(imm3:imm2); if d IN {13,15} || n == 13 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); msbit = UInt(msb); lsbit = UInt(imm3:imm2); 
+    if d IN {13,15} || n == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "BFI",
     "encoding" : "A1",
@@ -414,14 +427,16 @@ instructions = [
     "format" : "BFI<c> <Rd>, <Rn>, #<lsb>, #<width>",
     "pattern" : "cond#4 0111110 msb#5 Rd#4 lsb#5 001 Rn#4",
     "decoder" : """if Rn == '1111' then SEE BFC;
-    d = UInt(Rd); n = UInt(Rn); msbit = UInt(msb); lsbit = UInt(lsb); if d == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); msbit = UInt(msb); lsbit = UInt(lsb); 
+    if d == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "BIC (immediate)",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "BIC{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "11110 i#1 00001 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); 
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "BIC (immediate)",
     "encoding" : "A1",
@@ -484,7 +499,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "BL<c> <label>",
     "pattern" : "11110 S#1 imm10#10 11 J1#1 1 J2#1 imm11#11",
-    "decoder" : """I1 = NOT(J1 EOR S); I2 = NOT(J2 EOR S); imm32 = SignExtend(S:I1:I2:imm10:imm11:'0', 32); if InITBlock() && !LastInITBlock() then UNPREDICTABLE;"""
+    "decoder" : """I1 = NOT(J1 EOR S); I2 = NOT(J2 EOR S); imm32 = SignExtend(S:I1:I2:imm10:imm11:'0', 32); 
+    if InITBlock() && !LastInITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "BL, BLX (immediate)",
     "encoding" : "T2",
@@ -563,7 +579,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "CB{N}Z <Rn>, <label>",
     "pattern" : "1011 op#1 0 i#1 1 imm5#5 Rn#3",
-    "decoder" : """n = UInt(Rn); imm32 = ZeroExtend(i:imm5:'0', 32); nonzero = (op == '1'); if InITBlock() then UNPREDICTABLE;"""
+    "decoder" : """n = UInt(Rn); imm32 = ZeroExtend(i:imm5:'0', 32); nonzero = (op == '1'); 
+    if InITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "CDP, CDP2",
     "encoding" : "T1",
@@ -631,7 +648,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "CMN<c> <Rn>, #<const>",
     "pattern" : "11110 i#1 010001 Rn#4 0 imm3#3 1111 imm8#8",
-    "decoder" : """n = UInt(Rn); imm32 = ThumbExpandImm(i:imm3:imm8); if n == 15 then UNPREDICTABLE;"""
+    "decoder" : """n = UInt(Rn); imm32 = ThumbExpandImm(i:imm3:imm8); 
+    if n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "CMN (immediate)",
     "encoding" : "A1",
@@ -653,7 +671,8 @@ instructions = [
     "format" : "CMN<c>.W <Rn>, <Rm>{, <shift>}",
     "pattern" : "111010110001 Rn#4 0 imm3#3 1111 imm2#2 type#2 Rm#4",
     "decoder" : """n = UInt(Rn); m = UInt(Rm);
-    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); if n == 15 || m IN {13,15} then UNPREDICTABLE;"""
+    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); 
+    if n == 15 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "CMN (register)",
     "encoding" : "A1",
@@ -684,7 +703,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "CMP<c>.W <Rn>, #<const>",
     "pattern" : "11110 i#1 011011 Rn#4 0 imm3#3 1111 imm8#8",
-    "decoder" : """n = UInt(Rn); imm32 = ThumbExpandImm(i:imm3:imm8); if n == 15 then UNPREDICTABLE;"""
+    "decoder" : """n = UInt(Rn); imm32 = ThumbExpandImm(i:imm3:imm8); 
+    if n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "CMP (immediate)",
     "encoding" : "A1",
@@ -716,7 +736,8 @@ instructions = [
     "format" : "CMP<c>.W <Rn>, <Rm> {, <shift>}",
     "pattern" : "111010111011 Rn#4 0 imm3#3 1111 imm2#2 type#2 Rm#4",
     "decoder" : """n = UInt(Rn); m = UInt(Rm);
-    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); if n == 15 || m IN {13,15} then UNPREDICTABLE;"""
+    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); 
+    if n == 15 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "CMP (register)",
     "encoding" : "A1",
@@ -907,7 +928,8 @@ instructions = [
     "decoder" : """if P == '0' && U == '0' && D == '0' && W == '0' then UNDEFINED;
     if P == '0' && U == '0' && D == '1' && W == '0' then SEE MRRC, MRRC2;
     if coproc IN "101x" then SEE "Advanced SIMD and Floating-point";
-    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); 
+    if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
 } , {
     "name" : "LDC, LDC2 (literal)",
     "encoding" : "A1",
@@ -917,7 +939,8 @@ instructions = [
     "decoder" : """if P == '0' && U == '0' && D == '0' && W == '0' then UNDEFINED;
     if P == '0' && U == '0' && D == '1' && W == '0' then SEE MRRC, MRRC2;
     if coproc IN "101x" then SEE "Advanced SIMD and Floating-point";
-    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); 
+    if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
 } , {
     "name" : "LDC, LDC2 (literal)",
     "encoding" : "T2",
@@ -927,7 +950,8 @@ instructions = [
     "decoder" : """if P == '0' && U == '0' && D == '0' && W == '0' then UNDEFINED;
     if P == '0' && U == '0' && D == '1' && W == '0' then SEE MRRC, MRRC2;
     if coproc IN "101x" then UNDEFINED;
-    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); 
+    if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
 } , {
     "name" : "LDC, LDC2 (literal)",
     "encoding" : "A2",
@@ -937,7 +961,8 @@ instructions = [
     "decoder" : """if P == '0' && U == '0' && D == '0' && W == '0' then UNDEFINED;
     if P == '0' && U == '0' && D == '1' && W == '0' then SEE MRRC, MRRC2;
     if coproc IN "101x" then UNDEFINED;
-    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); cp = UInt(coproc); imm32 = ZeroExtend(imm8:'00', 32); 
+    if W == '1' || (P == '0' && CurrentInstrSet() != InstrSet_ARM) then UNPREDICTABLE;"""
 } , {
     "name" : "LDM/LDMIA/LDMFD (Thumb)",
     "encoding" : "T1",
@@ -945,7 +970,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "11001 Rn#3 register_list#8",
     "decoder" : """if CurrentInstrSet() == InstrSet_ThumbEE then SEE "ThumbEE instructions";
-    n = UInt(Rn); registers = '00000000':register_list; wback = (registers<n> == '0'); if BitCount(registers) < 1 then UNPREDICTABLE;"""
+    n = UInt(Rn); registers = '00000000':register_list; wback = (registers<n> == '0'); 
+    if BitCount(registers) < 1 then UNPREDICTABLE;"""
 } , {
     "name" : "LDM/LDMIA/LDMFD (Thumb)",
     "encoding" : "T2",
@@ -1025,7 +1051,8 @@ instructions = [
     "format" : "LDR<c>.W <Rt>, [<Rn>{, #<imm12>}]",
     "pattern" : "111110001101 Rn#4 Rt#4 imm12#12",
     "decoder" : """if Rn == '1111' then SEE LDR (literal);
-    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32); index = TRUE; add = TRUE; wback = FALSE; if t == 15 && InITBlock() && !LastInITBlock() then UNPREDICTABLE;"""
+    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32); index = TRUE; add = TRUE; wback = FALSE; 
+    if t == 15 && InITBlock() && !LastInITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "LDR (immediate, Thumb)",
     "encoding" : "T4",
@@ -1037,7 +1064,8 @@ instructions = [
     if Rn == '1101' && P == '0' && U == '1' && W == '1' && imm8 == '00000100' then SEE POP;
     if P == '0' && W == '0' then UNDEFINED;
     t = UInt(Rt); n = UInt(Rn);
-    imm32 = ZeroExtend(imm8, 32); index = (P == '1'); add = (U == '1'); wback = (W == '1'); if (wback && n == t) || (t == 15 && InITBlock() && !LastInITBlock()) then UNPREDICTABLE;"""
+    imm32 = ZeroExtend(imm8, 32); index = (P == '1'); add = (U == '1'); wback = (W == '1'); 
+    if (wback && n == t) || (t == 15 && InITBlock() && !LastInITBlock()) then UNPREDICTABLE;"""
 } , {
     "name" : "LDR (immediate, ARM)",
     "encoding" : "A1",
@@ -1143,7 +1171,8 @@ instructions = [
     "decoder" : """if Rn == '1111' then SEE LDRB (literal);
     if P == '0' && W == '1' then SEE LDRBT;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "LDRB (literal)",
     "encoding" : "T1",
@@ -1151,14 +1180,16 @@ instructions = [
     "format" : "LDRB<c> <Rt>, <label>",
     "pattern" : "11111000 U#1 0011111 Rt#4 imm12#12",
     "decoder" : """if Rt == '1111' then SEE PLD;
-    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); if t == 13 then UNPREDICTABLE;"""
+    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); 
+    if t == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "LDRB (literal)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LDRB<c> <Rt>, <label>",
     "pattern" : "cond#4 0101 U#1 1011111 Rt#4 imm12#12",
-    "decoder" : """t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); if t == 15 then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); 
+    if t == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "LDRB (register)",
     "encoding" : "T1",
@@ -1174,7 +1205,8 @@ instructions = [
     "pattern" : "111110000001 Rn#4 Rt#4 000000 imm2#2 Rm#4",
     "decoder" : """if Rt == '1111' then SEE PLD;
     if Rn == '1111' then SEE LDRB (literal);
-    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); 
+    if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "LDRB (register)",
     "encoding" : "A1",
@@ -1255,7 +1287,8 @@ instructions = [
     "format" : "LDRD<c> <Rt>, <Rt2>, <label>",
     "pattern" : "cond#4 0001 U#1 1001111 Rt#4 imm4H#4 1101 imm4L#4",
     "decoder" : """if Rt<0> == '1' then UNPREDICTABLE;
-    t = UInt(Rt); t2 = t+1; imm32 = ZeroExtend(imm4H:imm4L, 32); add = (U == '1'); if t2 == 15 then UNPREDICTABLE;"""
+    t = UInt(Rt); t2 = t+1; imm32 = ZeroExtend(imm4H:imm4L, 32); add = (U == '1'); 
+    if t2 == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "LDRD (register)",
     "encoding" : "A1",
@@ -1264,7 +1297,8 @@ instructions = [
     "pattern" : "cond#4 000 P#1 U#1 0 W#1 0 Rn#4 Rt#4 00001101 Rm#4",
     "decoder" : """if Rt<0> == '1' then UNPREDICTABLE;
     t = UInt(Rt); t2 = t+1; n = UInt(Rn); m = UInt(Rm);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if P == '0' && W == '1' then UNPREDICTABLE;
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if P == '0' && W == '1' then UNPREDICTABLE;
     if t2 == 15 || m == 15 || m == t || m == t2 then UNPREDICTABLE;
     if wback && (n == 15 || n == t || n == t2) then UNPREDICTABLE;
     if ArchVersion() < 6 && wback && m == n then UNPREDICTABLE;"""
@@ -1274,14 +1308,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "LDREX<c> <Rt>, [<Rn>{, #<imm>}]",
     "pattern" : "111010000101 Rn#4 Rt#4 1111 imm8#8",
-    "decoder" : """t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8:'00', 32); if t IN {13,15} || n == 15 then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8:'00', 32); 
+    if t IN {13,15} || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "LDREX",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "LDREX<c> <Rt>, [<Rn>]",
     "pattern" : "cond#4 00011001 Rn#4 Rt#4 111110011111",
-    "decoder" : """t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32); // Zero offset if t == 15 || n == 15 then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); n = UInt(Rn); imm32 = Zeros(32);
+    if t == 15 || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "LDREXB",
     "encoding" : "T1",
@@ -1369,7 +1405,8 @@ instructions = [
     "decoder" : """if Rn == '1111' then SEE LDRH (literal);
     if P == '0' && W == '1' then SEE LDRHT;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "LDRH (literal)",
     "encoding" : "T1",
@@ -1377,14 +1414,16 @@ instructions = [
     "format" : "LDRH<c> <Rt>, <label>",
     "pattern" : "11111000 U#1 0111111 Rt#4 imm12#12",
     "decoder" : """if Rt == '1111' then SEE "Related instructions";
-    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); if t == 13 then UNPREDICTABLE;"""
+    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); 
+    if t == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "LDRH (literal)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LDRH<c> <Rt>, <label>",
     "pattern" : "cond#4 0001 U#1 1011111 Rt#4 imm4H#4 1011 imm4L#4",
-    "decoder" : """t = UInt(Rt); imm32 = ZeroExtend(imm4H:imm4L, 32); add = (U == '1'); if t == 15 then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); imm32 = ZeroExtend(imm4H:imm4L, 32); add = (U == '1'); 
+    if t == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "LDRH (register)",
     "encoding" : "T1",
@@ -1475,7 +1514,8 @@ instructions = [
     "decoder" : """if Rn == '1111' then SEE LDRSB (literal);
     if P == '0' && W == '1' then SEE LDRSBT;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "LDRSB (literal)",
     "encoding" : "T1",
@@ -1483,7 +1523,8 @@ instructions = [
     "format" : "LDRSB<c> <Rt>, <label>",
     "pattern" : "11111001 U#1 0011111 Rt#4 imm12#12",
     "decoder" : """if Rt == '1111' then SEE PLI;
-    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); if t == 13 then UNPREDICTABLE;"""
+    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); 
+    if t == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "LDRSB (literal)",
     "encoding" : "A1",
@@ -1508,7 +1549,8 @@ instructions = [
     "pattern" : "111110010001 Rn#4 Rt#4 000000 imm2#2 Rm#4",
     "decoder" : """if Rt == '1111' then SEE PLI;
     if Rn == '1111' then SEE LDRSB (literal);
-    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); 
+    if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "LDRSB (register)",
     "encoding" : "A1",
@@ -1578,7 +1620,8 @@ instructions = [
     "decoder" : """if Rn == '1111' then SEE LDRSH (literal);
     if P == '0' && W == '1' then SEE LDRSHT;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if t == 15 || (wback && n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "LDRSH (literal)",
     "encoding" : "T1",
@@ -1586,7 +1629,8 @@ instructions = [
     "format" : "LDRSH<c> <Rt>, <label>",
     "pattern" : "11111001 U#1 0111111 Rt#4 imm12#12",
     "decoder" : """if Rt == '1111' then SEE "Related instructions";
-    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); if t == 13 then UNPREDICTABLE;"""
+    t = UInt(Rt); imm32 = ZeroExtend(imm12, 32); add = (U == '1'); 
+    if t == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "LDRSH (literal)",
     "encoding" : "A1",
@@ -1613,7 +1657,8 @@ instructions = [
     "pattern" : "111110010011 Rn#4 Rt#4 000000 imm2#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE LDRSH (literal);
     if Rt == '1111' then SEE "Related instructions";
-    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); 
+    if t == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "LDRSH (register)",
     "encoding" : "A1",
@@ -1717,14 +1762,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "LSL{S}<c>.W <Rd>, <Rn>, <Rm>",
     "pattern" : "11111010000 S#1 Rn#4 1111 Rd#4 0000 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "LSL (register)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LSL{S}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 Rm#4 0001 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "LSR (immediate)",
     "encoding" : "T1",
@@ -1762,14 +1809,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "LSR{S}<c>.W <Rd>, <Rn>, <Rm>",
     "pattern" : "11111010001 S#1 Rn#4 1111 Rd#4 0000 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "LSR (register)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "LSR{S}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 Rm#4 0011 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "MCR, MCR2",
     "encoding" : "T1",
@@ -1853,14 +1902,16 @@ instructions = [
     "format" : "MLA<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "111110110000 Rn#4 Ra#4 Rd#4 0000 Rm#4",
     "decoder" : """if Ra == '1111' then SEE MUL;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); setflags = FALSE; if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); setflags = FALSE; 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "MLA",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "MLA{S}<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "cond#4 0000001 S#1 Rd#4 Ra#4 Rm#4 1001 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); setflags = (S == '1'); if d == 15 || n == 15 || m == 15 || a == 15 then UNPREDICTABLE;
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); setflags = (S == '1'); 
+    if d == 15 || n == 15 || m == 15 || a == 15 then UNPREDICTABLE;
     if ArchVersion() < 6 && d == n then UNPREDICTABLE;"""
 } , {
     "name" : "MLS",
@@ -1891,14 +1942,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "MOV{S}<c>.W <Rd>, #<const>",
     "pattern" : "11110 i#1 00010 S#1 11110 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); if d IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); 
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "MOV (immediate)",
     "encoding" : "T3",
     "version" : "ARMv6T2, ARMv7",
     "format" : "MOVW<c> <Rd>, #<imm16>",
     "pattern" : "11110 i#1 100100 imm4#4 0 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(imm4:i:imm3:imm8, 32); if d IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(imm4:i:imm3:imm8, 32); 
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "MOV (immediate)",
     "encoding" : "A1",
@@ -1913,7 +1966,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "MOVW<c> <Rd>, #<imm16>",
     "pattern" : "cond#4 00110000 imm4#4 Rd#4 imm12#12",
-    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(imm4:imm12, 32); if d == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(imm4:imm12, 32); 
+    if d == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "MOV (register, Thumb)",
     "encoding" : "T1",
@@ -1928,7 +1982,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "MOVS <Rd>, <Rm>",
     "pattern" : "0000000000 Rm#3 Rd#3",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); setflags = TRUE; if InITBlock() then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); setflags = TRUE; 
+    if InITBlock() then UNPREDICTABLE;"""
 } , {
     "name" : "MOV (register, Thumb)",
     "encoding" : "T3",
@@ -1952,14 +2007,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "MOVT<c> <Rd>, #<imm16>",
     "pattern" : "11110 i#1 101100 imm4#4 0 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); imm16 = imm4:i:imm3:imm8; if d IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); imm16 = imm4:i:imm3:imm8; 
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "MOVT",
     "encoding" : "A1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "MOVT<c> <Rd>, #<imm16>",
     "pattern" : "cond#4 00110100 imm4#4 Rd#4 imm12#12",
-    "decoder" : """d = UInt(Rd); imm16 = imm4:imm12; if d == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); imm16 = imm4:imm12; 
+    if d == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "MRC, MRC2",
     "encoding" : "T1",
@@ -2066,7 +2123,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "MSR<c> <spec_reg>, <Rn>",
     "pattern" : "111100111000 Rn#4 1000 mask#2 0000000000",
-    "decoder" : """n = UInt(Rn); write_nzcvq = (mask<1> == '1'); write_g = (mask<0> == '1'); if mask == '00' then UNPREDICTABLE;
+    "decoder" : """n = UInt(Rn); write_nzcvq = (mask<1> == '1'); write_g = (mask<0> == '1'); 
+    if mask == '00' then UNPREDICTABLE;
     if n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "MSR (register)",
@@ -2074,7 +2132,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "MSR<c> <spec_reg>, <Rn>",
     "pattern" : "cond#4 00010010 mask#2 00111100000000 Rn#4",
-    "decoder" : """n = UInt(Rn); write_nzcvq = (mask<1> == '1'); write_g = (mask<0> == '1'); if mask == '00' then UNPREDICTABLE;
+    "decoder" : """n = UInt(Rn); write_nzcvq = (mask<1> == '1'); write_g = (mask<0> == '1'); 
+    if mask == '00' then UNPREDICTABLE;
     if n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "MUL",
@@ -2082,7 +2141,8 @@ instructions = [
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "CUSTOM",
     "pattern" : "0100001101 Rn#3 Rdm#3",
-    "decoder" : """d = UInt(Rdm); n = UInt(Rn); m = UInt(Rdm); setflags = !InITBlock(); if ArchVersion() < 6 && d == n then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rdm); n = UInt(Rn); m = UInt(Rdm); setflags = !InITBlock(); 
+    if ArchVersion() < 6 && d == n then UNPREDICTABLE;"""
 } , {
     "name" : "MUL",
     "encoding" : "T2",
@@ -2097,7 +2157,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "MUL{S}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0000000 S#1 Rd#4 0000 Rm#4 1001 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if ArchVersion() < 6 && d == n then UNPREDICTABLE;"""
 } , {
     "name" : "MVN (immediate)",
@@ -2106,7 +2167,8 @@ instructions = [
     "format" : "MVN{S}<c> <Rd>, #<const>",
     "pattern" : "11110 i#1 00011 S#1 11110 imm3#3 Rd#4 imm8#8",
     "decoder" : """d = UInt(Rd); setflags = (S == '1');
-    (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); if d IN {13,15} then UNPREDICTABLE;"""
+    (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); 
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "MVN (immediate)",
     "encoding" : "A1",
@@ -2129,7 +2191,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "MVN{S}<c>.W <Rd>, <Rm>{, <shift>}",
     "pattern" : "11101010011 S#1 11110 imm3#3 Rd#4 imm2#2 type#2 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); setflags = (S == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "MVN (register)",
     "encoding" : "A1",
@@ -2146,7 +2209,8 @@ instructions = [
     "format" : "MVN{S}<c> <Rd>, <Rm>, <type> <Rs>",
     "pattern" : "cond#4 0001111 S#1 0000 Rd#4 Rs#4 0 type#2 1 Rm#4",
     "decoder" : """d = UInt(Rd); m = UInt(Rm); s = UInt(Rs);
-    setflags = (S == '1'); shift_t = DecodeRegShift(type); if d == 15 || m == 15 || s == 15 then UNPREDICTABLE;"""
+    setflags = (S == '1'); shift_t = DecodeRegShift(type); 
+    if d == 15 || m == 15 || s == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "NOP",
     "encoding" : "T1",
@@ -2175,7 +2239,8 @@ instructions = [
     "format" : "ORN{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "11110 i#1 00011 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
     "decoder" : """if Rn == '1111' then SEE MVN (immediate);
-    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); if d IN {13,15} || n == 13 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); 
+    if d IN {13,15} || n == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "ORN (register)",
     "encoding" : "T1",
@@ -2192,7 +2257,8 @@ instructions = [
     "format" : "ORR{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "11110 i#1 00010 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
     "decoder" : """if Rn == '1111' then SEE MOV (immediate);
-    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); if d IN {13,15} || n == 13 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); 
+    if d IN {13,15} || n == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "ORR (immediate)",
     "encoding" : "A1",
@@ -2251,7 +2317,8 @@ instructions = [
     "format" : "CUSTOM",
     "pattern" : "cond#4 01101000 Rn#4 Rd#4 imm5#5 tb#1 01 Rm#4",
     "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); tbform = (tb == '1');
-    (shift_t, shift_n) = DecodeImmShift(tb:'0', imm5); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    (shift_t, shift_n) = DecodeImmShift(tb:'0', imm5); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "PLD, PLDW (immediate)",
     "encoding" : "T1",
@@ -2352,7 +2419,8 @@ instructions = [
     "version" : "ARMv7",
     "format" : "PLI [<Rn>,+/-<Rm>{, <shift>}]",
     "pattern" : "11110110 U#1 101 Rn#4 1111 imm5#5 type#2 0 Rm#4",
-    "decoder" : """n = UInt(Rn); m = UInt(Rm); add = (U == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5); if m == 15 then UNPREDICTABLE;"""
+    "decoder" : """n = UInt(Rn); m = UInt(Rm); add = (U == '1'); (shift_t, shift_n) = DecodeImmShift(type, imm5); 
+    if m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "POP (Thumb)",
     "encoding" : "T1",
@@ -2377,7 +2445,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "POP<c>.W <registers>",
     "pattern" : "1111100001011101 Rt#4 101100000100",
-    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; if t == 13 || (t == 15 && InITBlock() && !LastInITBlock()) then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; 
+    if t == 13 || (t == 15 && InITBlock() && !LastInITBlock()) then UNPREDICTABLE;"""
 } , {
     "name" : "POP (ARM)",
     "encoding" : "A1",
@@ -2393,28 +2462,32 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "POP<c> <registers>",
     "pattern" : "cond#4 010010011101 Rt#4 000000000100",
-    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; if t == 13 then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; 
+    if t == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "PUSH",
     "encoding" : "T1",
     "version" : "ARMv4T, ARMv5T*, ARMv6*, ARMv7",
     "format" : "PUSH<c> <registers>",
     "pattern" : "1011010 M#1 register_list#8",
-    "decoder" : """registers = '0':M:'000000':register_list; UnalignedAllowed = FALSE; if BitCount(registers) < 1 then UNPREDICTABLE;"""
+    "decoder" : """registers = '0':M:'000000':register_list; UnalignedAllowed = FALSE; 
+    if BitCount(registers) < 1 then UNPREDICTABLE;"""
 } , {
     "name" : "PUSH",
     "encoding" : "T2",
     "version" : "ARMv6T2, ARMv7",
     "format" : "PUSH<c>.W <registers>",
     "pattern" : "11101001001011010 M#1 0 register_list#13",
-    "decoder" : """registers = '0':M:'0':register_list; UnalignedAllowed = FALSE; if BitCount(registers) < 2 then UNPREDICTABLE;"""
+    "decoder" : """registers = '0':M:'0':register_list; UnalignedAllowed = FALSE; 
+    if BitCount(registers) < 2 then UNPREDICTABLE;"""
 } , {
     "name" : "PUSH",
     "encoding" : "T3",
     "version" : "ARMv6T2, ARMv7",
     "format" : "PUSH<c>.W <registers>",
     "pattern" : "1111100001001101 Rt#4 110100000100",
-    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; if t IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; 
+    if t IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "PUSH",
     "encoding" : "A1",
@@ -2429,7 +2502,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "PUSH<c> <registers>",
     "pattern" : "cond#4 010100101101 Rt#4 000000000100",
-    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; if t == 13 then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); registers = Zeros(16); registers<t> = '1'; UnalignedAllowed = TRUE; 
+    if t == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "QADD",
     "encoding" : "T1",
@@ -2711,21 +2785,24 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "ROR{S}<c>.W <Rd>, <Rn>, <Rm>",
     "pattern" : "11111010011 S#1 Rn#4 1111 Rd#4 0000 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "ROR (register)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "ROR{S}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0001101 S#1 0000 Rd#4 Rm#4 0111 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "RRX",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "RRX{S}<c> <Rd>, <Rm>",
     "pattern" : "11101010010 S#1 11110000 Rd#4 0011 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); setflags = (S == '1'); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); setflags = (S == '1'); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "RRX",
     "encoding" : "A1",
@@ -2747,7 +2824,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "RSB{S}<c>.W <Rd>, <Rn>, #<const>",
     "pattern" : "1 1 1 1 0 i#1 0 1 1 1 0 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); 
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "RSB (immediate)",
     "encoding" : "A1",
@@ -2858,7 +2936,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SBC{S}<c> <Rd>, <Rn>, #<const>",
     "pattern" : "1 1 1 1 0 i#1 0 1 0 1 1 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); 
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SBC (immediate)",
     "encoding" : "A1",
@@ -2905,7 +2984,8 @@ instructions = [
     "format" : "SBFX<c> <Rd>, <Rn>, #<lsb>, #<width>",
     "pattern" : "1 1 1 1 0 0 1 1 0 1 0 0 Rn#4 0 imm3#3 Rd#4 imm2#2 0 widthm1#5",
     "decoder" : """d = UInt(Rd); n = UInt(Rn);
-    lsbit = UInt(imm3:imm2); widthminus1 = UInt(widthm1); if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    lsbit = UInt(imm3:imm2); widthminus1 = UInt(widthm1); 
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SBFX",
     "encoding" : "A1",
@@ -2913,7 +2993,8 @@ instructions = [
     "format" : "SBFX<c> <Rd>, <Rn>, #<lsb>, #<width>",
     "pattern" : "cond#4 0 1 1 1 1 0 1 widthm1#5 Rd#4 lsb#5 1 0 1 Rn#4",
     "decoder" : """d = UInt(Rd); n = UInt(Rn);
-    lsbit = UInt(lsb); widthminus1 = UInt(widthm1); if d == 15 || n == 15 then UNPREDICTABLE;"""
+    lsbit = UInt(lsb); widthminus1 = UInt(widthm1); 
+    if d == 15 || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SDIV",
     "encoding" : "T1",
@@ -3121,7 +3202,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMLAL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; 
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLAL",
@@ -3129,7 +3211,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "SMLAL{S}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 0 1 1 1 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;
     if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;"""
 } , {
@@ -3157,7 +3240,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMLALD{X}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 0 0 Rn#4 RdLo#4 RdHi#4 1 1 0 M#1 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLALD",
@@ -3165,7 +3249,8 @@ instructions = [
     "version" : "ARMv6*, ARMv7",
     "format" : "SMLALD{X}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 1 1 1 0 1 0 0 RdHi#4 RdLo#4 Rm#4 0 0 M#1 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLAWB, SMLAWT",
@@ -3174,14 +3259,16 @@ instructions = [
     "format" : "SMLAW<y><c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "1 1 1 1 1 0 1 1 0 0 1 1 Rn#4 Ra#4 Rd#4 0 0 0 M#1 Rm#4",
     "decoder" : """if Ra == '1111' then SEE SMULWB, SMULWT;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_high = (M == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_high = (M == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "SMLAWB, SMLAWT",
     "encoding" : "A1",
     "version" : "ARMv5TE*, ARMv6*, ARMv7",
     "format" : "SMLAW<y><c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "cond#4 0 0 0 1 0 0 1 0 Rd#4 Ra#4 Rm#4 1 M#1 0 0 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_high = (M == '1'); if d == 15 || n == 15 || m == 15 || a == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_high = (M == '1'); 
+    if d == 15 || n == 15 || m == 15 || a == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SMLSD",
     "encoding" : "T1",
@@ -3189,7 +3276,8 @@ instructions = [
     "format" : "SMLSD{X}<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "1 1 1 1 1 0 1 1 0 1 0 0 Rn#4 Ra#4 Rd#4 0 0 0 M#1 Rm#4",
     "decoder" : """if Ra == '1111' then SEE SMUSD;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_swap = (M == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_swap = (M == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "SMLSD",
     "encoding" : "A1",
@@ -3197,14 +3285,16 @@ instructions = [
     "format" : "SMLSD{X}<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "cond#4 0 1 1 1 0 0 0 0 Rd#4 Ra#4 Rm#4 0 1 M#1 1 Rn#4",
     "decoder" : """if Ra == '1111' then SEE SMUSD;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_swap = (M == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); m_swap = (M == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SMLSLD",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMLSLD{X}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 0 1 Rn#4 RdLo#4 RdHi#4 1 1 0 M#1 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMLSLD",
@@ -3212,7 +3302,8 @@ instructions = [
     "version" : "ARMv6*, ARMv7",
     "format" : "SMLSLD{X}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 1 1 1 0 1 0 0 RdHi#4 RdLo#4 Rm#4 0 1 M#1 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMMLA",
@@ -3221,7 +3312,8 @@ instructions = [
     "format" : "SMMLA{R}<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "1 1 1 1 1 0 1 1 0 1 0 1 Rn#4 Ra#4 Rd#4 0 0 0 R#1 Rm#4",
     "decoder" : """if Ra == '1111' then SEE SMMUL;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); round = (R == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); round = (R == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} || a == 13 then UNPREDICTABLE;"""
 } , {
     "name" : "SMMLA",
     "encoding" : "A1",
@@ -3229,7 +3321,8 @@ instructions = [
     "format" : "SMMLA{R}<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "cond#4 0 1 1 1 0 1 0 1 Rd#4 Ra#4 Rm#4 0 0 R#1 1 Rn#4",
     "decoder" : """if Ra == '1111' then SEE SMMUL;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); round = (R == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); round = (R == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SMMLS",
     "encoding" : "T1",
@@ -3244,7 +3337,8 @@ instructions = [
     "version" : "ARMv6*, ARMv7",
     "format" : "SMMLS{R}<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "cond#4 0 1 1 1 0 1 0 1 Rd#4 Ra#4 Rm#4 1 1 R#1 1 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); round = (R == '1'); if d == 15 || n == 15 || m == 15 || a == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); round = (R == '1'); 
+    if d == 15 || n == 15 || m == 15 || a == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SMMUL",
     "encoding" : "T1",
@@ -3259,21 +3353,24 @@ instructions = [
     "version" : "ARMv6*, ARMv7",
     "format" : "SMMUL{R}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 1 1 1 0 1 0 1 Rd#4 1 1 1 1 Rm#4 0 0 R#1 1 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); round = (R == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); round = (R == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SMUAD",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMUAD{X}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 0 0 1 0 Rn#4 1 1 1 1 Rd#4 0 0 0 M#1 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SMUAD",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "SMUAD{X}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 1 1 1 0 0 0 0 Rd#4 1 1 1 1 Rm#4 0 0 M#1 1 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SMULBB, SMULBT, SMULTB, SMULTT",
     "encoding" : "T1",
@@ -3298,7 +3395,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMULL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 0 0 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; 
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "SMULL",
@@ -3306,7 +3404,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "SMULL{S}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 0 1 1 0 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;
     if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;"""
 } , {
@@ -3315,28 +3414,32 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMULW<y><c> <Rd>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 0 0 1 1 Rn#4 1 1 1 1 Rd#4 0 0 0 M#1 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_high = (M == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_high = (M == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SMULWB, SMULWT",
     "encoding" : "A1",
     "version" : "ARMv5TE*, ARMv6*, ARMv7",
     "format" : "SMULW<y><c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 1 0 0 1 0 Rd#4 0 0 0 0 Rm#4 1 M#1 1 0 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_high = (M == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_high = (M == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SMUSD",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "SMUSD{X}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 0 1 0 0 Rn#4 1 1 1 1 Rd#4 0 0 0 M#1 Rm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if d IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SMUSD",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "SMUSD{X}<c> <Rd>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 1 1 1 0 0 0 0 Rd#4 1 1 1 1 Rm#4 0 1 M#1 1 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); m_swap = (M == '1'); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SSAT",
     "encoding" : "T1",
@@ -3360,14 +3463,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SSAT16<c> <Rd>, #<imm>, <Rn>",
     "pattern" : "1 1 1 1 0 0 1 1 0 0 1 0 Rn#4 0 0 0 0 Rd#4 0 0 0 0 sat_imm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm)+1; if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm)+1; 
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SSAT16",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "SSAT16<c> <Rd>, #<imm>, <Rn>",
     "pattern" : "cond#4 0 1 1 0 1 0 1 0 sat_imm#4 Rd#4 1 1 1 1 0 0 1 1 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm)+1; if d == 15 || n == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm)+1; 
+    if d == 15 || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SSAX",
     "encoding" : "T1",
@@ -3479,7 +3584,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "STM<c>.W <Rn>{!}, <registers>",
     "pattern" : "1 1 1 0 1 0 0 0 1 0 W#1 0 Rn#4 0 M#1 0 register_list#13",
-    "decoder" : """n = UInt(Rn); registers = '0':M:'0':register_list; wback = (W == '1'); if n == 15 || BitCount(registers) < 2 then UNPREDICTABLE;
+    "decoder" : """n = UInt(Rn); registers = '0':M:'0':register_list; wback = (W == '1'); 
+    if n == 15 || BitCount(registers) < 2 then UNPREDICTABLE;
     if wback && registers<n> == '1' then UNPREDICTABLE;"""
 } , {
     "name" : "STM (STMIA, STMEA)",
@@ -3487,14 +3593,16 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "STM<c> <Rn>{!}, <registers>",
     "pattern" : "cond#4 1 0 0 0 1 0 W#1 0 Rn#4 register_list#16",
-    "decoder" : """n = UInt(Rn); registers = register_list; wback = (W == '1'); if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;"""
+    "decoder" : """n = UInt(Rn); registers = register_list; wback = (W == '1'); 
+    if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;"""
 } , {
     "name" : "STMDA (STMED)",
     "encoding" : "A1",
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "STMDA<c> <Rn>{!}, <registers>",
     "pattern" : "cond#4 1 0 0 0 0 0 W#1 0 Rn#4 register_list#16",
-    "decoder" : """n = UInt(Rn); registers = register_list; wback = (W == '1'); if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;"""
+    "decoder" : """n = UInt(Rn); registers = register_list; wback = (W == '1'); 
+    if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;"""
 } , {
     "name" : "STMDB (STMFD)",
     "encoding" : "T1",
@@ -3502,7 +3610,8 @@ instructions = [
     "format" : "STMDB<c> <Rn>{!}, <registers>",
     "pattern" : "1 1 1 0 1 0 0 1 0 0 W#1 0 Rn#4 0 M#1 0 register_list#13",
     "decoder" : """if W == '1' && Rn == '1101' then SEE PUSH;
-    n = UInt(Rn); registers = '0':M:'0':register_list; wback = (W == '1'); if n == 15 || BitCount(registers) < 2 then UNPREDICTABLE;
+    n = UInt(Rn); registers = '0':M:'0':register_list; wback = (W == '1'); 
+    if n == 15 || BitCount(registers) < 2 then UNPREDICTABLE;
     if wback && registers<n> == '1' then UNPREDICTABLE;"""
 } , {
     "name" : "STMDB (STMFD)",
@@ -3519,7 +3628,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "STMIB<c> <Rn>{!}, <registers>",
     "pattern" : "cond#4 1 0 0 1 1 0 W#1 0 Rn#4 register_list#16",
-    "decoder" : """n = UInt(Rn); registers = register_list; wback = (W == '1'); if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;"""
+    "decoder" : """n = UInt(Rn); registers = register_list; wback = (W == '1'); 
+    if n == 15 || BitCount(registers) < 1 then UNPREDICTABLE;"""
 } , {
     "name" : "STR (immediate, Thumb)",
     "encoding" : "T1",
@@ -3584,7 +3694,8 @@ instructions = [
     "format" : "STR<c>.W <Rt>, [<Rn>, <Rm>{, LSL #<imm2>}]",
     "pattern" : "1 1 1 1 1 0 0 0 0 1 0 0 Rn#4 Rt#4 0 0 0 0 0 0 imm2#2 Rm#4",
     "decoder" : """if Rn == '1111' then UNDEFINED;
-    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); if t == 15 || m IN {13,15} then UNPREDICTABLE;"""
+    t = UInt(Rt); n = UInt(Rn); m = UInt(Rm); index = TRUE; add = TRUE; wback = FALSE; (shift_t, shift_n) = (SRType_LSL, UInt(imm2)); 
+    if t == 15 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "STR (register)",
     "encoding" : "A1",
@@ -3621,7 +3732,8 @@ instructions = [
     "pattern" : "1 1 1 1 1 0 0 0 0 0 0 0 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
     "decoder" : """if P == '1' && U == '1' && W == '0' then SEE STRBT;
     if Rn == '1111' || (P == '0' && W == '0') then UNDEFINED;
-    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32); index = (P == '1'); add = (U == '1'); wback = (W == '1'); if t IN {13,15} || (wback && n == t) then UNPREDICTABLE;"""
+    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32); index = (P == '1'); add = (U == '1'); wback = (W == '1'); 
+    if t IN {13,15} || (wback && n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "STRB (immediate, ARM)",
     "encoding" : "A1",
@@ -3630,7 +3742,8 @@ instructions = [
     "pattern" : "cond#4 0 1 0 P#1 U#1 1 W#1 0 Rn#4 Rt#4 imm12#12",
     "decoder" : """if P == '0' && W == '1' then SEE STRBT;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm12, 32);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 then UNPREDICTABLE;
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if t == 15 then UNPREDICTABLE;
     if wback && (n == 15 || n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "STRB (register)",
@@ -3716,7 +3829,8 @@ instructions = [
     "pattern" : "cond#4 0 0 0 P#1 U#1 0 W#1 0 Rn#4 Rt#4 0 0 0 0 1 1 1 1 Rm#4",
     "decoder" : """if Rt<0> == '1' then UNPREDICTABLE;
     t = UInt(Rt); t2 = t+1; n = UInt(Rn); m = UInt(Rm);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if P == '0' && W == '1' then UNPREDICTABLE;
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if P == '0' && W == '1' then UNPREDICTABLE;
     if t2 == 15 || m == 15 then UNPREDICTABLE;
     if wback && (n == 15 || n == t || n == t2) then UNPREDICTABLE;
     if ArchVersion() < 6 && wback && m == n then UNPREDICTABLE;"""
@@ -3816,7 +3930,8 @@ instructions = [
     "pattern" : "1 1 1 1 1 0 0 0 0 0 1 0 Rn#4 Rt#4 1 P#1 U#1 W#1 imm8#8",
     "decoder" : """if P == '1' && U == '1' && W == '0' then SEE STRHT;
     if Rn == '1111' || (P == '0' && W == '0') then UNDEFINED;
-    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32); index = (P == '1'); add = (U == '1'); wback = (W == '1'); if t IN {13,15} || (wback && n == t) then UNPREDICTABLE;"""
+    t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm8, 32); index = (P == '1'); add = (U == '1'); wback = (W == '1'); 
+    if t IN {13,15} || (wback && n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "STRH (immediate, ARM)",
     "encoding" : "A1",
@@ -3825,7 +3940,8 @@ instructions = [
     "pattern" : "cond#4 0 0 0 P#1 U#1 1 W#1 0 Rn#4 Rt#4 imm4H#4 1 0 1 1 imm4L#4",
     "decoder" : """if P == '0' && W == '1' then SEE STRHT;
     t = UInt(Rt); n = UInt(Rn); imm32 = ZeroExtend(imm4H:imm4L, 32);
-    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); if t == 15 then UNPREDICTABLE;
+    index = (P == '1'); add = (U == '1'); wback = (P == '0') || (W == '1'); 
+    if t == 15 then UNPREDICTABLE;
     if wback && (n == 15 || n == t) then UNPREDICTABLE;"""
 } , {
     "name" : "STRH (register)",
@@ -3932,7 +4048,8 @@ instructions = [
     "pattern" : "1 1 1 1 0 i#1 0 1 1 0 1 S#1 Rn#4 0 imm3#3 Rd#4 imm8#8",
     "decoder" : """if Rd == '1111' && S == '1' then SEE CMP (immediate);
     if Rn == '1101' then SEE SUB (SP minus immediate);
-    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); if d == 13 || (d == 15 && S == '0') || n == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); 
+    if d == 13 || (d == 15 && S == '0') || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SUB (immediate, Thumb)",
     "encoding" : "T4",
@@ -3941,7 +4058,8 @@ instructions = [
     "pattern" : "1 1 1 1 0 i#1 1 0 1 0 1 0 Rn#4 0 imm3#3 Rd#4 imm8#8",
     "decoder" : """if Rn == '1111' then SEE ADR;
     if Rn == '1101' then SEE SUB (SP minus immediate);
-    d = UInt(Rd); n = UInt(Rn); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32); if d IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32); 
+    if d IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SUB (immediate, ARM)",
     "encoding" : "A1",
@@ -4001,14 +4119,16 @@ instructions = [
     "format" : "SUB{S}<c>.W <Rd>, SP, #<const>",
     "pattern" : "1 1 1 1 0 i#1 0 1 1 0 1 S#1 1 1 0 1 0 imm3#3 Rd#4 imm8#8",
     "decoder" : """if Rd == '1111' && S == '1' then SEE CMP (immediate);
-    d = UInt(Rd); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); if d == 15 && S == '0' then UNPREDICTABLE;"""
+    d = UInt(Rd); setflags = (S == '1'); imm32 = ThumbExpandImm(i:imm3:imm8); 
+    if d == 15 && S == '0' then UNPREDICTABLE;"""
 } , {
     "name" : "SUB (SP minus immediate)",
     "encoding" : "T3",
     "version" : "ARMv6T2, ARMv7",
     "format" : "SUBW<c> <Rd>, SP, #<imm12>",
     "pattern" : "1 1 1 1 0 i#1 1 0 1 0 1 0 1 1 0 1 0 imm3#3 Rd#4 imm8#8",
-    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32); if d == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); setflags = FALSE; imm32 = ZeroExtend(i:imm3:imm8, 32); 
+    if d == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SUB (SP minus immediate)",
     "encoding" : "A1",
@@ -4057,7 +4177,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv7, ARMv7VE",
     "format" : "SWP{B}<c> <Rt>, <Rt2>, [<Rn>]",
     "pattern" : "cond#4 0 0 0 1 0 B#1 0 0 Rn#4 Rt#4 0 0 0 0 1 0 0 1 Rt2#4",
-    "decoder" : """t = UInt(Rt); t2 = UInt(Rt2); n = UInt(Rn); size = if B == '1' then 1 else 4; if t == 15 || t2 == 15 || n == 15 || n == t || n == t2 then UNPREDICTABLE;"""
+    "decoder" : """t = UInt(Rt); t2 = UInt(Rt2); n = UInt(Rn); size = if B == '1' then 1 else 4; 
+    if t == 15 || t2 == 15 || n == 15 || n == t || n == t2 then UNPREDICTABLE;"""
 } , {
     "name" : "SXTAB",
     "encoding" : "T1",
@@ -4065,7 +4186,8 @@ instructions = [
     "format" : "SXTAB<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 1 0 0 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE SXTB;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SXTAB",
     "encoding" : "A1",
@@ -4073,7 +4195,8 @@ instructions = [
     "format" : "SXTAB<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 0 1 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
     "decoder" : """if Rn == '1111' then SEE SXTB;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SXTAB16",
     "encoding" : "T1",
@@ -4081,7 +4204,8 @@ instructions = [
     "format" : "SXTAB16<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 1 0 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE SXTB16;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SXTAB16",
     "encoding" : "A1",
@@ -4089,7 +4213,8 @@ instructions = [
     "format" : "SXTAB16<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 0 0 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
     "decoder" : """if Rn == '1111' then SEE SXTB16;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SXTAH",
     "encoding" : "T1",
@@ -4097,7 +4222,8 @@ instructions = [
     "format" : "SXTAH<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 0 0 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE SXTH;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SXTAH",
     "encoding" : "A1",
@@ -4105,7 +4231,8 @@ instructions = [
     "format" : "SXTAH<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 0 1 1 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
     "decoder" : """if Rn == '1111' then SEE SXTH;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SXTB",
     "encoding" : "T1",
@@ -4119,28 +4246,32 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SXTB<c>.W <Rd>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 1 0 0 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SXTB",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "SXTB<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 0 1 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SXTB16",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "SXTB16<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 1 0 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SXTB16",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "SXTB16<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 0 0 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "SXTH",
     "encoding" : "T1",
@@ -4154,14 +4285,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "SXTH<c>.W <Rd>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 0 0 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "SXTH",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "SXTH<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 0 1 1 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "TBB, TBH",
     "encoding" : "T1",
@@ -4178,7 +4311,8 @@ instructions = [
     "format" : "TEQ<c> <Rn>, #<const>",
     "pattern" : "1 1 1 1 0 i#1 0 0 1 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm8#8",
     "decoder" : """n = UInt(Rn);
-    (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); if n IN {13,15} then UNPREDICTABLE;"""
+    (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); 
+    if n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "TEQ (immediate)",
     "encoding" : "A1",
@@ -4194,7 +4328,8 @@ instructions = [
     "format" : "TEQ<c> <Rn>, <Rm>{, <shift>}",
     "pattern" : "1 1 1 0 1 0 1 0 1 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm2#2 type#2 Rm#4",
     "decoder" : """n = UInt(Rn); m = UInt(Rm);
-    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); if n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); 
+    if n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "TEQ (register)",
     "encoding" : "A1",
@@ -4219,7 +4354,8 @@ instructions = [
     "format" : "TST<c> <Rn>, #<const>",
     "pattern" : "1 1 1 1 0 i#1 0 0 0 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm8#8",
     "decoder" : """n = UInt(Rn);
-    (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); if n IN {13,15} then UNPREDICTABLE;"""
+    (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C); 
+    if n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "TST (immediate)",
     "encoding" : "A1",
@@ -4242,7 +4378,8 @@ instructions = [
     "format" : "TST<c>.W <Rn>, <Rm>{, <shift>}",
     "pattern" : "1 1 1 0 1 0 1 0 0 0 0 1 Rn#4 0 imm3#3 1 1 1 1 imm2#2 type#2 Rm#4",
     "decoder" : """n = UInt(Rn); m = UInt(Rm);
-    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); if n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    (shift_t, shift_n) = DecodeImmShift(type, imm3:imm2); 
+    if n IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "TST (register)",
     "encoding" : "A1",
@@ -4315,7 +4452,8 @@ instructions = [
     "format" : "UBFX<c> <Rd>, <Rn>, #<lsb>, #<width>",
     "pattern" : "1 1 1 1 0 0 1 1 1 1 0 0 Rn#4 0 imm3#3 Rd#4 imm2#2 0 widthm1#5",
     "decoder" : """d = UInt(Rd); n = UInt(Rn);
-    lsbit = UInt(imm3:imm2); widthminus1 = UInt(widthm1); if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    lsbit = UInt(imm3:imm2); widthminus1 = UInt(widthm1); 
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "UBFX",
     "encoding" : "A1",
@@ -4323,7 +4461,8 @@ instructions = [
     "format" : "UBFX<c> <Rd>, <Rn>, #<lsb>, #<width>",
     "pattern" : "cond#4 0 1 1 1 1 1 1 widthm1#5 Rd#4 lsb#5 1 0 1 Rn#4",
     "decoder" : """d = UInt(Rd); n = UInt(Rn);
-    lsbit = UInt(lsb); widthminus1 = UInt(widthm1); if d == 15 || n == 15 then UNPREDICTABLE;"""
+    lsbit = UInt(lsb); widthminus1 = UInt(widthm1); 
+    if d == 15 || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "UDF",
     "encoding" : "T1",
@@ -4472,7 +4611,8 @@ instructions = [
     "version" : "ARMv6*, ARMv7",
     "format" : "UMAAL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 0 0 1 0 0 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); 
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "UMLAL",
@@ -4480,7 +4620,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "UMLAL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 1 1 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; 
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "UMLAL",
@@ -4488,7 +4629,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "UMLAL{S}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 0 1 0 1 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;
     if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;"""
 } , {
@@ -4497,7 +4639,8 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "UMULL<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "1 1 1 1 1 0 1 1 1 0 1 0 Rn#4 RdLo#4 RdHi#4 0 0 0 0 Rm#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = FALSE; 
+    if dLo IN {13,15} || dHi IN {13,15} || n IN {13,15} || m IN {13,15} then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;"""
 } , {
     "name" : "UMULL",
@@ -4505,7 +4648,8 @@ instructions = [
     "version" : "ARMv4*, ARMv5T*, ARMv6*, ARMv7",
     "format" : "UMULL{S}<c> <RdLo>, <RdHi>, <Rn>, <Rm>",
     "pattern" : "cond#4 0 0 0 0 1 0 0 S#1 RdHi#4 RdLo#4 Rm#4 1 0 0 1 Rn#4",
-    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
+    "decoder" : """dLo = UInt(RdLo); dHi = UInt(RdHi); n = UInt(Rn); m = UInt(Rm); setflags = (S == '1'); 
+    if dLo == 15 || dHi == 15 || n == 15 || m == 15 then UNPREDICTABLE;
     if dHi == dLo then UNPREDICTABLE;
     if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;"""
 } , {
@@ -4636,7 +4780,8 @@ instructions = [
     "format" : "USADA8<c> <Rd>, <Rn>, <Rm>, <Ra>",
     "pattern" : "cond#4 0 1 1 1 1 0 0 0 Rd#4 Ra#4 Rm#4 0 0 0 1 Rn#4",
     "decoder" : """if Ra == '1111' then SEE USAD8;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a == UInt(Ra); if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); a = UInt(Ra); 
+    if d == 15 || n == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "USAT",
     "encoding" : "T1",
@@ -4660,14 +4805,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "USAT16<c> <Rd>, #<imm4>, <Rn>",
     "pattern" : "1 1 1 1 0 0 1 1 1 0 1 0 Rn#4 0 0 0 0 Rd#4 0 0 0 0 sat_imm#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm); if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm); 
+    if d IN {13,15} || n IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "USAT16",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "USAT16<c> <Rd>, #<imm4>, <Rn>",
     "pattern" : "cond#4 0 1 1 0 1 1 1 0 sat_imm#4 Rd#4 1 1 1 1 0 0 1 1 Rn#4",
-    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm); if d == 15 || n == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); n = UInt(Rn); saturate_to = UInt(sat_imm); 
+    if d == 15 || n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "USAX",
     "encoding" : "T1",
@@ -4723,7 +4870,8 @@ instructions = [
     "format" : "UXTAB<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 1 0 1 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE UXTB;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "UXTAB",
     "encoding" : "A1",
@@ -4731,7 +4879,8 @@ instructions = [
     "format" : "UXTAB<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 1 1 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
     "decoder" : """if Rn == '1111' then SEE UXTB;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "UXTAB16",
     "encoding" : "T1",
@@ -4739,7 +4888,8 @@ instructions = [
     "format" : "UXTAB16<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 1 1 Rd#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE UXTB16;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "UXTAB16",
     "encoding" : "A1",
@@ -4747,7 +4897,8 @@ instructions = [
     "format" : "UXTAB16<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 1 0 0 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
     "decoder" : """if Rn == '1111' then SEE UXTB16;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "UXTAH",
     "encoding" : "T1",
@@ -4755,7 +4906,8 @@ instructions = [
     "format" : "UXTAH<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 0 1 Rn#4 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
     "decoder" : """if Rn == '1111' then SEE UXTH;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || n == 13 || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "UXTAH",
     "encoding" : "A1",
@@ -4763,7 +4915,8 @@ instructions = [
     "format" : "UXTAH<c> <Rd>, <Rn>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 1 1 1 Rn#4 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
     "decoder" : """if Rn == '1111' then SEE UXTH;
-    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    d = UInt(Rd); n = UInt(Rn); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "UXTB",
     "encoding" : "T1",
@@ -4777,28 +4930,32 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "UXTB<c>.W <Rd>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 1 0 1 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "UXTB",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "UXTB<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 1 1 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "UXTB16",
     "encoding" : "T1",
     "version" : "ARMv6T2, ARMv7",
     "format" : "UXTB16<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 1 1 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "UXTB16",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "UXTB16<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 1 0 0 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "UXTH",
     "encoding" : "T1",
@@ -4812,14 +4969,16 @@ instructions = [
     "version" : "ARMv6T2, ARMv7",
     "format" : "UXTH<c>.W <Rd>, <Rm>{, <rotation>}",
     "pattern" : "1 1 1 1 1 0 1 0 0 0 0 1 1 1 1 1 1 1 1 1 Rd#4 1 0 rotate#2 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d IN {13,15} || m IN {13,15} then UNPREDICTABLE;"""
 } , {
     "name" : "UXTH",
     "encoding" : "A1",
     "version" : "ARMv6*, ARMv7",
     "format" : "UXTH<c> <Rd>, <Rm>{, <rotation>}",
     "pattern" : "cond#4 0 1 1 0 1 1 1 1 1 1 1 1 Rd#4 rotate#2 0 0 0 1 1 1 Rm#4",
-    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); if d == 15 || m == 15 then UNPREDICTABLE;"""
+    "decoder" : """d = UInt(Rd); m = UInt(Rm); rotation = UInt(rotate:'000'); 
+    if d == 15 || m == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "VABA, VABAL",
     "encoding" : "T1",
@@ -5501,6 +5660,7 @@ instructions = [
         round_zero = TRUE;
     else
         round_nearest = TRUE; 
+    endif
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VCVT (between floating-point and integer, Advanced SIMD)",
@@ -5514,7 +5674,8 @@ instructions = [
     if to_integer then
         round_zero = TRUE;
     else
-        round_nearest = TRUE; 
+        round_nearest = TRUE;
+    endif
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VCVT, VCVTR (between floating-point and integer, Floating-point)",
@@ -5533,7 +5694,8 @@ instructions = [
         unsigned = (op == '0');
         round_nearest = FALSE;
         m = UInt(Vm:M);
-        d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);"""
+        d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
+    endif"""
 } , {
     "name" : "VCVT, VCVTR (between floating-point and integer, Floating-point)",
     "encoding" : "A1",
@@ -5551,7 +5713,8 @@ instructions = [
         unsigned = (op == '0');
         round_nearest = FALSE;
         m = UInt(Vm:M);
-        d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);"""
+        d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
+    endif"""
 } , {
     "name" : "VCVT (between floating-point and fixed-point, Advanced SIMD)",
     "encoding" : "T1",
@@ -5566,6 +5729,7 @@ instructions = [
         round_zero = TRUE;
     else
         round_nearest = TRUE;
+    endif
     esize = 32; frac_bits = 64 - UInt(imm6); elements = 2;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5582,6 +5746,7 @@ instructions = [
         round_zero = TRUE;
     else
         round_nearest = TRUE;
+    endif
     esize = 32; frac_bits = 64 - UInt(imm6); elements = 2;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -5599,6 +5764,7 @@ instructions = [
         round_zero = TRUE;
     else
         round_nearest = TRUE;
+    endif
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     if frac_bits < 0 then UNPREDICTABLE;"""
 } , {
@@ -5616,6 +5782,7 @@ instructions = [
         round_zero = TRUE;
     else
         round_nearest = TRUE;
+    endif
     d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
     if frac_bits < 0 then UNPREDICTABLE;"""
 } , {
@@ -5710,6 +5877,7 @@ instructions = [
         when "xxx1" esize = 8; elements = 8; index = UInt(imm4<3:1>);
         when "xx10" esize = 16; elements = 4; index = UInt(imm4<3:2>);
         when "x100" esize = 32; elements = 2; index = UInt(imm4<3>);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VDUP (scalar)",
@@ -5723,6 +5891,7 @@ instructions = [
         when "xxx1" esize = 8; elements = 8; index = UInt(imm4<3:1>);
         when "xx10" esize = 16; elements = 4; index = UInt(imm4<3:2>);
         when "x100" esize = 32; elements = 2; index = UInt(imm4<3>);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VDUP (ARM core register)",
@@ -5738,6 +5907,7 @@ instructions = [
         when '01' esize = 16; elements = 4; 
         when '10' esize = 8; elements = 8; 
         when '11' UNDEFINED;
+    endcase
     if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;"""
 } , {
     "name" : "VDUP (ARM core register)",
@@ -5753,6 +5923,7 @@ instructions = [
         when '01' esize = 16; elements = 4; 
         when '10' esize = 8; elements = 8; 
         when '11' UNDEFINED;
+    endcase
     if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;"""
 } , {
     "name" : "VEOR",
@@ -5889,16 +6060,19 @@ instructions = [
     "pattern" : "1 1 1 1 1 0 0 1 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4",
     "decoder" : """case type of 
     when '0111'
-        regs = 1; if align<1> == '1' then UNDEFINED;
+        regs = 1; 
+        if align<1> == '1' then UNDEFINED;
     when '1010'
-        regs = 2; if align == '11' then UNDEFINED;
+        regs = 2; 
+        if align == '11' then UNDEFINED;
     when '0110'
-        regs = 3; if align<1> == '1' then UNDEFINED;
+        regs = 3; 
+        if align<1> == '1' then UNDEFINED;
     when '0010'
         regs = 4;
     otherwise
         SEE "Related encodings";
-
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
@@ -5912,16 +6086,19 @@ instructions = [
     "pattern" : "1 1 1 1 0 1 0 0 0 D#1 1 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4",
     "decoder" : """case type of 
     when '0111'
-        regs = 1; if align<1> == '1' then UNDEFINED;
+        regs = 1; 
+        if align<1> == '1' then UNDEFINED;
     when '1010'
-        regs = 2; if align == '11' then UNDEFINED;
+        regs = 2; 
+        if align == '11' then UNDEFINED;
     when '0110'
-        regs = 3; if align<1> == '1' then UNDEFINED;
+        regs = 3; 
+        if align<1> == '1' then UNDEFINED;
     when '0010'
         regs = 4;
     otherwise
         SEE "Related encodings";
-
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
@@ -5950,10 +6127,10 @@ instructions = [
             esize = 32;
             index = UInt(index_align<3>);
             alignment = if index_align<1:0> == '00' then 1 else 4;
-        
-        d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
-        wback = (m != 15); register_index = (m != 15 && m != 13);
-        if n == 15 then UNPREDICTABLE;"""
+    endcase
+    d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
+    wback = (m != 15); register_index = (m != 15 && m != 13);
+    if n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "VLD1 (single element to one lane)",
     "encoding" : "A1",
@@ -5977,10 +6154,10 @@ instructions = [
             esize = 32;
             index = UInt(index_align<3>);
             alignment = if index_align<1:0> == '00' then 1 else 4;
-        
-        d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
-        wback = (m != 15); register_index = (m != 15 && m != 13);
-        if n == 15 then UNPREDICTABLE;"""
+    endcase        
+    d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
+    wback = (m != 15); register_index = (m != 15 && m != 13);
+    if n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "VLD1 (single element to all lanes)",
     "encoding" : "T1",
@@ -6018,18 +6195,21 @@ instructions = [
     "decoder" : """if size == '11' then UNDEFINED;
     case type of
         when '1000'
-            regs = 1; inc = 1; if align == '11' then UNDEFINED;
+            regs = 1; inc = 1; 
+            if align == '11' then UNDEFINED;
         when '1001'
-            regs = 1; inc = 2; if align == '11' then UNDEFINED;
+            regs = 1; inc = 2; 
+            if align == '11' then UNDEFINED;
         when '0011'
             regs = 2; inc = 2;
         otherwise
             SEE "Related encodings";
-        alignment = if align == '00' then 1 else 4 << UInt(align);
-        ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
-        d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
-        wback = (m != 15); register_index = (m != 15 && m != 13);
-        if n == 15 || d2+regs > 32 then UNPREDICTABLE;"""
+    endcase
+    alignment = if align == '00' then 1 else 4 << UInt(align);
+    ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
+    d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
+    wback = (m != 15); register_index = (m != 15 && m != 13);
+    if n == 15 || d2+regs > 32 then UNPREDICTABLE;"""
 } , {
     "name" : "VLD2 (multiple 2-element structures)",
     "encoding" : "A1",
@@ -6039,18 +6219,21 @@ instructions = [
     "decoder" : """if size == '11' then UNDEFINED;
     case type of
         when '1000'
-            regs = 1; inc = 1; if align == '11' then UNDEFINED;
+            regs = 1; inc = 1; 
+            if align == '11' then UNDEFINED;
         when '1001'
-            regs = 1; inc = 2; if align == '11' then UNDEFINED;
+            regs = 1; inc = 2; 
+            if align == '11' then UNDEFINED;
         when '0011'
             regs = 2; inc = 2;
         otherwise
             SEE "Related encodings";
-        alignment = if align == '00' then 1 else 4 << UInt(align);
-        ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
-        d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
-        wback = (m != 15); register_index = (m != 15 && m != 13);
-        if n == 15 || d2+regs > 32 then UNPREDICTABLE;"""
+    endcase
+    alignment = if align == '00' then 1 else 4 << UInt(align);
+    ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
+    d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
+    wback = (m != 15); register_index = (m != 15 && m != 13);
+    if n == 15 || d2+regs > 32 then UNPREDICTABLE;"""
 } , {
     "name" : "VLD2 (single 2-element structure to one lane)",
     "encoding" : "T1",
@@ -6071,7 +6254,7 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<0> == '0' then 1 else 8;
-
+    endcase
     d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d2 > 31 then UNPREDICTABLE;"""
@@ -6095,7 +6278,7 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<0> == '0' then 1 else 8;
-
+    endcase
     d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d2 > 31 then UNPREDICTABLE;"""
@@ -6141,6 +6324,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align<0> == '0' then 1 else 8;
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -6160,6 +6344,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align<0> == '0' then 1 else 8;
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -6182,7 +6367,7 @@ instructions = [
         when '10'
             if index_align<1:0> != '00' then UNDEFINED;
             ebytes = 4; esize = 32; index = UInt(index_align<3>); inc = if index_align<2> == '0' then 1 else 2;
-
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d3 > 31 then UNPREDICTABLE;"""
@@ -6203,7 +6388,7 @@ instructions = [
         when '10'
             if index_align<1:0> != '00' then UNDEFINED;
             ebytes = 4; esize = 32; index = UInt(index_align<3>); inc = if index_align<2> == '0' then 1 else 2;
-
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d3 > 31 then UNPREDICTABLE;"""
@@ -6245,6 +6430,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -6264,6 +6450,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -6289,7 +6476,7 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<1:0> == '00' then 1 else 4 << UInt(index_align<1:0>);
-
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d4 > 31 then UNPREDICTABLE;"""
@@ -6313,7 +6500,7 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<1:0> == '00' then 1 else 4 << UInt(index_align<1:0>);
-
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d4 > 31 then UNPREDICTABLE;"""
@@ -6332,6 +6519,8 @@ instructions = [
             alignment = if a == '0' then 1 else 8;
         else
             alignment = if a == '0' then 1 else 4*ebytes;
+        endif
+    endif
     inc = if T == '0' then 1 else 2;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
@@ -6351,6 +6540,8 @@ instructions = [
             alignment = if a == '0' then 1 else 8;
         else
             alignment = if a == '0' then 1 else 4*ebytes;
+        endif
+    endif
     inc = if T == '0' then 1 else 2;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
@@ -6656,7 +6847,8 @@ instructions = [
     if single_register then
         d = UInt(Vd:D); imm32 = VFPExpandImm(imm4H:imm4L, 32);
     else
-        d = UInt(D:Vd); imm64 = VFPExpandImm(imm4H:imm4L, 64); regs = 1;"""
+        d = UInt(D:Vd); imm64 = VFPExpandImm(imm4H:imm4L, 64); regs = 1;
+    endif"""
 } , {
     "name" : "VMOV (immediate)",
     "encoding" : "A2",
@@ -6668,7 +6860,8 @@ instructions = [
     if single_register then
         d = UInt(Vd:D); imm32 = VFPExpandImm(imm4H:imm4L, 32);
     else
-        d = UInt(D:Vd); imm64 = VFPExpandImm(imm4H:imm4L, 64); regs = 1;"""
+        d = UInt(D:Vd); imm64 = VFPExpandImm(imm4H:imm4L, 64); regs = 1;
+    endif"""
 } , {
     "name" : "VMOV (register)",
     "encoding" : "T1",
@@ -6700,7 +6893,8 @@ instructions = [
     if single_register then
         d = UInt(Vd:D); m = UInt(Vm:M);
     else
-        d = UInt(D:Vd); m = UInt(M:Vm); regs = 1;"""
+        d = UInt(D:Vd); m = UInt(M:Vm); regs = 1;
+    endif"""
 } , {
     "name" : "VMOV (register)",
     "encoding" : "A2",
@@ -6712,7 +6906,8 @@ instructions = [
     if single_register then
         d = UInt(Vd:D); m = UInt(Vm:M);
     else
-        d = UInt(D:Vd); m = UInt(M:Vm); regs = 1;"""
+        d = UInt(D:Vd); m = UInt(M:Vm); regs = 1;
+    endif"""
 } , {
     "name" : "VMOV (ARM core register to scalar)",
     "encoding" : "T1",
@@ -6724,6 +6919,7 @@ instructions = [
         when "0xx1" advsimd = TRUE; esize = 16; index = UInt(opc1<0>:opc2<1>);
         when "0x00" advsimd = FALSE; esize = 32; index = UInt(opc1<0>);
         when "0x10" UNDEFINED;
+    endcase
     d = UInt(D:Vd); t = UInt(Rt);
     if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;"""
 } , {
@@ -6737,6 +6933,7 @@ instructions = [
         when "0xx1" advsimd = TRUE; esize = 16; index = UInt(opc1<0>:opc2<1>);
         when "0x00" advsimd = FALSE; esize = 32; index = UInt(opc1<0>);
         when "0x10" UNDEFINED;
+    endcase
     d = UInt(D:Vd); t = UInt(Rt);
     if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;"""
 } , {
@@ -6746,11 +6943,12 @@ instructions = [
     "format" : "VMOV<c>.<dt> <Rt>, <Dn[x]>",
     "pattern" : "1 1 1 0 1 1 1 0 U#1 opc1#2 1 Vn#4 Rt#4 1 0 1 1 N#1 opc2#2 1 0 0 0 0",
     "decoder" : """case U:opc1:opc2 of
-    when "x1xxx" advsimd = TRUE; esize = 8; index = UInt(opc1<0>:opc2);
-    when "x0xx1" advsimd = TRUE; esize = 16; index = UInt(opc1<0>:opc2<1>);
-    when "00x00" advsimd = FALSE; esize = 32; index = UInt(opc1<0>);
-    when "10x00" UNDEFINED;
-    when "x0x10" UNDEFINED;
+        when "x1xxx" advsimd = TRUE; esize = 8; index = UInt(opc1<0>:opc2);
+        when "x0xx1" advsimd = TRUE; esize = 16; index = UInt(opc1<0>:opc2<1>);
+        when "00x00" advsimd = FALSE; esize = 32; index = UInt(opc1<0>);
+        when "10x00" UNDEFINED;
+        when "x0x10" UNDEFINED;
+    endcase
     t = UInt(Rt); n = UInt(N:Vn); unsigned = (U == '1');
     if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;"""
 } , {
@@ -6760,11 +6958,12 @@ instructions = [
     "format" : "VMOV<c>.<dt> <Rt>, <Dn[x]>",
     "pattern" : "cond#4 1 1 1 0 U#1 opc1#2 1 Vn#4 Rt#4 1 0 1 1 N#1 opc2#2 1 0 0 0 0",
     "decoder" : """case U:opc1:opc2 of
-    when "x1xxx" advsimd = TRUE; esize = 8; index = UInt(opc1<0>:opc2);
-    when "x0xx1" advsimd = TRUE; esize = 16; index = UInt(opc1<0>:opc2<1>);
-    when "00x00" advsimd = FALSE; esize = 32; index = UInt(opc1<0>);
-    when "10x00" UNDEFINED;
-    when "x0x10" UNDEFINED;
+        when "x1xxx" advsimd = TRUE; esize = 8; index = UInt(opc1<0>:opc2);
+        when "x0xx1" advsimd = TRUE; esize = 16; index = UInt(opc1<0>:opc2<1>);
+        when "00x00" advsimd = FALSE; esize = 32; index = UInt(opc1<0>);
+        when "10x00" UNDEFINED;
+        when "x0x10" UNDEFINED;
+    endcase
     t = UInt(Rt); n = UInt(N:Vn); unsigned = (U == '1');
     if t == 15 || (CurrentInstrSet() != InstrSet_ARM && t == 13) then UNPREDICTABLE;"""
 } , {
@@ -7384,7 +7583,7 @@ instructions = [
     "format" : "VPUSH<c> <list>",
     "pattern" : "1 1 1 0 1 1 0 1 0 D#1 1 0 1 1 0 1 Vd#4 1 0 1 1 imm8#8",
     "decoder" : """single_regs = FALSE; d = UInt(D:Vd); imm32 = ZeroExtend(imm8:'00', 32);
-    regs = UInt(imm8) DIV 2; // If UInt(imm8) is odd, see "FSTMX".
+    regs = UInt(imm8) DIV 2;
     if regs == 0 || regs > 16 || (d+regs) > 32 then UNPREDICTABLE;"""
 } , {
     "name" : "VPUSH",
@@ -7393,7 +7592,7 @@ instructions = [
     "format" : "VPUSH<c> <list>",
     "pattern" : "cond#4 1 1 0 1 0 D#1 1 0 1 1 0 1 Vd#4 1 0 1 1 imm8#8",
     "decoder" : """single_regs = FALSE; d = UInt(D:Vd); imm32 = ZeroExtend(imm8:'00', 32);
-    regs = UInt(imm8) DIV 2; // If UInt(imm8) is odd, see "FSTMX".
+    regs = UInt(imm8) DIV 2;
     if regs == 0 || regs > 16 || (d+regs) > 32 then UNPREDICTABLE;"""
 } , {
     "name" : "VPUSH",
@@ -7704,6 +7903,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     src_unsigned = (U == '1' && op == '1'); dest_unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
     "name" : "VQRSHRN, VQRSHRUN",
@@ -7718,6 +7918,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     src_unsigned = (U == '1' && op == '1'); dest_unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
     "name" : "VQSHL (register)",
@@ -7753,6 +7954,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "01xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = UInt(imm6);
+    endcase
     src_unsigned = (U == '1' && op == '1'); dest_unsigned = (U == '1');
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -7769,6 +7971,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "01xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = UInt(imm6);
+    endcase
     src_unsigned = (U == '1' && op == '1'); dest_unsigned = (U == '1');
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
@@ -7784,6 +7987,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     src_unsigned = (U == '1' && op == '1'); dest_unsigned = (U == '1');
     d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
@@ -7799,6 +8003,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     src_unsigned = (U == '1' && op == '1'); dest_unsigned = (U == '1');
     d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
@@ -7890,8 +8095,10 @@ instructions = [
     "decoder" : """if UInt(op)+UInt(size) >= 3 then UNDEFINED;
     if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
     esize = 8 << UInt(size); elements = 64 DIV esize;
-    groupsize = (1 << (3-UInt(op)-UInt(size));
-    reverse_mask = (groupsize-1)<esize-1:0>;
+    groupsize = (1 << (3-UInt(op)-UInt(size)));
+    groupsize_minus_one = groupsize-1;
+    esize_minus_one = esize-1;
+    reverse_mask = groupsize_minus_one<esize_minus_one:0>;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VREV16, VREV32, VREV64",
@@ -7902,8 +8109,10 @@ instructions = [
     "decoder" : """if UInt(op)+UInt(size) >= 3 then UNDEFINED;
     if Q == '1' && (Vd<0> == '1' || Vm<0> == '1') then UNDEFINED;
     esize = 8 << UInt(size); elements = 64 DIV esize;
-    groupsize = (1 << (3-UInt(op)-UInt(size));
-    reverse_mask = (groupsize-1)<esize-1:0>;
+    groupsize = (1 << (3-UInt(op)-UInt(size)));
+    groupsize_minus_one = groupsize-1;
+    esize_minus_one = esize-1;
+    reverse_mask = groupsize_minus_one<esize_minus_one:0>;
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VRHADD",
@@ -7960,6 +8169,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VRSHR",
@@ -7974,6 +8184,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VRSHRN",
@@ -7987,6 +8198,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
     "name" : "VRSHRN",
@@ -8000,6 +8212,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
     "name" : "VRSQRTE",
@@ -8054,6 +8267,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VRSRA",
@@ -8068,6 +8282,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VRSUBHN",
@@ -8102,6 +8317,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "01xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSHL (immediate)",
@@ -8116,6 +8332,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "01xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSHL (register)",
@@ -8149,6 +8366,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = UInt(imm6) - 8;
         when "01xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "1xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
+    endcase
     if shift_amount == 0 then SEE VMOVL;
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
@@ -8163,6 +8381,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = UInt(imm6) - 8;
         when "01xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "1xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
+    endcase
     if shift_amount == 0 then SEE VMOVL;
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
@@ -8198,6 +8417,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSHR",
@@ -8212,6 +8432,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSHRN",
@@ -8225,6 +8446,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
     "name" : "VSHRN",
@@ -8238,6 +8460,7 @@ instructions = [
         when "001xxx" esize = 8; elements = 8; shift_amount = 16 - UInt(imm6);
         when "01xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "1xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm);"""
 } , {
     "name" : "VSLI",
@@ -8252,6 +8475,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "01xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSLI",
@@ -8266,6 +8490,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = UInt(imm6) - 16;
         when "01xxxxx" esize = 32; elements = 2; shift_amount = UInt(imm6) - 32;
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSQRT",
@@ -8300,6 +8525,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSRA",
@@ -8314,6 +8540,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     unsigned = (U == '1'); d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSRI",
@@ -8328,6 +8555,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VSRI",
@@ -8342,6 +8570,7 @@ instructions = [
         when "001xxxx" esize = 16; elements = 4; shift_amount = 32 - UInt(imm6);
         when "01xxxxx" esize = 32; elements = 2; shift_amount = 64 - UInt(imm6);
         when "1xxxxxx" esize = 64; elements = 1; shift_amount = 64 - UInt(imm6);
+    endcase
     d = UInt(D:Vd); m = UInt(M:Vm); regs = if Q == '0' then 1 else 2;"""
 } , {
     "name" : "VST1 (multiple single elements)",
@@ -8351,16 +8580,19 @@ instructions = [
     "pattern" : "1 1 1 1 1 0 0 1 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4",
     "decoder" : """case type of
         when '0111'
-            regs = 1; if align<1> == '1' then UNDEFINED;
+            regs = 1; 
+            if align<1> == '1' then UNDEFINED;
         when '1010'
-            regs = 2; if align == '11' then UNDEFINED;
+            regs = 2; 
+            if align == '11' then UNDEFINED;
         when '0110'
-            regs = 3; if align<1> == '1' then UNDEFINED;
+            regs = 3; 
+            if align<1> == '1' then UNDEFINED;
         when '0010'
             regs = 4;
         otherwise
             SEE "Related encodings";
-
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
@@ -8374,16 +8606,19 @@ instructions = [
     "pattern" : "1 1 1 1 0 1 0 0 0 D#1 0 0 Rn#4 Vd#4 type#4 size#2 align#2 Rm#4",
     "decoder" : """case type of
         when '0111'
-            regs = 1; if align<1> == '1' then UNDEFINED;
+            regs = 1; 
+            if align<1> == '1' then UNDEFINED;
         when '1010'
-            regs = 2; if align == '11' then UNDEFINED;
+            regs = 2; 
+            if align == '11' then UNDEFINED;
         when '0110'
-            regs = 3; if align<1> == '1' then UNDEFINED;
+            regs = 3; 
+            if align<1> == '1' then UNDEFINED;
         when '0010'
             regs = 4;
         otherwise
             SEE "Related encodings";
-
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
@@ -8409,8 +8644,10 @@ instructions = [
             if index_align<1:0> != '00' && index_align<1:0> != '11' then UNDEFINED;
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             alignment = if index_align<1:0> == '00' then 1 else 4;
+    endcase
     d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
-    wback = (m != 15); register_index = (m != 15 && m != 13); if n == 15 then UNPREDICTABLE;"""
+    wback = (m != 15); register_index = (m != 15 && m != 13); 
+    if n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "VST1 (single element from one lane)",
     "encoding" : "A1",
@@ -8431,8 +8668,10 @@ instructions = [
             if index_align<1:0> != '00' && index_align<1:0> != '11' then UNDEFINED;
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             alignment = if index_align<1:0> == '00' then 1 else 4;
+    endcase
     d = UInt(D:Vd); n = UInt(Rn); m = UInt(Rm);
-    wback = (m != 15); register_index = (m != 15 && m != 13); if n == 15 then UNPREDICTABLE;"""
+    wback = (m != 15); register_index = (m != 15 && m != 13); 
+    if n == 15 then UNPREDICTABLE;"""
 } , {
     "name" : "VST2 (multiple 2-element structures)",
     "encoding" : "T1",
@@ -8442,13 +8681,16 @@ instructions = [
     "decoder" : """if size == '11' then UNDEFINED;
     case type of
         when '1000'
-            regs = 1; inc = 1; if align == '11' then UNDEFINED;
+            regs = 1; inc = 1; 
+            if align == '11' then UNDEFINED;
         when '1001'
-            regs = 1; inc = 2; if align == '11' then UNDEFINED;
+            regs = 1; inc = 2; 
+            if align == '11' then UNDEFINED;
         when '0011'
             regs = 2; inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
@@ -8463,13 +8705,16 @@ instructions = [
     "decoder" : """if size == '11' then UNDEFINED;
     case type of
         when '1000'
-            regs = 1; inc = 1; if align == '11' then UNDEFINED;
+            regs = 1; inc = 1; 
+            if align == '11' then UNDEFINED;
         when '1001'
-            regs = 1; inc = 2; if align == '11' then UNDEFINED;
+            regs = 1; inc = 2; 
+            if align == '11' then UNDEFINED;
         when '0011'
             regs = 2; inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
@@ -8495,9 +8740,10 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<0> == '0' then 1 else 8;
+    endcase
     d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13); 
-    f n == 15 || d2 > 31 then UNPREDICTABLE;"""
+    if n == 15 || d2 > 31 then UNPREDICTABLE;"""
 } , {
     "name" : "VST2 (single 2-element structure from one lane)",
     "encoding" : "A1",
@@ -8518,9 +8764,10 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<0> == '0' then 1 else 8;
+    endcase
     d = UInt(D:Vd); d2 = d + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13); 
-    f n == 15 || d2 > 31 then UNPREDICTABLE;"""
+    if n == 15 || d2 > 31 then UNPREDICTABLE;"""
 } , {
     "name" : "VST3 (multiple 3-element structures)",
     "encoding" : "T1",
@@ -8535,6 +8782,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align<0> == '0' then 1 else 8;
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -8554,6 +8802,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align<0> == '0' then 1 else 8;
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -8578,6 +8827,7 @@ instructions = [
             if index_align<1:0> != '00' then UNDEFINED;
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d3 > 31 then UNPREDICTABLE;"""
@@ -8600,6 +8850,7 @@ instructions = [
             if index_align<1:0> != '00' then UNDEFINED;
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d3 > 31 then UNPREDICTABLE;"""
@@ -8617,6 +8868,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -8636,6 +8888,7 @@ instructions = [
             inc = 2;
         otherwise
             SEE "Related encodings";
+    endcase
     alignment = if align == '00' then 1 else 4 << UInt(align);
     ebytes = 1 << UInt(size); esize = 8 * ebytes; elements = 8 DIV ebytes;
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
@@ -8661,6 +8914,7 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<1:0> == '00' then 1 else 4 << UInt(index_align<1:0>);
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d4 > 31 then UNPREDICTABLE;"""
@@ -8684,6 +8938,7 @@ instructions = [
             ebytes = 4; esize = 32; index = UInt(index_align<3>);
             inc = if index_align<2> == '0' then 1 else 2;
             alignment = if index_align<1:0> == '00' then 1 else 4 << UInt(index_align<1:0>);
+    endcase
     d = UInt(D:Vd); d2 = d + inc; d3 = d2 + inc; d4 = d3 + inc; n = UInt(Rn); m = UInt(Rm);
     wback = (m != 15); register_index = (m != 15 && m != 13);
     if n == 15 || d4 > 31 then UNPREDICTABLE;"""
